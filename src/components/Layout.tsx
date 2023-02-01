@@ -21,10 +21,10 @@ const LayoutComponent = (props: LcProps) => {
     <Layout style={{ minHeight: '100vh' }}>
       <MenuComponent/>
       <Layout className="site-layout">
-        <Header style={{ padding: 0, background: colorBgContainer }}>
+        <Header style={{ height: 48, padding: 0, background: colorBgContainer }}>
           <Title title={title}/>
         </Header>
-        <Content style={{ margin: '0 16px' }}>
+        <Content style={{ margin: 16, padding: 24 }}>
           {children}
         </Content>
         <Footer style={{ textAlign: 'center' }}>Stock Portfolio ©2023 Created by Matthew Lee</Footer>

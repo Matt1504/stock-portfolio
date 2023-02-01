@@ -15,7 +15,7 @@ type TProps = {
 const TitleComponent = (props:TProps) => {
     const { title } = props;
     return (
-        <Title style={titleStyle}>{title}</Title>
+        <Title level={3} style={titleStyle}>{title}</Title>
     )
 }
 
