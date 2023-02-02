@@ -1,12 +1,12 @@
 import React from 'react';
 import { Space } from 'antd';
 
-const DashboardView = () => {
+const AccountView = () => {
   return (
     <Space>
-        Hello
+      Hello
     </Space>
   );
 };
 
-export default DashboardView;
+export default AccountView;
