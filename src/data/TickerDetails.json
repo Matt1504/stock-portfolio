@@ -1,0 +1,39 @@
+{
+    "request_id": "36be4dc33c8063bc75d316aba6ae76a3",
+    "results": {
+        "ticker": "AAPL",
+        "name": "Apple Inc.",
+        "market": "stocks",
+        "locale": "us",
+        "primary_exchange": "XNAS",
+        "type": "CS",
+        "active": true,
+        "currency_name": "usd",
+        "cik": "0000320193",
+        "composite_figi": "BBG000B9XRY4",
+        "share_class_figi": "BBG001S5N8V8",
+        "market_cap": 2303060456590,
+        "phone_number": "(408) 996-1010",
+        "address": {
+            "address1": "ONE APPLE PARK WAY",
+            "city": "CUPERTINO",
+            "state": "CA",
+            "postal_code": "95014"
+        },
+        "description": "Apple designs a wide variety of consumer electronic devices, including smartphones (iPhone), tablets (iPad), PCs (Mac), smartwatches (Apple Watch), and AirPods. The iPhone makes up most of Apple's total revenue. In addition, Apple offers its customers a variety of services such as Apple Music, iCloud, Apple Care, Apple TV+, Apple Arcade, Apple Fitness, Apple Card, and Apple Pay, among others. Apple's products include internally developed software and semiconductors, and the firm is well known for its integration of hardware, software, semiconductors, and services. Apple's products are distributed online as well as through company-owned stores and third-party retailers. The company generates roughly 40% of its revenue from the Americas, with the remainder earned internationally.",
+        "sic_code": "3571",
+        "sic_description": "ELECTRONIC COMPUTERS",
+        "ticker_root": "AAPL",
+        "homepage_url": "https://www.apple.com",
+        "total_employees": 164000,
+        "list_date": "1980-12-12",
+        "branding": {
+            "logo_url": "https://api.polygon.io/v1/reference/company-branding/d3d3LmFwcGxlLmNvbQ/images/2023-02-01_logo.svg",
+            "icon_url": "https://api.polygon.io/v1/reference/company-branding/d3d3LmFwcGxlLmNvbQ/images/2023-02-01_icon.jpeg"
+        },
+        "share_class_shares_outstanding": 15836210000,
+        "weighted_shares_outstanding": 15836213000,
+        "round_lot": 100
+    },
+    "status": "OK"
+}

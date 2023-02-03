@@ -1,0 +1,36 @@
+{
+    "results": [
+        {
+            "execution_date": "2020-08-31",
+            "split_from": 1,
+            "split_to": 4,
+            "ticker": "AAPL"
+        },
+        {
+            "execution_date": "2014-06-09",
+            "split_from": 1,
+            "split_to": 7,
+            "ticker": "AAPL"
+        },
+        {
+            "execution_date": "2005-02-28",
+            "split_from": 1,
+            "split_to": 2,
+            "ticker": "AAPL"
+        },
+        {
+            "execution_date": "2000-06-21",
+            "split_from": 1,
+            "split_to": 2,
+            "ticker": "AAPL"
+        },
+        {
+            "execution_date": "1987-06-16",
+            "split_from": 1,
+            "split_to": 2,
+            "ticker": "AAPL"
+        }
+    ],
+    "status": "OK",
+    "request_id": "97ce7e561eaf1be044d46262ad6a162c"
+}
