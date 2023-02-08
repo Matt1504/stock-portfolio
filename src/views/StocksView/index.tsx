@@ -7,6 +7,7 @@ import * as stockSplitData from '../../data/StockSplits.json';
 import * as detailData from '../../data/TickerDetails.json';
 import * as stockNewsData from '../../data/TickerNews.json';
 import CarouselComponent from '../../components/Carousel';
+import ChartComponent from '../../components/Chart';
 
 /*
 API endpoints using Polygon.io
@@ -70,6 +71,11 @@ const StocksView = () => {
             <Statistic title="Shares Outstanding" value={detData.results.share_class_shares_outstanding}/>
             </Space>
           </Card>
+        </Col>
+      </Row>
+      <Row>
+        <Col span={24}>
+          <ChartComponent labels={aggData.results.map(x => (new Date(x.t).toLocaleDateString()))} values={aggData.results} />
         </Col>
       </Row>
       <Row>

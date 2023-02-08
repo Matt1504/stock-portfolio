@@ -46,4 +46,4 @@ const LayoutComponent = (props: LcProps) => {
   );
 };
 
-export default LayoutComponent;
+  export default LayoutComponent;
