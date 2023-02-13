@@ -111,14 +111,14 @@ const StocksView = () => {
       <Row>
         <Col span={24}>
         <CarouselComponent auto={true} slides={3}>
-            {newsData.results.map((value) => {
+            {newsData.results.map((value, index) => {
               return (
                 <Card hoverable cover={<img src={value.image_url} />} key={value.id} title={value.title} extra={<a href={value.article_url} target="_blank" rel="noopener" >More</a>}>
                   <p>By: {value.author} | {value.published_utc}</p>
                   <p>{value.description}</p>
                   <div>
-                    {value.tickers.map((x) => {
-                      return <Badge count={x} />
+                    {value.tickers.map((x, index) => {
+                      return <Badge key={index} count={x} />
                     })}
                   </div>
                 </Card>
