@@ -31,9 +31,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "compile": "graphql-codegen",
-    "watch": "graphql-codegen -w"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
