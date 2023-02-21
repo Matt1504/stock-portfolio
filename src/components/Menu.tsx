@@ -3,6 +3,7 @@ import {
   FolderOpenOutlined,
   SearchOutlined,
   AreaChartOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import type { MenuProps } from 'antd';
@@ -49,6 +50,8 @@ const itemsCollapsed: MenuItem[] = [
       getItem('Canada Life', '/rrsp/cl'),
     ], 'group'),
   ]),
+
+  getItem('Add Activity', '/add', <PlusOutlined />),
 ];
 
 const items: MenuItem[] = [
@@ -66,6 +69,7 @@ const items: MenuItem[] = [
     getItem('Wealthsimple', '/rrsp/ws'),
     getItem('Canada Life', '/rrsp/cl'),
   ]),
+  getItem('Add Activity', '/add', <PlusOutlined />),
 ];
 
 const MenuComponent = () => {

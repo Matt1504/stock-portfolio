@@ -76,15 +76,10 @@ const StocksView = () => {
       </Row>
       <Row>
         <Col span={24}>
-          <ChartComponent labels={aggData.results.map(x => (new Date(x.t).toLocaleDateString()))} values={aggData.results} />
-        </Col>
-      </Row>
-      <Row>
-        <Col span={24}>
           <CarouselComponent auto={false} slides={4}>
           {divData.results.map((value) => {
             return( 
-              <Card key={value.declaration_date}>
+              <Card key={value.declaration_date} style={{marginLeft: 8, marginRight: 8}}>
                 <Statistic value={value.cash_amount} prefix="$" suffix={value.currency} />
                 <p>Declaration Date: {value.declaration_date}</p>
                 <p>Ex-Dividend Date: {value.ex_dividend_date}</p>
@@ -97,10 +92,15 @@ const StocksView = () => {
       </Row>
       <Row>
         <Col span={24}>
+          <ChartComponent labels={aggData.results.map(x => (new Date(x.t).toLocaleDateString()))} values={aggData.results} />
+        </Col>
+      </Row>
+      <Row>
+        <Col span={24}>
           <CarouselComponent auto={false} slides={5}>
             {splitData.results.map((value) => {
               return(
-                <Card key={value.execution_date}>
+                <Card key={value.execution_date} style={{marginLeft: 8, marginRight: 8}}>
                   <Statistic title="Stock Split" value={`${value.split_to}:${value.split_from}`} />
                   <p>{value.execution_date}</p>
                 </Card>
@@ -114,7 +114,7 @@ const StocksView = () => {
           <CarouselComponent auto={true} slides={3}>
               {newsData.results.map((value) => {
                 return (
-                  <Card style={{ margin: 8}} hoverable cover={<img height={200} src={value.image_url} />} key={value.id} title={value.title} extra={<a href={value.article_url} target="_blank" rel="noopener" >More</a>}>
+                  <Card style={{ margin: 8}} hoverable cover={<img height={200} src={value.image_url} />} key={value.id} title={value.title} extra={<a href={value.article_url} target="_blank" rel="noreferrer" >More</a>}>
                     <div style={{height: 160}}>
                       <p>By: {value.author} | {value.published_utc}</p>
                       <p className='stockCardInfo'>{value.description}</p>
