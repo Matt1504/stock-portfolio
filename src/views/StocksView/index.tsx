@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Space, Badge, Statistic, Card, Input, Col, Row } from 'antd';
+import { Space, Badge, Statistic, Card, Input, Col, AutoComplete } from 'antd';
 import * as aggregateData from '../../data/AggregateBars.json';
 import * as dividendData from '../../data/Dividends.json';
 import * as stockSplitData from '../../data/StockSplits.json';
@@ -8,6 +8,7 @@ import * as detailData from '../../data/TickerDetails.json';
 import * as stockNewsData from '../../data/TickerNews.json';
 import CarouselComponent from '../../components/Carousel';
 import ChartComponent from '../../components/Chart';
+import { CustomRow as Row } from '../../components/Row';
 
 /*
 API endpoints using Polygon.io
@@ -56,7 +57,7 @@ const StocksView = () => {
 
   return (
     <>
-      <Row gutter={16}>
+      <Row>
         <Col span={24}>
           <Search placeholder="input search text" onSearch={onSearch} allowClear />
         </Col>
@@ -110,20 +111,22 @@ const StocksView = () => {
       </Row>
       <Row>
         <Col span={24}>
-        <CarouselComponent auto={true} slides={3}>
-            {newsData.results.map((value, index) => {
-              return (
-                <Card hoverable cover={<img src={value.image_url} />} key={value.id} title={value.title} extra={<a href={value.article_url} target="_blank" rel="noopener" >More</a>}>
-                  <p>By: {value.author} | {value.published_utc}</p>
-                  <p>{value.description}</p>
-                  <div>
-                    {value.tickers.map((x, index) => {
-                      return <Badge key={index} count={x} />
-                    })}
-                  </div>
-                </Card>
-              );
-            })}
+          <CarouselComponent auto={true} slides={3}>
+              {newsData.results.map((value) => {
+                return (
+                  <Card style={{ margin: 8}} hoverable cover={<img height={200} src={value.image_url} />} key={value.id} title={value.title} extra={<a href={value.article_url} target="_blank" rel="noopener" >More</a>}>
+                    <div style={{height: 160}}>
+                      <p>By: {value.author} | {value.published_utc}</p>
+                      <p className='stockCardInfo'>{value.description}</p>
+                    </div>
+                    <div>
+                      {value.tickers.slice(0, 5).map((x, index) => {
+                        return <Badge style={{margin: 4}} key={index} count={x} />
+                      })}
+                    </div>
+                  </Card>
+                );
+              })}
           </CarouselComponent>
         </Col>
       </Row>
