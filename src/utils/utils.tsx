@@ -33,3 +33,9 @@ export function formatDate(date: string) {
 
   return [year, month, day].join("/");
 }
+
+export function formatDecimalTwoPlaces(num: number) {
+  return Math.round(num*100)/100;
+
+
+}

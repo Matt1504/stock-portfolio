@@ -18,7 +18,7 @@ import dayjs from "dayjs";
 import type { InputRef } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useQuery, gql } from "@apollo/client";
-import { formatDate } from "../../utils/utils";
+import { formatDate, formatDecimalTwoPlaces } from "../../utils/utils";
 
 const dateFormat = "YYYY/MM/DD";
 
@@ -101,6 +101,7 @@ const AddActivityView = () => {
   const [platform, setPlatform] = useState("");
   const [platforms, setPlatforms] = useState([]);
   const [stockName, setStockName] = useState("");
+  const [activity, setActivity] = useState("");
   const [stocks, setStocks] = useState([]);
   const [price, setPrice] = useState(0);
   const [fee, setFee] = useState(0);
@@ -149,25 +150,38 @@ const AddActivityView = () => {
     }, 0);
   };
 
+  const onActivityChange = (value: string) => {
+    setActivity(value);
+  };
+
   const onDateChange: DatePickerProps["onChange"] = (date, dateString) => {
     setTransDate(dateString);
   };
-  
+
   const onPriceChange = (value: number | null) => {
     setPrice(value ?? 0);
-  }
+    if (shares) {
+      setTotal(formatDecimalTwoPlaces((fee ?? 0) + shares * (value ?? 0)));
+    }
+  };
 
   const onShareChange = (value: number | null) => {
     setShares(value ?? 0);
-  }
+    if (price) {
+      setTotal(formatDecimalTwoPlaces(fee ?? 0) + price * (value ?? 0));
+    }
+  };
 
   const onFeeChange = (value: number | null) => {
     setFee(value ?? 0);
-  }
+    if (shares && price) {
+      setTotal(formatDecimalTwoPlaces((value ?? 0) + price * shares));
+    }
+  };
 
   const onTotalChange = (value: number | null) => {
     setTotal(value ?? 0);
-  }
+  };
 
   useEffect(() => {
     if (data?.stocks) {
@@ -269,6 +283,8 @@ const AddActivityView = () => {
           >
             <Select
               style={{ width: 300 }}
+              value={activity}
+              onChange={onActivityChange}
               options={data?.activities?.edges.map((activity: any) => ({
                 label: activity.node.name,
                 value: activity.node.id,
@@ -287,37 +303,38 @@ const AddActivityView = () => {
               format={dateFormat}
             />
           </Form.Item>
-          <Space>
-            <Form.Item name="price" label="Price">
-              <InputNumber
-                min={0}
-                step={0.01}
-                value={price}
-                onChange={onPriceChange}
-                formatter={(value) => `$ ${value}`}
-              />
-            </Form.Item>
-            <Form.Item name="shares" label="Shares">
-              <InputNumber value={shares} onChange={onShareChange} min={0} step={1} />
-            </Form.Item>
-            <Form.Item name="fee" label="Fee">
-              <InputNumber
-                min={0}
-                step={0.01}
-                value={fee}
-                onChange={onFeeChange}
-                formatter={(value) => `$ ${value}`}
-              />
-            </Form.Item>
-            <Form.Item name="total" label="Total" rules={[{ required: true }]}>
-              <InputNumber
-                min={0}
-                step={0.01}
-                value={total}
-                onChange={onTotalChange}
-                formatter={(value) => `$ ${value}`}
-              />
-            </Form.Item>
+          <Space align="baseline">
+            <InputNumber
+              min={0}
+              step={0.01}
+              value={price}
+              addonBefore="Price"
+              onChange={onPriceChange}
+              formatter={(value) => `$ ${value}`}
+            />
+            <InputNumber
+              value={shares}
+              onChange={onShareChange}
+              addonBefore="Shares"
+              min={0}
+              step={1}
+            />
+            <InputNumber
+              min={0}
+              step={0.01}
+              value={fee}
+              onChange={onFeeChange}
+              addonBefore="Fees"
+              formatter={(value) => `$ ${value}`}
+            />
+            <InputNumber
+              min={0}
+              step={0.01}
+              value={total}
+              onChange={onTotalChange}
+              addonBefore="Total"
+              formatter={(value) => `$ ${value}`}
+            />
           </Space>
         </>
       ) : (
