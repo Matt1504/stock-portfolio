@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import type { DatePickerProps } from "antd";
 import {
   Button,
   Radio,
@@ -6,11 +7,20 @@ import {
   Col,
   Form,
   Input,
+  InputNumber,
   Space,
   Select,
   RadioChangeEvent,
+  DatePicker,
+  Divider,
 } from "antd";
+import dayjs from "dayjs";
+import type { InputRef } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import { useQuery, gql } from "@apollo/client";
+import { formatDate } from "../../utils/utils";
+
+const dateFormat = "YYYY/MM/DD";
 
 const GET_PLATFORM_INFO = gql(`
   query {
@@ -32,6 +42,14 @@ const GET_PLATFORM_INFO = gql(`
             }
         }
     }
+    activities {
+        edges {
+            node {
+                id 
+                name
+            }
+        }
+    }
     platforms {
       edges {
         node {
@@ -50,6 +68,23 @@ const GET_PLATFORM_INFO = gql(`
         }
       }
     }
+    activities {
+        edges {
+            node {
+                id
+                name
+            }
+        }
+    }
+    stocks {
+        edges {
+            node {
+                id
+                name
+                ticker
+            }
+        }
+    }
   }
 `);
 
@@ -59,11 +94,19 @@ const tailLayout = {
 
 const AddActivityView = () => {
   const { loading, error, data } = useQuery(GET_PLATFORM_INFO);
+  const inputRef = useRef<InputRef>(null);
 
   const [accountId, setAccountId] = useState("");
   const [currencyId, setCurrencyId] = useState("");
   const [platform, setPlatform] = useState("");
   const [platforms, setPlatforms] = useState([]);
+  const [stockName, setStockName] = useState("");
+  const [stocks, setStocks] = useState([]);
+  const [price, setPrice] = useState(0);
+  const [fee, setFee] = useState(0);
+  const [shares, setShares] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [transDate, setTransDate] = useState(formatDate(""));
 
   const onAccountChange = (e: RadioChangeEvent) => {
     setAccountId(e.target.value);
@@ -91,9 +134,46 @@ const AddActivityView = () => {
     setPlatform(value);
   };
 
+  const onNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStockName(event.target.value);
+  };
+
+  const addItem = (
+    e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>
+  ) => {
+    e.preventDefault();
+    setStockName("");
+    //setStocks([...stocks, stockName])
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
+  const onDateChange: DatePickerProps["onChange"] = (date, dateString) => {
+    setTransDate(dateString);
+  };
+  
+  const onPriceChange = (value: number | null) => {
+    setPrice(value ?? 0);
+  }
+
+  const onShareChange = (value: number | null) => {
+    setShares(value ?? 0);
+  }
+
+  const onFeeChange = (value: number | null) => {
+    setFee(value ?? 0);
+  }
+
+  const onTotalChange = (value: number | null) => {
+    setTotal(value ?? 0);
+  }
+
   useEffect(() => {
-    console.log(platform);
-  }, [platform]);
+    if (data?.stocks) {
+      setStocks(data.stocks?.edges);
+    }
+  }, [data]);
 
   return (
     <Form>
@@ -142,20 +222,104 @@ const AddActivityView = () => {
         </Col>
       </Row>
       {accountId && currencyId ? (
-        <Space align="baseline">
+        <>
+          <Space align="baseline">
+            <Form.Item name="platform" label="Platform" />
+            <Select
+              onChange={onPlatformChange}
+              value={platform}
+              style={{ width: 200 }}
+              options={platforms.map((platform: any) => ({
+                label: platform.node.name,
+                value: platform.node.id,
+              }))}
+            />
+          </Space>
+          <Form.Item>
+            <Select
+              style={{ width: 300 }}
+              placeholder="Stock Name"
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: "8px 0" }} />
+                  <Space style={{ padding: "0 8px 4px" }}>
+                    <Input
+                      placeholder="Please enter name"
+                      ref={inputRef}
+                      value={stockName}
+                      onChange={onNameChange}
+                    />
+                    <Button
+                      type="text"
+                      icon={<PlusOutlined />}
+                      onClick={addItem}
+                    >
+                      Add Stock Name
+                    </Button>
+                  </Space>
+                </>
+              )}
+            />
+          </Form.Item>
           <Form.Item
-            name="platform"
-            label="Platform" />
-          <Select
-            onChange={onPlatformChange}
-            value={platform}
-            style={{width: 200}}
-            options={platforms.map((platform: any) => ({
-              label: platform.node.name,
-              value: platform.node.id,
-            }))}
-          />
-        </Space>
+            name="activity"
+            label="Activity"
+            rules={[{ required: true }]}
+          >
+            <Select
+              style={{ width: 300 }}
+              options={data?.activities?.edges.map((activity: any) => ({
+                label: activity.node.name,
+                value: activity.node.id,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="date"
+            label="Transaction Date"
+            rules={[{ required: true }]}
+          >
+            <DatePicker
+              value={dayjs(transDate, dateFormat)}
+              onChange={onDateChange}
+              style={{ width: 200 }}
+              format={dateFormat}
+            />
+          </Form.Item>
+          <Space>
+            <Form.Item name="price" label="Price">
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={price}
+                onChange={onPriceChange}
+                formatter={(value) => `$ ${value}`}
+              />
+            </Form.Item>
+            <Form.Item name="shares" label="Shares">
+              <InputNumber value={shares} onChange={onShareChange} min={0} step={1} />
+            </Form.Item>
+            <Form.Item name="fee" label="Fee">
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={fee}
+                onChange={onFeeChange}
+                formatter={(value) => `$ ${value}`}
+              />
+            </Form.Item>
+            <Form.Item name="total" label="Total" rules={[{ required: true }]}>
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={total}
+                onChange={onTotalChange}
+                formatter={(value) => `$ ${value}`}
+              />
+            </Form.Item>
+          </Space>
+        </>
       ) : (
         <></>
       )}
