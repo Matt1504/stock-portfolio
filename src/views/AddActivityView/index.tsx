@@ -88,10 +88,6 @@ const GET_PLATFORM_INFO = gql(`
   }
 `);
 
-const tailLayout = {
-  wrapperCol: { offset: 8, span: 16 },
-};
-
 const AddActivityView = () => {
   const { loading, error, data } = useQuery(GET_PLATFORM_INFO);
   const inputRef = useRef<InputRef>(null);
@@ -100,9 +96,12 @@ const AddActivityView = () => {
   const [currencyId, setCurrencyId] = useState("");
   const [platform, setPlatform] = useState("");
   const [platforms, setPlatforms] = useState([]);
-  const [stockName, setStockName] = useState("");
+  const [addStock, setAddStock] = useState("");
   const [activity, setActivity] = useState("");
+  const [stockName, setStockName] = useState("");
   const [stocks, setStocks] = useState([]);
+  const [ticker, setTicker] = useState("");
+  const [addedStock, setAddedStock] = useState(false);
   const [price, setPrice] = useState(0);
   const [fee, setFee] = useState(0);
   const [shares, setShares] = useState(0);
@@ -135,15 +134,22 @@ const AddActivityView = () => {
     setPlatform(value);
   };
 
-  const onNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setStockName(event.target.value);
+  const handleStockChange = (value: { value: string; label: string }) => {
+    setStockName(value.label);
+    setTicker(value.value);
+  };
+
+  const onAddNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log(event.target);
+    setAddStock(event.target.value);
+    setAddedStock(false);
   };
 
   const addItem = (
     e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>
   ) => {
     e.preventDefault();
-    setStockName("");
+    setAddStock("");
     //setStocks([...stocks, stockName])
     setTimeout(() => {
       inputRef.current?.focus();
@@ -152,6 +158,10 @@ const AddActivityView = () => {
 
   const onActivityChange = (value: string) => {
     setActivity(value);
+  };
+
+  const onTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTicker(e.target.value);
   };
 
   const onDateChange: DatePickerProps["onChange"] = (date, dateString) => {
@@ -237,22 +247,27 @@ const AddActivityView = () => {
       </Row>
       {accountId && currencyId ? (
         <>
+          <Row>
+            <Space align="baseline">
+              <Form.Item name="platform" label="Platform" />
+              <Select
+                onChange={onPlatformChange}
+                value={platform}
+                style={{ width: 200 }}
+                options={platforms.map((platform: any) => ({
+                  label: platform.node.name,
+                  value: platform.node.id,
+                }))}
+              />
+            </Space>
+          </Row>
           <Space align="baseline">
-            <Form.Item name="platform" label="Platform" />
+            <Form.Item name="stock name" label="Stock Name" />
             <Select
-              onChange={onPlatformChange}
-              value={platform}
-              style={{ width: 200 }}
-              options={platforms.map((platform: any) => ({
-                label: platform.node.name,
-                value: platform.node.id,
-              }))}
-            />
-          </Space>
-          <Form.Item>
-            <Select
-              style={{ width: 300 }}
+              style={{ width: 500 }}
+              labelInValue
               placeholder="Stock Name"
+              onChange={handleStockChange}
               dropdownRender={(menu) => (
                 <>
                   {menu}
@@ -261,8 +276,8 @@ const AddActivityView = () => {
                     <Input
                       placeholder="Please enter name"
                       ref={inputRef}
-                      value={stockName}
-                      onChange={onNameChange}
+                      value={addStock}
+                      onChange={onAddNameChange}
                     />
                     <Button
                       type="text"
@@ -274,35 +289,47 @@ const AddActivityView = () => {
                   </Space>
                 </>
               )}
-            />
-          </Form.Item>
-          <Form.Item
-            name="activity"
-            label="Activity"
-            rules={[{ required: true }]}
-          >
-            <Select
-              style={{ width: 300 }}
-              value={activity}
-              onChange={onActivityChange}
-              options={data?.activities?.edges.map((activity: any) => ({
-                label: activity.node.name,
-                value: activity.node.id,
+              options={stocks.map((item: any) => ({
+                label: item.node.name,
+                value: item.node.ticker,
               }))}
             />
-          </Form.Item>
-          <Form.Item
-            name="date"
-            label="Transaction Date"
-            rules={[{ required: true }]}
-          >
-            <DatePicker
-              value={dayjs(transDate, dateFormat)}
-              onChange={onDateChange}
-              style={{ width: 200 }}
-              format={dateFormat}
+            <Form.Item name="stock ticker" label="Stock Ticker" />
+            <Input
+              value={ticker}
+              disabled={!addedStock}
+              onChange={onTickerChange}
             />
-          </Form.Item>
+          </Space>
+          <Space align="baseline">
+            <Form.Item
+              name="activity"
+              label="Activity"
+              rules={[{ required: true }]}
+            >
+              <Select
+                style={{ width: 300 }}
+                value={activity}
+                onChange={onActivityChange}
+                options={data?.activities?.edges.map((activity: any) => ({
+                  label: activity.node.name,
+                  value: activity.node.id,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item
+              name="date"
+              label="Transaction Date"
+              rules={[{ required: true }]}
+            >
+              <DatePicker
+                value={dayjs(transDate, dateFormat)}
+                onChange={onDateChange}
+                style={{ width: 200 }}
+                format={dateFormat}
+              />
+            </Form.Item>
+          </Space>
           <Space align="baseline">
             <InputNumber
               min={0}
@@ -340,11 +367,11 @@ const AddActivityView = () => {
       ) : (
         <></>
       )}
-      <Form.Item {...tailLayout}>
-        <Button type="primary" htmlType="submit">
+      <Form.Item style={{ marginTop: 32 }}>
+        <Button htmlType="submit">Reset</Button>
+        <Button style={{ marginLeft: 16 }} type="primary" htmlType="button">
           Submit
         </Button>
-        <Button htmlType="button">Reset</Button>
       </Form.Item>
     </Form>
   );
