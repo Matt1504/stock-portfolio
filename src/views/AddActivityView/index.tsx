@@ -274,7 +274,7 @@ const AddActivityView = () => {
                   <Divider style={{ margin: "8px 0" }} />
                   <Space style={{ padding: "0 8px 4px" }}>
                     <Input
-                      placeholder="Please enter name"
+                      placeholder="Name,Ticker"
                       ref={inputRef}
                       value={addStock}
                       onChange={onAddNameChange}
