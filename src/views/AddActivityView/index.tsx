@@ -200,180 +200,182 @@ const AddActivityView = () => {
   }, [data]);
 
   return (
-    <Form>
-      <Row>
-        <Col span={12}>
-          <Form.Item
-            name="account"
-            label="Account"
-            rules={[{ required: true }]}
-          >
-            <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.accounts?.edges.map((account: any) => {
-                return (
-                  <Radio
-                    key={account.node.id}
-                    onChange={onAccountChange}
-                    value={account.node.id}
-                  >
-                    {account.node.name}
-                  </Radio>
-                );
-              })}
-            </Radio.Group>
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item
-            name="currency"
-            label="Currency"
-            rules={[{ required: true }]}
-          >
-            <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.currencies?.edges.map((currency: any) => {
-                return (
-                  <Radio
-                    key={currency.node.id}
-                    onChange={onCurrencyChange}
-                    value={currency.node.id}
-                  >
-                    {currency.node.code}
-                  </Radio>
-                );
-              })}
-            </Radio.Group>
-          </Form.Item>
-        </Col>
-      </Row>
-      {accountId && currencyId ? (
-        <>
-          <Row>
+    <Row>
+      <Form>
+        <Row>
+          <Col span={12}>
+            <Form.Item
+              name="account"
+              label="Account"
+              rules={[{ required: true }]}
+            >
+              <Radio.Group optionType="button" buttonStyle="solid">
+                {data?.accounts?.edges.map((account: any) => {
+                  return (
+                    <Radio
+                      key={account.node.id}
+                      onChange={onAccountChange}
+                      value={account.node.id}
+                    >
+                      {account.node.name}
+                    </Radio>
+                  );
+                })}
+              </Radio.Group>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="currency"
+              label="Currency"
+              rules={[{ required: true }]}
+            >
+              <Radio.Group optionType="button" buttonStyle="solid">
+                {data?.currencies?.edges.map((currency: any) => {
+                  return (
+                    <Radio
+                      key={currency.node.id}
+                      onChange={onCurrencyChange}
+                      value={currency.node.id}
+                    >
+                      {currency.node.code}
+                    </Radio>
+                  );
+                })}
+              </Radio.Group>
+            </Form.Item>
+          </Col>
+        </Row>
+        {accountId && currencyId ? (
+          <>
+            <Row>
+              <Space align="baseline">
+                <Form.Item name="platform" label="Platform" />
+                <Select
+                  onChange={onPlatformChange}
+                  value={platform}
+                  style={{ width: 200 }}
+                  options={platforms.map((platform: any) => ({
+                    label: platform.node.name,
+                    value: platform.node.id,
+                  }))}
+                />
+              </Space>
+            </Row>
             <Space align="baseline">
-              <Form.Item name="platform" label="Platform" />
+              <Form.Item name="stock name" label="Stock Name" />
               <Select
-                onChange={onPlatformChange}
-                value={platform}
-                style={{ width: 200 }}
-                options={platforms.map((platform: any) => ({
-                  label: platform.node.name,
-                  value: platform.node.id,
+                style={{ width: 500 }}
+                labelInValue
+                placeholder="Stock Name"
+                onChange={handleStockChange}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: "8px 0" }} />
+                    <Space style={{ padding: "0 8px 4px" }}>
+                      <Input
+                        placeholder="Name,Ticker"
+                        ref={inputRef}
+                        value={addStock}
+                        onChange={onAddNameChange}
+                      />
+                      <Button
+                        type="text"
+                        icon={<PlusOutlined />}
+                        onClick={addItem}
+                      >
+                        Add Stock Name
+                      </Button>
+                    </Space>
+                  </>
+                )}
+                options={stocks.map((item: any) => ({
+                  label: item.node.name,
+                  value: item.node.ticker,
                 }))}
+              />
+              <Form.Item name="stock ticker" label="Stock Ticker" />
+              <Input
+                value={ticker}
+                disabled={!addedStock}
+                onChange={onTickerChange}
               />
             </Space>
-          </Row>
-          <Space align="baseline">
-            <Form.Item name="stock name" label="Stock Name" />
-            <Select
-              style={{ width: 500 }}
-              labelInValue
-              placeholder="Stock Name"
-              onChange={handleStockChange}
-              dropdownRender={(menu) => (
-                <>
-                  {menu}
-                  <Divider style={{ margin: "8px 0" }} />
-                  <Space style={{ padding: "0 8px 4px" }}>
-                    <Input
-                      placeholder="Name,Ticker"
-                      ref={inputRef}
-                      value={addStock}
-                      onChange={onAddNameChange}
-                    />
-                    <Button
-                      type="text"
-                      icon={<PlusOutlined />}
-                      onClick={addItem}
-                    >
-                      Add Stock Name
-                    </Button>
-                  </Space>
-                </>
-              )}
-              options={stocks.map((item: any) => ({
-                label: item.node.name,
-                value: item.node.ticker,
-              }))}
-            />
-            <Form.Item name="stock ticker" label="Stock Ticker" />
-            <Input
-              value={ticker}
-              disabled={!addedStock}
-              onChange={onTickerChange}
-            />
-          </Space>
-          <Space align="baseline">
-            <Form.Item
-              name="activity"
-              label="Activity"
-              rules={[{ required: true }]}
-            >
-              <Select
-                style={{ width: 300 }}
-                value={activity}
-                onChange={onActivityChange}
-                options={data?.activities?.edges.map((activity: any) => ({
-                  label: activity.node.name,
-                  value: activity.node.id,
-                }))}
+            <Space align="baseline">
+              <Form.Item
+                name="activity"
+                label="Activity"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  style={{ width: 300 }}
+                  value={activity}
+                  onChange={onActivityChange}
+                  options={data?.activities?.edges.map((activity: any) => ({
+                    label: activity.node.name,
+                    value: activity.node.id,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item
+                name="date"
+                label="Transaction Date"
+                rules={[{ required: true }]}
+              >
+                <DatePicker
+                  value={dayjs(transDate, dateFormat)}
+                  onChange={onDateChange}
+                  style={{ width: 200 }}
+                  format={dateFormat}
+                />
+              </Form.Item>
+            </Space>
+            <Space align="baseline">
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={price}
+                addonBefore="Price"
+                onChange={onPriceChange}
+                formatter={(value) => `$ ${value}`}
               />
-            </Form.Item>
-            <Form.Item
-              name="date"
-              label="Transaction Date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker
-                value={dayjs(transDate, dateFormat)}
-                onChange={onDateChange}
-                style={{ width: 200 }}
-                format={dateFormat}
+              <InputNumber
+                value={shares}
+                onChange={onShareChange}
+                addonBefore="Shares"
+                min={0}
+                step={1}
               />
-            </Form.Item>
-          </Space>
-          <Space align="baseline">
-            <InputNumber
-              min={0}
-              step={0.01}
-              value={price}
-              addonBefore="Price"
-              onChange={onPriceChange}
-              formatter={(value) => `$ ${value}`}
-            />
-            <InputNumber
-              value={shares}
-              onChange={onShareChange}
-              addonBefore="Shares"
-              min={0}
-              step={1}
-            />
-            <InputNumber
-              min={0}
-              step={0.01}
-              value={fee}
-              onChange={onFeeChange}
-              addonBefore="Fees"
-              formatter={(value) => `$ ${value}`}
-            />
-            <InputNumber
-              min={0}
-              step={0.01}
-              value={total}
-              onChange={onTotalChange}
-              addonBefore="Total"
-              formatter={(value) => `$ ${value}`}
-            />
-          </Space>
-        </>
-      ) : (
-        <></>
-      )}
-      <Form.Item style={{ marginTop: 32 }}>
-        <Button htmlType="submit">Reset</Button>
-        <Button style={{ marginLeft: 16 }} type="primary" htmlType="button">
-          Submit
-        </Button>
-      </Form.Item>
-    </Form>
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={fee}
+                onChange={onFeeChange}
+                addonBefore="Fees"
+                formatter={(value) => `$ ${value}`}
+              />
+              <InputNumber
+                min={0}
+                step={0.01}
+                value={total}
+                onChange={onTotalChange}
+                addonBefore="Total"
+                formatter={(value) => `$ ${value}`}
+              />
+            </Space>
+          </>
+        ) : (
+          <></>
+        )}
+        <Form.Item style={{ marginTop: 32 }}>
+          <Button htmlType="submit">Reset</Button>
+          <Button style={{ marginLeft: 16 }} type="primary" htmlType="button">
+            Submit
+          </Button>
+        </Form.Item>
+      </Form>
+    </Row>
   );
 };
 

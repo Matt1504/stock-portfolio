@@ -1,24 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   FolderOpenOutlined,
   SearchOutlined,
   AreaChartOutlined,
-  PlusOutlined
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router';
-import type { MenuProps } from 'antd';
-import { Layout, Menu } from 'antd';
+  PlusOutlined,
+  StockOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router";
+import type { MenuProps } from "antd";
+import { Layout, Menu } from "antd";
 
 const { Sider } = Layout;
 
-type MenuItem = Required<MenuProps>['items'][number];
+type MenuItem = Required<MenuProps>["items"][number];
 
 function getItem(
   label: React.ReactNode,
   key?: React.Key | null,
   icon?: React.ReactNode,
   children?: MenuItem[],
-  type?: 'group',
+  type?: "group"
 ): MenuItem {
   return {
     key,
@@ -30,70 +31,87 @@ function getItem(
 }
 
 const itemsCollapsed: MenuItem[] = [
-  getItem('Dashboard', '/home', <AreaChartOutlined />),
-  getItem('Stock Finder', '/stocks', <SearchOutlined />),
+  getItem("Dashboard", "/home", <AreaChartOutlined />),
+  getItem("Stock Finder", "/stocks", <SearchOutlined />),
 
-  getItem('TFSA Portfolio', null, <FolderOpenOutlined />, [
-    getItem('TFSA Portfolio', null, null, [
-      getItem('Overview', '/tfsa/overview'),
-      getItem('TD Direct Investing', '/tfsa/di'),
-      getItem('TD Easy Trade', '/tfsa/et'),
-      getItem('Wealthsimple', '/tfsa/ws'),
-    ], 'group'),
+  getItem("TFSA Portfolio", null, <FolderOpenOutlined />, [
+    getItem(
+      "TFSA Portfolio",
+      null,
+      null,
+      [
+        getItem("Overview", "/tfsa/overview"),
+        getItem("TD Direct Investing", "/tfsa/di"),
+        getItem("TD Easy Trade", "/tfsa/et"),
+        getItem("Wealthsimple", "/tfsa/ws"),
+      ],
+      "group"
+    ),
   ]),
 
-  getItem('RRSP Portfolio', null, <FolderOpenOutlined />, [
-    getItem('RRSP Portfolio', null, null, [
-      getItem('Overview', '/rrsp/overview'),
-      getItem('TD Easy Trade', '/rrsp/et'),
-      getItem('Wealthsimple', '/rrsp/ws'),
-      getItem('Canada Life', '/rrsp/cl'),
-    ], 'group'),
+  getItem("RRSP Portfolio", null, <FolderOpenOutlined />, [
+    getItem(
+      "RRSP Portfolio",
+      null,
+      null,
+      [
+        getItem("Overview", "/rrsp/overview"),
+        getItem("TD Easy Trade", "/rrsp/et"),
+        getItem("Wealthsimple", "/rrsp/ws"),
+        getItem("Canada Life", "/rrsp/cl"),
+      ],
+      "group"
+    ),
   ]),
-
-  getItem('Add Activity', '/add', <PlusOutlined />),
+  getItem("My Stocks", "/mystocks", <StockOutlined />),
+  getItem("Add Activity", "/add", <PlusOutlined />),
 ];
 
 const items: MenuItem[] = [
-  getItem('Home', '/home', <AreaChartOutlined />),
-  getItem('Stock Finder', '/stocks', <SearchOutlined />),
-  getItem('TFSA Portfolio', null, <FolderOpenOutlined />, [
-    getItem('Overview', '/tfsa/overview'),
-    getItem('TD Direct Investing', '/tfsa/di'),
-    getItem('TD Easy Trade', '/tfsa/et'),
-    getItem('Wealthsimple', '/tfsa/ws'),
+  getItem("Home", "/home", <AreaChartOutlined />),
+  getItem("Stock Finder", "/stocks", <SearchOutlined />),
+  getItem("TFSA Portfolio", null, <FolderOpenOutlined />, [
+    getItem("Overview", "/tfsa/overview"),
+    getItem("TD Direct Investing", "/tfsa/di"),
+    getItem("TD Easy Trade", "/tfsa/et"),
+    getItem("Wealthsimple", "/tfsa/ws"),
   ]),
-  getItem('RRSP Portfolio', null, <FolderOpenOutlined />, [
-    getItem('Overview', '/rrsp/overview'),
-    getItem('TD Easy Trade', '/rrsp/et'),
-    getItem('Wealthsimple', '/rrsp/ws'),
-    getItem('Canada Life', '/rrsp/cl'),
+  getItem("RRSP Portfolio", null, <FolderOpenOutlined />, [
+    getItem("Overview", "/rrsp/overview"),
+    getItem("TD Easy Trade", "/rrsp/et"),
+    getItem("Wealthsimple", "/rrsp/ws"),
+    getItem("Canada Life", "/rrsp/cl"),
   ]),
-  getItem('Add Activity', '/add', <PlusOutlined />),
+  getItem("My Stocks", "/mystocks", <StockOutlined />),
+  getItem("Add Activity", "/add", <PlusOutlined />),
 ];
 
 const MenuComponent = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
-  function handleMenuClick (path:string) {
+  function handleMenuClick(path: string) {
     if (path === null || path === "") {
       return;
     }
     return navigate(path);
   }
-  
+
   return (
-    <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div style={{ height: 8, margin: 16 }} />
-        <Menu
-          defaultSelectedKeys={['1']}
-          defaultOpenKeys={['sub1']}
-          mode="inline"
-          theme="dark"
-          items={collapsed ? itemsCollapsed  : items}
-          onClick={(item) => handleMenuClick(item.key)}
-        />
+    <Sider
+      collapsible
+      collapsed={collapsed}
+      onCollapse={(value) => setCollapsed(value)}
+    >
+      <div style={{ height: 8, margin: 16 }} />
+      <Menu
+        defaultSelectedKeys={["1"]}
+        defaultOpenKeys={["sub1"]}
+        mode="inline"
+        theme="dark"
+        items={collapsed ? itemsCollapsed : items}
+        onClick={(item) => handleMenuClick(item.key)}
+      />
     </Sider>
   );
 };

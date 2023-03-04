@@ -10,9 +10,9 @@ import LayoutComponent from "./components/Layout";
 import AccountOverviewView from "./views/AccountView";
 import StocksView from "./views/StocksView";
 import AddActivityView from "./views/AddActivityView";
+import MyStocksView from "./views/MyStocksView";
 
 const App = () => {
-
   return (
     <Router>
       <Routes>
@@ -35,10 +35,13 @@ const App = () => {
         <Route
           path="/add"
           element={
-            <LayoutComponent
-              title="Add Activity"
-              view={<AddActivityView />}
-            />
+            <LayoutComponent title="Add Activity" view={<AddActivityView />} />
+          }
+        />
+        <Route
+          path="/mystocks"
+          element={
+            <LayoutComponent title="My Stocks" view={<MyStocksView />} />
           }
         />
         <Route
