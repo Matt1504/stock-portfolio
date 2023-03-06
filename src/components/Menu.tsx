@@ -1,15 +1,16 @@
-import React, { useState } from "react";
-import {
-  FolderOpenOutlined,
-  SearchOutlined,
-  AreaChartOutlined,
-  PlusOutlined,
-  StockOutlined,
-} from "@ant-design/icons";
-import { useNavigate } from "react-router";
-import type { MenuProps } from "antd";
 import { Layout, Menu } from "antd";
+import React, { useState } from "react";
+import { useNavigate } from "react-router";
 
+import {
+  AreaChartOutlined,
+  FolderOpenOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  StockOutlined
+} from "@ant-design/icons";
+
+import type { MenuProps } from "antd";
 const { Sider } = Layout;
 
 type MenuItem = Required<MenuProps>["items"][number];
@@ -64,7 +65,7 @@ const itemsCollapsed: MenuItem[] = [
     ),
   ]),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
-  getItem("Add Activity", "/add", <PlusOutlined />),
+  getItem("Add Transaction", "/add", <PlusOutlined />),
 ];
 
 const items: MenuItem[] = [
@@ -83,7 +84,7 @@ const items: MenuItem[] = [
     getItem("Canada Life", "/rrsp/cl"),
   ]),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
-  getItem("Add Activity", "/add", <PlusOutlined />),
+  getItem("Add Transaction", "/add", <PlusOutlined />),
 ];
 
 const MenuComponent = () => {

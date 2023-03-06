@@ -1,16 +1,21 @@
 import {
-  Divider,
-  Select,
-  Row,
+  Button,
   Col,
+  Divider,
   Form,
   Input,
-  Radio,
-  Button,
   notification,
+  Radio,
+  Row,
+  Select
 } from "antd";
-import { useQuery, useMutation } from "@apollo/client";
 import { useState } from "react";
+
+import { useMutation, useQuery } from "@apollo/client";
+
+import { Currency } from "../../interfaces/Currency";
+import { GraphQLNode } from "../../interfaces/GraphQLNode";
+import { Stock } from "../../interfaces/Stock";
 import { ALL_STOCKS_CURRENCY, CREATE_STOCK } from "./gql";
 
 type NotificationType = "success" | "info" | "warning" | "error";
@@ -18,6 +23,7 @@ type NotificationType = "success" | "info" | "warning" | "error";
 const MyStocksView = () => {
   const { loading, error, data } = useQuery(ALL_STOCKS_CURRENCY);
   const [api, contextHolder] = notification.useNotification();
+  const [form] = Form.useForm();
 
   const openNotificationWithIcon = (
     type: NotificationType,
@@ -41,7 +47,7 @@ const MyStocksView = () => {
           "The stock could not be added to the database because it already exists."
         );
       }
-      const newStock = mutationResult.data.createStock.stock;
+      var newStock: Stock = mutationResult.data.createStock.stock;
       const readData = cache.readQuery({
         query: ALL_STOCKS_CURRENCY,
       });
@@ -49,33 +55,31 @@ const MyStocksView = () => {
         query: ALL_STOCKS_CURRENCY,
         data: {
           stocks: { edges: [...readData.stocks.edges, { node: newStock }] },
+          currencies: readData.currencies,
         },
       });
       openNotificationWithIcon(
         "success",
         "Stock Added",
-        `Stock ${newStock.name} with ticker ${newStock.ticker} was successfully added to the database.`
+        `"${newStock.name}" with ticker ${newStock.ticker} was successfully added to the database.`
       );
       form.resetFields();
     },
   });
 
-  const [form] = Form.useForm();
   const [selectedStock, setSelectedStock] = useState({});
 
-  const handleChange = async (value: any) => {
-    var index = data.stocks.edges.findIndex((x: any) => x.node.id === value);
-    let x = data.stocks.edges[index].node;
-    var stock = {
-      id: x.id,
-      name: x.name,
-      ticker: x.ticker,
-    };
-    setSelectedStock(stock);
+  const handleChange = async (value: string) => {
+    var index = data.stocks.edges.findIndex(
+      (x: GraphQLNode<Stock>) => x.node.id === value
+    );
+    let x: Stock = data.stocks.edges[index].node;
+    console.log(x);
+    setSelectedStock(x);
   };
 
-  const onFinish = async (values: any) => {
-    values.ticker = values.ticker.toUpperCase();
+  const onFinish = async (values: Stock) => {
+    values.ticker = values.ticker?.toUpperCase();
     await createStock({
       variables: {
         stock: values,
@@ -98,17 +102,14 @@ const MyStocksView = () => {
             filterOption={(input, option: any) =>
               (option?.label ?? "").toLowerCase().includes(input)
             }
-            filterSort={(optionA, optionB) =>
-              (optionA?.label ?? "")
-                .toLowerCase()
-                .localeCompare((optionB?.label ?? "").toLowerCase())
-            }
             options={[
               {
                 label: "CAD",
                 options: data?.stocks.edges
-                  ?.filter((x: any) => x.node.currency.code === "CAD")
-                  .map((x: any) => {
+                  ?.filter(
+                    (x: GraphQLNode<Stock>) => x.node.currency?.code === "CAD"
+                  )
+                  .map((x: GraphQLNode<Stock>) => {
                     return {
                       value: x.node.id,
                       label: `${x.node.name} (${x.node.ticker})`,
@@ -118,8 +119,10 @@ const MyStocksView = () => {
               {
                 label: "USD",
                 options: data?.stocks.edges
-                  ?.filter((x: any) => x.node.currency.code === "USD")
-                  .map((x: any) => {
+                  ?.filter(
+                    (x: GraphQLNode<Stock>) => x.node.currency?.code === "USD"
+                  )
+                  .map((x: GraphQLNode<Stock>) => {
                     return {
                       value: x.node.id,
                       label: `${x.node.name} (${x.node.ticker})`,
@@ -163,13 +166,15 @@ const MyStocksView = () => {
           </Form.Item>
           <Form.Item name="currency" rules={[{ required: true }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.currencies?.edges.map((currency: any) => {
-                return (
-                  <Radio key={currency.node.id} value={currency.node.id}>
-                    {currency.node.code}
-                  </Radio>
-                );
-              })}
+              {data?.currencies?.edges.map(
+                (currency: GraphQLNode<Currency>) => {
+                  return (
+                    <Radio key={currency.node.id} value={currency.node.id}>
+                      {currency.node.code}
+                    </Radio>
+                  );
+                }
+              )}
             </Radio.Group>
           </Form.Item>
           <Form.Item shouldUpdate>

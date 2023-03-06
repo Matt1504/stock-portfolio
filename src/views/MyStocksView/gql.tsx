@@ -30,6 +30,11 @@ export const CREATE_STOCK = gql(`
         createStock(stockData: $stock) {
             stock {
                 id
+                name
+                ticker
+                currency {
+                    code
+                }
             }
         }
     }`);

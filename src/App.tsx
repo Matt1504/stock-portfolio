@@ -1,16 +1,16 @@
 import {
   BrowserRouter as Router,
-  Routes,
-  Route,
   Navigate,
+  Route,
+  Routes
 } from "react-router-dom";
 
-import DashboardView from "./views/DashboardView";
 import LayoutComponent from "./components/Layout";
 import AccountOverviewView from "./views/AccountView";
-import StocksView from "./views/StocksView";
-import AddActivityView from "./views/AddActivityView";
+import AddTransactionView from "./views/AddTransactionView";
+import DashboardView from "./views/DashboardView";
 import MyStocksView from "./views/MyStocksView";
+import StocksView from "./views/StocksView";
 
 const App = () => {
   return (
@@ -35,7 +35,7 @@ const App = () => {
         <Route
           path="/add"
           element={
-            <LayoutComponent title="Add Activity" view={<AddActivityView />} />
+            <LayoutComponent title="Add Activity" view={<AddTransactionView />} />
           }
         />
         <Route

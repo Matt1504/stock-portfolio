@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import { AutoComplete, Badge, Card, Col, Input, Space, Statistic } from "antd";
 import axios from "axios";
-import { Space, Badge, Statistic, Card, Input, Col, AutoComplete } from "antd";
+import React, { useState } from "react";
+
+import CarouselComponent from "../../components/Carousel";
+import ChartComponent from "../../components/Chart";
+import { CustomRow as Row } from "../../components/Row";
 import * as aggregateData from "../../data/AggregateBars.json";
 import * as dividendData from "../../data/Dividends.json";
 import * as stockSplitData from "../../data/StockSplits.json";
 import * as detailData from "../../data/TickerDetails.json";
 import * as stockNewsData from "../../data/TickerNews.json";
-import CarouselComponent from "../../components/Carousel";
-import ChartComponent from "../../components/Chart";
-import { CustomRow as Row } from "../../components/Row";
 
 /*
 API endpoints using Polygon.io
