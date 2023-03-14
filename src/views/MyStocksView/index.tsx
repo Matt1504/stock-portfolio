@@ -1,51 +1,23 @@
-import {
-  Button,
-  Col,
-  Divider,
-  Form,
-  Input,
-  notification,
-  Radio,
-  Row,
-  Select
-} from "antd";
+import { Button, Col, Divider, Form, Input, Radio, Row, Select } from "antd";
 import { useState } from "react";
 
 import { useMutation, useQuery } from "@apollo/client";
 
+import { NotificationComponent } from "../../components/Notification";
 import { Currency } from "../../interfaces/Currency";
 import { GraphQLNode } from "../../interfaces/GraphQLNode";
 import { Stock } from "../../interfaces/Stock";
 import { ALL_STOCKS_CURRENCY, CREATE_STOCK } from "./gql";
 
-type NotificationType = "success" | "info" | "warning" | "error";
-
 const MyStocksView = () => {
   const { loading, error, data } = useQuery(ALL_STOCKS_CURRENCY);
-  const [api, contextHolder] = notification.useNotification();
+  const notification = new NotificationComponent();
   const [form] = Form.useForm();
-
-  const openNotificationWithIcon = (
-    type: NotificationType,
-    message: string,
-    description: string
-  ) => {
-    api[type]({
-      message,
-      description,
-      placement: "bottomLeft",
-      duration: 2,
-    });
-  };
 
   const [createStock] = useMutation(CREATE_STOCK, {
     update: (cache: any, mutationResult: any) => {
       if (!mutationResult.data.createStock) {
-        openNotificationWithIcon(
-          "error",
-          "Error Adding Stock",
-          "The stock could not be added to the database because it already exists."
-        );
+        notification.openNotificationWithIcon("error", "Error Adding Stock", "The stock could not be added to the database because it already exists.");
       }
       var newStock: Stock = mutationResult.data.createStock.stock;
       const readData = cache.readQuery({
@@ -58,11 +30,7 @@ const MyStocksView = () => {
           currencies: readData.currencies,
         },
       });
-      openNotificationWithIcon(
-        "success",
-        "Stock Added",
-        `"${newStock.name}" with ticker ${newStock.ticker} was successfully added to the database.`
-      );
+      notification.openNotificationWithIcon("success", "Stock Added", `"${newStock.name}" with ticker ${newStock.ticker} was successfully added to the database.`);
       form.resetFields();
     },
   });
@@ -74,7 +42,6 @@ const MyStocksView = () => {
       (x: GraphQLNode<Stock>) => x.node.id === value
     );
     let x: Stock = data.stocks.edges[index].node;
-    console.log(x);
     setSelectedStock(x);
   };
 
@@ -89,7 +56,7 @@ const MyStocksView = () => {
 
   return (
     <Row>
-      {contextHolder}
+      {notification.contextHolder}
       <Col span={8}>
         {data && (
           <Select

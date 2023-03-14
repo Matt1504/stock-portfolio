@@ -2,52 +2,92 @@ import {
   Button,
   Col,
   DatePicker,
-  Divider,
   Form,
   Input,
   InputNumber,
   Radio,
   RadioChangeEvent,
   Row,
-  Select,
-  Space
+  Select
 } from "antd";
-import { DefaultOptionType } from "antd/es/select";
-import dayjs from "dayjs";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { PlusOutlined } from "@ant-design/icons";
-import { gql, useQuery } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
+import { storeValueIsStoreObject } from "@apollo/client/cache/inmemory/helpers";
 
+import { NotificationComponent } from "../../components/Notification";
 import { Activity } from "../../interfaces/Activity";
 import { Currency } from "../../interfaces/Currency";
 import { GraphQLNode } from "../../interfaces/GraphQLNode";
 import { Platform } from "../../interfaces/Platform";
 import { Stock } from "../../interfaces/Stock";
+import { TransactionForm } from "../../interfaces/Transaction";
 import { formatDate, formatDecimalTwoPlaces } from "../../utils/utils";
-import { GET_PLATFORM_INFO } from "./gql";
+import { CREATE_TRANSACTION, GET_PLATFORM_INFO } from "./gql";
 
 const AddTransactionView = () => {
   const { loading, error, data } = useQuery(GET_PLATFORM_INFO);
   const [form] = Form.useForm();
+  const notification = new NotificationComponent();
 
   const [platformOptions, setPlatformOptions] = useState([]);
   const [stockOptions, setStockOptions] = useState([]);
   const [account, setAccount] = useState("");
   const [currency, setCurrency] = useState("");
   const [activity, setActivity] = useState("");
-  const [showDescription, setShowDescription] = useState(false);
+  const [price, setPrice] = useState(0);
+  const [shares, setShares] = useState(0);
+  const [fees, setFees] = useState(0);
 
-  const onRadioChange = (e: RadioChangeEvent, updateFunc: Function) =>
+  const [createTransaction] = useMutation(CREATE_TRANSACTION, {
+    update: (cache: any, mutationResult: any) => {
+      if (!mutationResult.data.createTransaction) {
+        notification.openNotificationWithIcon("error", "Error Adding Transaction", "There was an error adding the transaction. Please try again.");
+      } else {
+        notification.openNotificationWithIcon("success", "Transaction Added", "The transaction was successfully added to the database.");
+      }
+    }
+  });
+
+  const onRadioChange = (e: RadioChangeEvent, updateFunc: Function) => {
     updateFunc(e.target.value);
 
-  const onSelectChange = (value: { value: string; label: string }) => {
-    console.log(value);
-    setActivity(value.label);
+    if (updateFunc.toString() === setCurrency.toString()) {
+      form.setFieldValue("stock", null);
+      if (!e.target.value) return;
+
+      setStockOptions(
+        data.stocks.edges
+          .filter((x: GraphQLNode<Stock>) => x.node.currency?.id === e.target.value)
+          .map((x: GraphQLNode<Stock>) => ({
+            value: x.node.id,
+            label: `${x.node.name} (${x.node.ticker})`,
+          }))
+      );
+    }
   };
 
-  const onFinish = async (values: any) => {
+  const onSelectActivityChange = (value: { value: string; label: string }) => {
+    setActivity(value.label);
+    form.setFieldValue("activity", value.value);
+    form.setFieldValue("description", null);
+  };
+
+  const onFinish = async (values: TransactionForm) => {
+    values.transactionDate = formatDate((values.transaction ?? "").toString());
+    values.total = formatDecimalTwoPlaces(values.total);
+    delete values.transaction;
+    delete values.currency;
+    if (values.price)
+      values.price = formatDecimalTwoPlaces(values.price);
+    if (values.fee)
+      values.fee = formatDecimalTwoPlaces(values.fee);
     console.log(values);
+    await createTransaction({
+      variables: {
+        trans: values
+      }
+    });
   };
 
   useEffect(() => {
@@ -67,31 +107,9 @@ const AddTransactionView = () => {
     );
   }, [account, currency]);
 
-  useEffect(() => {
-    form.setFieldValue("stock", null);
-    if (!currency) return;
-
-    setStockOptions(
-      data.stocks.edges
-        .filter((x: GraphQLNode<Stock>) => x.node.currency?.id === currency)
-        .map((x: GraphQLNode<Stock>) => ({
-          value: x.node.id,
-          label: `${x.node.name} (${x.node.ticker})`,
-        }))
-    );
-  }, [currency]);
-
-  useEffect(() => {
-    form.setFieldValue("description", null);
-    if (activity === "Adjustment") {
-      setShowDescription(true);
-    } else {
-      setShowDescription(false);
-    }
-  }, [activity]);
-
   return (
     <Row>
+      {notification.contextHolder}
       <Col span={24}>
         <Form form={form} name="add_transaction" onFinish={onFinish}>
           <Form.Item
@@ -163,7 +181,7 @@ const AddTransactionView = () => {
                   .toLowerCase()
                   .includes(input.toLowerCase())
               }
-              onChange={onSelectChange}
+              onChange={onSelectActivityChange}
               options={data?.activities?.edges.map(
                 (activity: GraphQLNode<Activity>) => ({
                   value: activity.node.id,
@@ -175,10 +193,10 @@ const AddTransactionView = () => {
           <Form.Item
             name="description"
             label="Description"
-            hidden={!showDescription}
+            hidden={activity !== "Adjustment"}
             rules={[
               {
-                required: showDescription,
+                required: activity === "Adjustment",
                 message: "Description required for Adjustment activity.",
               },
             ]}
@@ -186,7 +204,7 @@ const AddTransactionView = () => {
             <Input style={{ width: 500 }} />
           </Form.Item>
           <Form.Item
-            name="transactionDate"
+            name="transaction"
             label="Transaction Date"
             rules={[{ required: true }]}
           >
@@ -211,7 +229,7 @@ const AddTransactionView = () => {
             hidden={!(account && currency)}
             rules={[
               {
-                required: true,
+                required: activity !== "Contribution" && activity !== "Transfer In" && activity !== "Transfer Out",
                 message: "Please select the stock.",
               },
             ]}
@@ -227,10 +245,30 @@ const AddTransactionView = () => {
               options={stockOptions}
             />
           </Form.Item>
-
+          <Form.Item name="price" label="Price">
+            <InputNumber step={0.01} keyboard min={0} addonBefore="$" />
+          </Form.Item>
+          <Form.Item name="shares" label="Shares">
+            <InputNumber keyboard min={0} />
+          </Form.Item>
+          <Form.Item name="fee" label="Fee">
+            <InputNumber step={0.01} keyboard min={0} addonBefore="$" />
+          </Form.Item>
+          <Form.Item
+            name="total"
+            label="Total"
+            rules={[
+              {
+                required: true,
+                message: "Please select the platform.",
+              },
+            ]}
+          >
+            <InputNumber step={0.01} keyboard min={0} addonBefore="$" />
+          </Form.Item>
           <Form.Item style={{ marginTop: 32 }}>
             <Button htmlType="submit">Reset</Button>
-            <Button style={{ marginLeft: 16 }} type="primary" htmlType="button">
+            <Button style={{ marginLeft: 16 }} type="primary" htmlType="submit">
               Submit
             </Button>
           </Form.Item>

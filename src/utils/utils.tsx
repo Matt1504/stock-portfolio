@@ -31,11 +31,9 @@ export function formatDate(date: string) {
   if (month.length < 2) month = "0" + month;
   if (day.length < 2) day = "0" + day;
 
-  return [year, month, day].join("/");
+  return [year, month, day].join("-");
 }
 
 export function formatDecimalTwoPlaces(num: number) {
   return Math.round(num*100)/100;
-
-
 }

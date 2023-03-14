@@ -52,5 +52,13 @@ export const GET_PLATFORM_INFO = gql(`
             }
         }
     }
-  }
-`);
+  }`);
+
+export const CREATE_TRANSACTION = gql(`
+  mutation createTransaction($trans: TransactionInput!) {
+    createTransaction(transData: $trans) {
+        transaction { 
+          id
+        }
+    }
+  }`);
