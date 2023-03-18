@@ -38,3 +38,29 @@ export const CREATE_STOCK = gql(`
             }
         }
     }`);
+
+export const TRANSACTIONS_BY_STOCK = gql(`
+    query transaction_stock($stock: ID) {
+        transactionsByStock(stock: $stock) {
+            id
+            account {
+                id
+                code
+            }
+            platform {
+                id
+                name
+                currency {
+                    code
+                }
+            }
+            activity {
+                name
+            }
+            transactionDate
+            price
+            shares
+            fee
+            total
+        }
+    }`)

@@ -31,58 +31,10 @@ function getItem(
   } as MenuItem;
 }
 
-const itemsCollapsed: MenuItem[] = [
+const items: MenuItem[] = [
   getItem("Dashboard", "/home", <AreaChartOutlined />),
   getItem("Stock Finder", "/stocks", <SearchOutlined />),
-
-  getItem("TFSA Portfolio", null, <FolderOpenOutlined />, [
-    getItem(
-      "TFSA Portfolio",
-      null,
-      null,
-      [
-        getItem("Overview", "/tfsa/overview"),
-        getItem("TD Direct Investing", "/tfsa/di"),
-        getItem("TD Easy Trade", "/tfsa/et"),
-        getItem("Wealthsimple", "/tfsa/ws"),
-      ],
-      "group"
-    ),
-  ]),
-
-  getItem("RRSP Portfolio", null, <FolderOpenOutlined />, [
-    getItem(
-      "RRSP Portfolio",
-      null,
-      null,
-      [
-        getItem("Overview", "/rrsp/overview"),
-        getItem("TD Easy Trade", "/rrsp/et"),
-        getItem("Wealthsimple", "/rrsp/ws"),
-        getItem("Canada Life", "/rrsp/cl"),
-      ],
-      "group"
-    ),
-  ]),
-  getItem("My Stocks", "/mystocks", <StockOutlined />),
-  getItem("Add Transaction", "/add", <PlusOutlined />),
-];
-
-const items: MenuItem[] = [
-  getItem("Home", "/home", <AreaChartOutlined />),
-  getItem("Stock Finder", "/stocks", <SearchOutlined />),
-  getItem("TFSA Portfolio", null, <FolderOpenOutlined />, [
-    getItem("Overview", "/tfsa/overview"),
-    getItem("TD Direct Investing", "/tfsa/di"),
-    getItem("TD Easy Trade", "/tfsa/et"),
-    getItem("Wealthsimple", "/tfsa/ws"),
-  ]),
-  getItem("RRSP Portfolio", null, <FolderOpenOutlined />, [
-    getItem("Overview", "/rrsp/overview"),
-    getItem("TD Easy Trade", "/rrsp/et"),
-    getItem("Wealthsimple", "/rrsp/ws"),
-    getItem("Canada Life", "/rrsp/cl"),
-  ]),
+  getItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
   getItem("Add Transaction", "/add", <PlusOutlined />),
 ];
@@ -110,7 +62,7 @@ const MenuComponent = () => {
         defaultOpenKeys={["sub1"]}
         mode="inline"
         theme="dark"
-        items={collapsed ? itemsCollapsed : items}
+        items={items}
         onClick={(item) => handleMenuClick(item.key)}
       />
     </Sider>

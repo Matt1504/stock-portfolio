@@ -13,7 +13,6 @@ import {
   Select
 } from "antd";
 import { useEffect, useState } from "react";
-import { isInferTypeNode } from "typescript";
 
 import { useMutation, useQuery } from "@apollo/client";
 

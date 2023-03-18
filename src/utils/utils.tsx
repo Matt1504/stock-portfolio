@@ -37,3 +37,10 @@ export function formatDate(date: string) {
 export function formatDecimalTwoPlaces(num: number) {
   return Math.round(num*100)/100;
 }
+
+export function formatNumberAsCurrency(num: number | undefined) {
+  if (!num) {
+    return num;
+  }
+  return "$" + num.toFixed(2);
+}

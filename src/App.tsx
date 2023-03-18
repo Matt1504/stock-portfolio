@@ -45,9 +45,9 @@ const App = () => {
           }
         />
         <Route
-          path="/:account/:platform"
+          path="/myaccounts"
           element={
-            <LayoutComponent title="Account" view={<AccountOverviewView />} />
+            <LayoutComponent title="My Accounts" view={<AccountOverviewView />} />
           }
         />
       </Routes>
