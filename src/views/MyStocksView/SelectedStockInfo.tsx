@@ -11,6 +11,7 @@ import {
   PieChart,
   ReferenceLine,
   ResponsiveContainer,
+  Sector,
   Tooltip,
   TooltipProps,
   XAxis,
@@ -39,7 +40,8 @@ import { Stock } from "../../interfaces/Stock";
 import { Transaction } from "../../interfaces/Transaction";
 import {
   formatDecimalTwoPlaces,
-  formatNumberAsCurrency
+  formatNumberAsCurrency,
+  getColourCodeByAccount
 } from "../../utils/utils";
 import {
   ALL_STOCKS_CURRENCY,
@@ -60,6 +62,20 @@ type HoldingDetail = {
   prefix: string | undefined;
   colour: string;
   precision: number | undefined;
+};
+
+type PieShapeProps = {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  fill: string;
+  payload: any;
+  percent: number;
+  value: number;
 };
 
 class GraphData {
@@ -89,6 +105,79 @@ const CustomTooltip = ({
   }
 
   return null;
+};
+
+const renderActiveShape = (props: PieShapeProps) => {
+  const RADIAN = Math.PI / 180;
+  const {
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    startAngle,
+    endAngle,
+    fill,
+    payload,
+    percent,
+    value,
+  } = props;
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? "start" : "end";
+
+  return (
+    <g>
+      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
+        {payload.name}
+      </text>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+      <Sector
+        cx={cx}
+        cy={cy}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        innerRadius={outerRadius + 6}
+        outerRadius={outerRadius + 10}
+        fill={fill}
+      />
+      <path
+        d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`}
+        stroke={fill}
+        fill="none"
+      />
+      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+      <text
+        x={ex + (cos >= 0 ? 1 : -1) * 12}
+        y={ey}
+        textAnchor={textAnchor}
+        fill="#333"
+      >{`$${value.toFixed(2)}`}</text>
+      <text
+        x={ex + (cos >= 0 ? 1 : -1) * 12}
+        y={ey}
+        dy={18}
+        textAnchor={textAnchor}
+        fill="#999"
+      >
+        {`(Rate ${(percent * 100).toFixed(2)}%)`}
+      </text>
+    </g>
+  );
 };
 
 function CustomToolbar() {
@@ -181,11 +270,16 @@ const SelectedStockInfo = (props: SSProps) => {
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
-  const [pieGraphAccData, setPieGraphAccData] = useState<GraphData[]>([]);
   const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const { loading, error, data } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
   });
+
+  const onPieEnter = (_: any, index: number) => {
+    console.log(index);
+    setActiveIndex(index);
+  };
 
   useEffect(() => {
     if (data?.transactionsByStock) {
@@ -220,31 +314,19 @@ const SelectedStockInfo = (props: SSProps) => {
               );
             }
             buyGraphData.set(lastBuyDate, buyData);
-            if (transaction.account.code) {
-              var accData = accountBuyData.get(transaction.account.code);
-              if (accData) {
-                accData.value += transaction.total ?? 0;
-              } else {
-                accData = new GraphData(
-                  transaction.account.code,
-                  transaction.total ?? 0,
-                  undefined
-                );
-              }
-              accountBuyData.set(transaction.account.code, accData);
-            }
-            if (transaction.platform.name) {
-              var platData = platformBuyData.get(transaction.platform.name);
+            if (transaction.platform.name && transaction.account.code) {
+              let key = `${transaction.platform.name} (${transaction.account.code})`;
+              var platData = platformBuyData.get(key);
               if (platData) {
                 platData.value += transaction.total ?? 0;
               } else {
                 platData = new GraphData(
-                  transaction.platform.name,
+                  key,
                   transaction.total ?? 0,
                   undefined
                 );
               }
-              platformBuyData.set(transaction.platform.name, platData);
+              platformBuyData.set(key, platData);
             }
             break;
           case "Sell":
@@ -270,7 +352,6 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
         }
       });
-      setPieGraphAccData(Array.from(accountBuyData.values()));
       setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
@@ -311,30 +392,27 @@ const SelectedStockInfo = (props: SSProps) => {
               </Card>
             </Col>
           ))}
-          {pieGraphAccData.length && pieGraphPlatData ? (
+          {pieGraphPlatData.length ? (
             <Col span={24} className="chart-container">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart width={400} height={400}>
                   <Pie
+                    activeIndex={activeIndex}
+                    activeShape={renderActiveShape}
                     data={pieGraphPlatData}
-                    dataKey="value"
                     cx="50%"
                     cy="50%"
-                    outerRadius={60}
+                    innerRadius={100}
+                    outerRadius={150}
                     fill="#8884d8"
-                  />
-                  <Pie
-                    data={pieGraphAccData}
                     dataKey="value"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={90}
-                    fill="#82ca9d"
+                    onMouseEnter={onPieEnter}
                   >
-                    <LabelList dataKey="label" position="top" />
+                    {pieGraphPlatData.map((entry: GraphData, index: number) => {
+                        console.log(entry);
+                      return <Cell key={`cell-${index}`} fill={getColourCodeByAccount(entry.name ?? "")} />;
+                    })}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </Col>
@@ -350,10 +428,9 @@ const SelectedStockInfo = (props: SSProps) => {
                   data={barGraphBuyData}
                   maxBarSize={80}
                   margin={{
-                    top: 32,
+                    top: 24,
                     right: 16,
                     left: 16,
-                    bottom: 24,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -383,7 +460,6 @@ const SelectedStockInfo = (props: SSProps) => {
                     top: 32,
                     right: 16,
                     left: 16,
-                    bottom: 24,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -400,7 +476,7 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <Box sx={{ height: 400, width: "100%" }}>
+            <Box sx={{ marginTop: 3, height: 400, width: "100%" }}>
               <DataGrid
                 columns={columns}
                 rows={data?.transactionsByStock}

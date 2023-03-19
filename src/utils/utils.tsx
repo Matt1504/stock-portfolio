@@ -34,6 +34,17 @@ export function formatDate(date: string) {
   return [year, month, day].join("-");
 }
 
+export function getColourCodeByAccount(account: string) {
+  console.log(account);
+  if (account.includes("TFSA")) {
+    return "#5f5c97";
+  } else if (account.includes("RRSP")) {
+    return "#6c69ac";
+  } else {
+    return "#aba8e3";
+  }
+}
+
 export function formatDecimalTwoPlaces(num: number) {
   return Math.round(num*100)/100;
 }
