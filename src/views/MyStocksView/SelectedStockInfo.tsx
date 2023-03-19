@@ -18,8 +18,8 @@ import {
   YAxis
 } from "recharts";
 
-import { useMutation, useQuery } from "@apollo/client";
-import { StepIcon, Typography } from "@mui/material";
+import { useQuery } from "@apollo/client";
+import { Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -32,27 +32,18 @@ import {
   GridValueGetterParams
 } from "@mui/x-data-grid";
 
-import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../interfaces/Account";
 import { Activity } from "../../interfaces/Activity";
-import { Currency } from "../../interfaces/Currency";
 import { GraphQLNode } from "../../interfaces/GraphQLNode";
 import { Platform } from "../../interfaces/Platform";
-import { Stock } from "../../interfaces/Stock";
 import { Transaction } from "../../interfaces/Transaction";
 import {
   compareDates,
-  formatDate,
-  formatDecimalTwoPlaces,
   formatNumberAsCurrency,
   getColourCodeByAccount,
   getMinMaxDate
 } from "../../utils/utils";
-import {
-  ALL_STOCKS_CURRENCY,
-  CREATE_STOCK,
-  TRANSACTIONS_BY_STOCK
-} from "./gql";
+import { TRANSACTIONS_BY_STOCK } from "./gql";
 
 type SSProps = {
   stock: string | undefined;
@@ -87,29 +78,45 @@ type PieShapeProps = {
 class GraphData {
   name: string;
   value: number;
+  value_1: number | undefined;
   label: string | undefined;
 
-  constructor(name: string, buy: number, label: string | undefined) {
+  constructor(
+    name: string,
+    value: number,
+    value_1: number | undefined,
+    label: string | undefined
+  ) {
     this.name = name;
-    this.value = buy;
+    this.value = value;
+    this.value_1 = value_1;
     this.label = label;
   }
 }
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: TooltipProps<number, string>) => {
+const CustomTooltip = ({ active, payload, label }: any) => {
   if (active) {
+    console.log(typeof payload);
     return (
       <div className="custom-chart-tooltip">
         <p className="chart-label">{label}</p>
-        <p className="chart-desc">{`$${payload?.[0].value?.toFixed(2)}`}</p>
+        <p className="chart-desc">
+          {payload?.[0].name}:{" "}
+          <span style={{ color: payload?.[0].fill }}>
+            ${payload?.[0].value?.toFixed(2)}
+          </span>
+        </p>
+        {payload?.[1] && (
+          <p className="chart-desc">
+            {payload?.[1].name}:{" "}
+            <span style={{ color: payload?.[1].fill }}>
+              ${payload?.[1].value?.toFixed(2)}
+            </span>
+          </p>
+        )}
       </div>
     );
   }
-
   return null;
 };
 
@@ -360,6 +367,7 @@ const SelectedStockInfo = (props: SSProps) => {
               buyData = new GraphData(
                 transDate,
                 transaction.total ?? 0,
+                undefined,
                 (transaction.shares ?? 0).toString()
               );
             }
@@ -376,6 +384,7 @@ const SelectedStockInfo = (props: SSProps) => {
                 platData = new GraphData(
                   key,
                   transaction.total ?? 0,
+                  undefined,
                   (transaction.shares ?? 0).toString()
                 );
               }
@@ -387,23 +396,38 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
           case "Dividends":
             dividends += transaction.total ?? 0;
-            var data = divGraphData.get(transDate);
-            if (data) {
-              data.value += transaction.total ?? 0;
+            var divData = divGraphData.get(transDate);
+            if (divData) {
+              divData.value += transaction.total ?? 0;
             } else {
-              data = new GraphData(
+              divData = new GraphData(
                 transDate,
                 transaction.total ?? 0,
+                undefined,
                 undefined
               );
             }
-            divGraphData.set(transDate, data);
+            divGraphData.set(transDate, divData);
             break;
           case "Withholding Tax":
             dividends -= transaction.total ?? 0;
+            var divData = divGraphData.get(transDate);
+            if (divData) {
+              divData.value_1 =
+                (divData.value_1 ?? 0) - (transaction.total ?? 0);
+            } else {
+              divData = new GraphData(
+                transDate,
+                0,
+                (transaction.total ?? 0) * -1,
+                undefined
+              );
+            }
+            divGraphData.set(transDate, divData);
             break;
         }
       });
+      console.log(divGraphData);
       setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
@@ -450,12 +474,14 @@ const SelectedStockInfo = (props: SSProps) => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart width={400} height={400}>
                   <text
-                    x={400}
+                    x={600}
                     y={20}
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
-                    <tspan fontSize="18">Book Cost Distribution</tspan>
+                    <tspan fontWeight="600" fontSize="18">
+                      Book Cost Distribution
+                    </tspan>
                   </text>
                   <Pie
                     activeIndex={activeIndex}
@@ -500,7 +526,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   }}
                 >
                   <text
-                    x={800 / 2}
+                    x={800}
                     y={20}
                     fill="black"
                     textAnchor="middle"
@@ -514,7 +540,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <ReferenceLine y={0} stroke="#000" />
-                  <Bar dataKey="value" fill="#8884d8" name="Book Cost">
+                  <Bar dataKey="value" fill="#ACE1AF" name="Book Cost">
                     <LabelList dataKey="label" position="top" />
                   </Bar>
                 </BarChart>
@@ -553,7 +579,16 @@ const SelectedStockInfo = (props: SSProps) => {
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <ReferenceLine y={0} stroke="#000" />
-                  <Bar dataKey="value" fill="#8884d8" name="Dividends Earned" />
+                  <Bar dataKey="value" fill="#ACE1AF" name="Dividends Earned" />
+                  {barGraphDivData.some(
+                    (x: GraphData) => x.value_1 !== undefined
+                  ) && (
+                    <Bar
+                      dataKey="value_1"
+                      fill="#FF6961"
+                      name="Withholding Tax"
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </Col>

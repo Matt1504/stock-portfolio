@@ -40,10 +40,10 @@ code {
 
 .chart-label {
   margin: 0;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .chart-desc {
   margin: 0;
-  color: rgb(136, 132, 216);
+  margin-bottom: 4px;
 }

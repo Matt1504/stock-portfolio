@@ -1,6 +1,6 @@
-import { AutoComplete, Badge, Card, Col, Input, Space, Statistic } from "antd";
+import { Badge, Card, Col, Input, Space, Statistic } from "antd";
 import axios from "axios";
-import React, { useState } from "react";
+import { useState } from "react";
 
 import CarouselComponent from "../../components/Carousel";
 import ChartComponent from "../../components/Chart";
