@@ -33,15 +33,20 @@ import {
 } from "@mui/x-data-grid";
 
 import { NotificationComponent } from "../../components/Notification";
+import { Account } from "../../interfaces/Account";
 import { Activity } from "../../interfaces/Activity";
 import { Currency } from "../../interfaces/Currency";
 import { GraphQLNode } from "../../interfaces/GraphQLNode";
+import { Platform } from "../../interfaces/Platform";
 import { Stock } from "../../interfaces/Stock";
 import { Transaction } from "../../interfaces/Transaction";
 import {
+  compareDates,
+  formatDate,
   formatDecimalTwoPlaces,
   formatNumberAsCurrency,
-  getColourCodeByAccount
+  getColourCodeByAccount,
+  getMinMaxDate
 } from "../../utils/utils";
 import {
   ALL_STOCKS_CURRENCY,
@@ -54,6 +59,7 @@ type SSProps = {
   name: string | undefined;
   ticker: string | undefined;
   currency: string | undefined;
+  columnData: any;
 };
 
 type HoldingDetail = {
@@ -166,7 +172,7 @@ const renderActiveShape = (props: PieShapeProps) => {
         y={ey}
         textAnchor={textAnchor}
         fill="#333"
-      >{`$${value.toFixed(2)}`}</text>
+      >{`$${value.toFixed(2)} or ${payload.label} Share(s)`}</text>
       <text
         x={ex + (cos >= 0 ? 1 : -1) * 12}
         y={ey}
@@ -190,13 +196,20 @@ function CustomToolbar() {
   );
 }
 
-const columns: GridColDef[] = [
-  { field: "transactionDate", headerName: "Transaction Date", width: 150 },
+const defaultColumns: GridColDef[] = [
+  {
+    field: "transactionDate",
+    type: "date",
+    headerName: "Transaction Date",
+    valueGetter: (params: GridValueGetterParams) =>
+      new Date(params.row.transactionDate),
+    width: 200,
+  },
   {
     field: "activity",
     headerName: "Activity",
     valueGetter: (params: GridValueGetterParams) => params.row.activity.name,
-    width: 150,
+    width: 200,
   },
   {
     field: "account",
@@ -208,30 +221,32 @@ const columns: GridColDef[] = [
     field: "platform",
     headerName: "Platform",
     valueGetter: (params: GridValueGetterParams) => params.row.platform.name,
-    width: 200,
+    width: 300,
   },
   {
     field: "price",
-    headerName: "Price",
+    headerName: "Price ($)",
+    type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
-      formatNumberAsCurrency(params.value),
+      formatNumberAsCurrency(params.value, false),
   },
   {
     field: "shares",
     headerName: "Shares",
+    type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
       params.value ?? "-",
   },
   {
     field: "total",
-    headerName: "Total",
+    headerName: "Total ($)",
+    type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
-      formatNumberAsCurrency(params.value),
+      formatNumberAsCurrency(params.value, false),
   },
-  { field: "description", headerName: "Description" },
 ];
 
 const defaultHoldingDetails: HoldingDetail[] = [
@@ -266,32 +281,68 @@ const defaultHoldingDetails: HoldingDetail[] = [
 ];
 
 const SelectedStockInfo = (props: SSProps) => {
-  const { stock, name, ticker, currency } = props;
+  const { stock, name, ticker, currency, columnData } = props;
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
   const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
+  const [columns, setColumns] = useState<GridColDef[]>(defaultColumns);
   const [activeIndex, setActiveIndex] = useState(0);
   const { loading, error, data } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
   });
 
   const onPieEnter = (_: any, index: number) => {
-    console.log(index);
     setActiveIndex(index);
   };
+
+  useEffect(() => {
+    if (columnData.accounts && columnData.activities && columnData.platforms) {
+      let activities: string[] = columnData.activities.edges.map(
+        (x: GraphQLNode<Activity>) => x.node.name
+      );
+      let accounts: string[] = columnData.accounts.edges.map(
+        (x: GraphQLNode<Account>) => x.node.code
+      );
+      let platforms: string[] = columnData.platforms.edges.map(
+        (x: GraphQLNode<Platform>) => x.node.name
+      );
+      console.log(activities);
+      console.log(accounts);
+      console.log(platforms);
+      setColumns((prev: any[]) => {
+        let update = [...prev];
+        // activity
+        update[1].type = "singleSelect";
+        update[1].valueOptions = activities;
+
+        // account
+        update[2].type = "singleSelect";
+        update[2].valueOptions = accounts;
+
+        // platform
+        update[3].type = "singleSelect";
+        update[3].valueOptions = platforms.reduce(
+          (unique: any, item: string) =>
+            unique.includes(item) ? unique : [...unique, item],
+          []
+        );
+        return update;
+      });
+    }
+  }, [columnData]);
 
   useEffect(() => {
     if (data?.transactionsByStock) {
       var shares: number = 0;
       var bookCost: number = 0;
       var dividends: number = 0;
-      var lastBuyDate: string = "NA";
+      var lastBuyDate: Date = getMinMaxDate();
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
-      var accountBuyData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
       data.transactionsByStock.map((transaction: Transaction) => {
+        var transDate = transaction.transactionDate.toString();
         switch (transaction.activity.name) {
           case "Stock Split":
             shares += transaction.shares ?? 0;
@@ -299,8 +350,10 @@ const SelectedStockInfo = (props: SSProps) => {
           case "Buy":
             shares += transaction.shares ?? 0;
             bookCost += transaction.total ?? 0;
-            lastBuyDate = transaction.transactionDate.toString();
-            var buyData = buyGraphData.get(lastBuyDate);
+            if (compareDates(lastBuyDate, transaction.transactionDate) === -1) {
+              lastBuyDate = transaction.transactionDate;
+            }
+            var buyData = buyGraphData.get(transDate);
             if (buyData) {
               buyData.value += transaction.total ?? 0;
               var shareLabel = Number(buyData.label ?? 0);
@@ -308,22 +361,25 @@ const SelectedStockInfo = (props: SSProps) => {
               buyData.label = shareLabel.toString();
             } else {
               buyData = new GraphData(
-                lastBuyDate,
+                transDate,
                 transaction.total ?? 0,
                 (transaction.shares ?? 0).toString()
               );
             }
-            buyGraphData.set(lastBuyDate, buyData);
+            buyGraphData.set(transDate, buyData);
             if (transaction.platform.name && transaction.account.code) {
               let key = `${transaction.platform.name} (${transaction.account.code})`;
               var platData = platformBuyData.get(key);
               if (platData) {
                 platData.value += transaction.total ?? 0;
+                let shareCount = Number(platData.label);
+                platData.label = (shareCount +=
+                  transaction.shares ?? 0).toString();
               } else {
                 platData = new GraphData(
                   key,
                   transaction.total ?? 0,
-                  undefined
+                  (transaction.shares ?? 0).toString()
                 );
               }
               platformBuyData.set(key, platData);
@@ -334,7 +390,6 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
           case "Dividends":
             dividends += transaction.total ?? 0;
-            var transDate = transaction.transactionDate.toString();
             var data = divGraphData.get(transDate);
             if (data) {
               data.value += transaction.total ?? 0;
@@ -365,7 +420,7 @@ const SelectedStockInfo = (props: SSProps) => {
         update[0].value = shares;
         update[1].value = bookCost;
         update[2].value = dividends;
-        update[3].value = lastBuyDate;
+        update[3].value = lastBuyDate.toString();
         return update;
       });
     }
@@ -378,22 +433,23 @@ const SelectedStockInfo = (props: SSProps) => {
           {name} | {currency}
         </Typography>
       </Col>
+      {holdingDetails.map((x: HoldingDetail, index: number) => (
+        <Col span={6} key={index}>
+          <Card style={{ marginLeft: 8, marginRight: 8 }}>
+            <Statistic
+              loading={loading}
+              title={x.title}
+              value={x.value}
+              prefix={x.prefix}
+              precision={x.precision}
+            />
+          </Card>
+        </Col>
+      ))}
       {data && (
         <>
-          {holdingDetails.map((x: HoldingDetail, index: number) => (
-            <Col span={6} key={index}>
-              <Card style={{ marginLeft: 8, marginRight: 8 }}>
-                <Statistic
-                  title={x.title}
-                  value={x.value}
-                  prefix={x.prefix}
-                  precision={x.precision}
-                />
-              </Card>
-            </Col>
-          ))}
           {pieGraphPlatData.length ? (
-            <Col span={24} className="chart-container">
+            <Col span={24} className="pie-chart-container">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart width={400} height={400}>
                   <Pie
@@ -403,14 +459,18 @@ const SelectedStockInfo = (props: SSProps) => {
                     cx="50%"
                     cy="50%"
                     innerRadius={100}
-                    outerRadius={150}
+                    outerRadius={140}
                     fill="#8884d8"
                     dataKey="value"
                     onMouseEnter={onPieEnter}
                   >
                     {pieGraphPlatData.map((entry: GraphData, index: number) => {
-                        console.log(entry);
-                      return <Cell key={`cell-${index}`} fill={getColourCodeByAccount(entry.name ?? "")} />;
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={getColourCodeByAccount(entry.name ?? "")}
+                        />
+                      );
                     })}
                   </Pie>
                 </PieChart>
@@ -427,11 +487,6 @@ const SelectedStockInfo = (props: SSProps) => {
                   height={400}
                   data={barGraphBuyData}
                   maxBarSize={80}
-                  margin={{
-                    top: 24,
-                    right: 16,
-                    left: 16,
-                  }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
@@ -457,9 +512,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   data={barGraphDivData}
                   maxBarSize={80}
                   margin={{
-                    top: 32,
-                    right: 16,
-                    left: 16,
+                    top: 24,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -476,10 +529,18 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <Box sx={{ marginTop: 3, height: 400, width: "100%" }}>
+            <Box sx={{ marginTop: 3, width: "100%" }}>
               <DataGrid
+                autoHeight
                 columns={columns}
                 rows={data?.transactionsByStock}
+                initialState={{
+                  sorting: {
+                    sortModel: [{ field: "transactionDate", sort: "desc" }],
+                  },
+                  pagination: { paginationModel: { pageSize: 5 } },
+                }}
+                pageSizeOptions={[5, 10, 25]}
                 slots={{
                   toolbar: CustomToolbar,
                 }}

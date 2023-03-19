@@ -25,17 +25,35 @@ export function formatDate(date: string) {
     d = new Date(date);
   }
   var month = "" + (d.getMonth() + 1),
-    day = "" + d.getDate(),
+    day = "" + (d.getDate() + 1),
     year = d.getFullYear();
-
+  
   if (month.length < 2) month = "0" + month;
   if (day.length < 2) day = "0" + day;
 
   return [year, month, day].join("-");
 }
 
+export function getMinMaxDate(min: boolean = true) {
+  var timeValue = 8640000000000000;
+  if (min) {
+    timeValue *= -1;
+  }
+  return new Date(timeValue);
+}
+
+export function compareDates(dateA: Date, dateB: Date) {
+  var time1 = new Date(dateA).getTime();
+  var time2 = new Date(dateB).getTime();
+  if (time1 < time2) {
+   return  -1; 
+  } else if (time1 === time2) {
+    return 0;
+  } 
+  return 1;
+}
+
 export function getColourCodeByAccount(account: string) {
-  console.log(account);
   if (account.includes("TFSA")) {
     return "#5f5c97";
   } else if (account.includes("RRSP")) {
@@ -49,9 +67,9 @@ export function formatDecimalTwoPlaces(num: number) {
   return Math.round(num*100)/100;
 }
 
-export function formatNumberAsCurrency(num: number | undefined) {
+export function formatNumberAsCurrency(num: number | undefined, includeDollarSign: boolean = true) {
   if (!num) {
     return "-";
   }
-  return "$" + num.toFixed(2);
+  return (includeDollarSign ? "$" : "") + num.toFixed(2);
 }

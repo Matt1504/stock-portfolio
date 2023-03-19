@@ -1,11 +1,15 @@
 import { Divider } from "antd";
 import { useState } from "react";
 
+import { useQuery } from "@apollo/client";
+
 import { Stock } from "../../interfaces/Stock";
+import { ACTIVITY_PLATFORM_ACCOUNT_NAMES } from "./gql";
 import SelectedStockInfo from "./SelectedStockInfo";
 import StocksAddDropdown from "./StocksAddDropdown";
 
 const MyStocksView = () => {
+  const { loading, error, data } = useQuery(ACTIVITY_PLATFORM_ACCOUNT_NAMES);
   const [selectedStock, setSelectedStock] = useState<Stock | undefined>(
     undefined
   );
@@ -20,6 +24,7 @@ const MyStocksView = () => {
           name={selectedStock.name}
           ticker={selectedStock.ticker}
           currency={selectedStock.currency?.code}
+          columnData={data}
         />
       )}
     </>

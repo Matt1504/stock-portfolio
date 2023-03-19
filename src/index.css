@@ -19,6 +19,11 @@ code {
   -webkit-box-orient: vertical;
 }
 
+.pie-chart-container {
+  width: 100vw; 
+  height: 400px;
+}
+
 .chart-container {
   width: 100vw;
   height: 400px;

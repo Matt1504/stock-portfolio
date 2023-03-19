@@ -16,13 +16,38 @@ export const ALL_STOCKS_CURRENCY = gql(`
         }
         currencies {
             edges {
-              node {
-                id
-                name
-                code
-              }
+                node {
+                    id
+                    name
+                    code
+                }
             }
-          }
+        }
+    }`);
+
+export const ACTIVITY_PLATFORM_ACCOUNT_NAMES = gql(`
+    query {
+        accounts {
+            edges {
+                node {
+                    code
+                }
+            }
+        }
+        platforms {
+            edges {
+                node {
+                    name
+                }
+            }
+        }
+        activities {
+            edges {
+                node {
+                    name
+                }
+            }
+        }
     }`);
 
 export const CREATE_STOCK = gql(`
@@ -63,4 +88,4 @@ export const TRANSACTIONS_BY_STOCK = gql(`
             fee
             total
         }
-    }`)
+    }`);
