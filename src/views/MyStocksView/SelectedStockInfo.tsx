@@ -13,7 +13,6 @@ import {
   ResponsiveContainer,
   Sector,
   Tooltip,
-  TooltipProps,
   XAxis,
   YAxis
 } from "recharts";
@@ -472,7 +471,7 @@ const SelectedStockInfo = (props: SSProps) => {
           {pieGraphPlatData.length ? (
             <Col span={24} className="pie-chart-container">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart width={400} height={400}>
+                <PieChart width={450} height={450}>
                   <text
                     x={600}
                     y={20}
@@ -519,20 +518,20 @@ const SelectedStockInfo = (props: SSProps) => {
                   data={barGraphBuyData}
                   maxBarSize={80}
                   margin={{
-                    top: 50,
+                    top: 40,
                     right: 30,
                     left: 0,
                     bottom: 0,
                   }}
                 >
                   <text
-                    x={800}
+                    x={600}
                     y={20}
                     fill="black"
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
-                    <tspan fontSize="18">Buy History</tspan>
+                    <tspan fontWeight="600" fontSize="18">Buy History</tspan>
                   </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
@@ -565,13 +564,13 @@ const SelectedStockInfo = (props: SSProps) => {
                   }}
                 >
                   <text
-                    x={800 / 2}
-                    y={20}
+                    x={600}
+                    y={30}
                     fill="black"
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
-                    <tspan fontSize="18">Dividend History</tspan>
+                    <tspan fontWeight="600" fontSize="18">Dividend History</tspan>
                   </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
