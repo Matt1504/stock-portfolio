@@ -307,9 +307,6 @@ const SelectedStockInfo = (props: SSProps) => {
       let platforms: string[] = columnData.platforms.edges.map(
         (x: GraphQLNode<Platform>) => x.node.name
       );
-      console.log(activities);
-      console.log(accounts);
-      console.log(platforms);
       setColumns((prev: any[]) => {
         let update = [...prev];
         // activity
@@ -435,7 +432,7 @@ const SelectedStockInfo = (props: SSProps) => {
       </Col>
       {holdingDetails.map((x: HoldingDetail, index: number) => (
         <Col span={6} key={index}>
-          <Card style={{ marginLeft: 8, marginRight: 8 }}>
+          <Card style={{ marginBottom: 16, marginLeft: 8, marginRight: 8 }}>
             <Statistic
               loading={loading}
               title={x.title}
@@ -452,6 +449,14 @@ const SelectedStockInfo = (props: SSProps) => {
             <Col span={24} className="pie-chart-container">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart width={400} height={400}>
+                  <text
+                    x={400}
+                    y={20}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    <tspan fontSize="18">Book Cost Distribution</tspan>
+                  </text>
                   <Pie
                     activeIndex={activeIndex}
                     activeShape={renderActiveShape}
@@ -487,7 +492,22 @@ const SelectedStockInfo = (props: SSProps) => {
                   height={400}
                   data={barGraphBuyData}
                   maxBarSize={80}
+                  margin={{
+                    top: 50,
+                    right: 30,
+                    left: 0,
+                    bottom: 0,
+                  }}
                 >
+                  <text
+                    x={800 / 2}
+                    y={20}
+                    fill="black"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    <tspan fontSize="18">Buy History</tspan>
+                  </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -512,9 +532,21 @@ const SelectedStockInfo = (props: SSProps) => {
                   data={barGraphDivData}
                   maxBarSize={80}
                   margin={{
-                    top: 24,
+                    top: 50,
+                    right: 30,
+                    left: 0,
+                    bottom: 0,
                   }}
                 >
+                  <text
+                    x={800 / 2}
+                    y={20}
+                    fill="black"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    <tspan fontSize="18">Dividend History</tspan>
+                  </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
