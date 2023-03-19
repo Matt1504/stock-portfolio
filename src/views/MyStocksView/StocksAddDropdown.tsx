@@ -120,7 +120,8 @@ const StocksAddDropdown = (props: SADProps) => {
         >
           <Form.Item
             name="name"
-            style={{ width: 300 }}
+            label="Add Stock"
+            style={{ width: 350 }}
             rules={[
               {
                 required: true,

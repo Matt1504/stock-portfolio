@@ -18,3 +18,27 @@ code {
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
 }
+
+.chart-container {
+  width: 100vw;
+  height: 400px;
+}
+
+.custom-chart-tooltip {
+  padding: 8px 10px;
+  text-align: left;
+  text-decoration: none;
+  background-color: white;
+  border-color: #373737;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.17);
+}
+
+.chart-label {
+  margin: 0;
+  margin-bottom: 4px;
+}
+
+.chart-desc {
+  margin: 0;
+  color: rgb(136, 132, 216);
+}

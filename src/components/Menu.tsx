@@ -39,8 +39,13 @@ const items: MenuItem[] = [
   getItem("Add Transaction", "/add", <PlusOutlined />),
 ];
 
-const MenuComponent = () => {
-  const [collapsed, setCollapsed] = useState(false);
+type MProps = {
+  collapsed: boolean, 
+  setCollapsed: Function,
+}
+
+const MenuComponent = (props: MProps) => {
+  const { collapsed, setCollapsed } = props;
   const navigate = useNavigate();
 
   function handleMenuClick(path: string) {
@@ -52,6 +57,12 @@ const MenuComponent = () => {
 
   return (
     <Sider
+      style={{
+        overflow: "auto",
+        height: "100vh",
+        position: "fixed",
+        left: 0,
+      }}
       collapsible
       collapsed={collapsed}
       onCollapse={(value) => setCollapsed(value)}

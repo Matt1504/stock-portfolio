@@ -30,6 +30,6 @@ export interface Transaction extends GraphQLType {
     fee?: number,
     transactionDate: Date,
     activity: Activity,
-    total: number,
+    total?: number,
     description: string,
 }

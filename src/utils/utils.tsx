@@ -40,7 +40,7 @@ export function formatDecimalTwoPlaces(num: number) {
 
 export function formatNumberAsCurrency(num: number | undefined) {
   if (!num) {
-    return num;
+    return "-";
   }
   return "$" + num.toFixed(2);
 }
