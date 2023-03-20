@@ -1,5 +1,4 @@
-import { Button, Col, Divider, Form, Input, Radio, Row, Select } from "antd";
-import { useEffect, useState } from "react";
+import { Button, Col, Form, Input, Radio, Row, Select } from "antd";
 
 import { useMutation, useQuery } from "@apollo/client";
 
@@ -80,34 +79,20 @@ const StocksAddDropdown = (props: SADProps) => {
             filterOption={(input, option: any) =>
               (option?.label ?? "").toLowerCase().includes(input)
             }
-            options={[
-              {
-                label: "CAD",
+            options={data.currencies?.edges.map(
+              (currency: GraphQLNode<Currency>) => ({
+                label: currency.node.code,
                 options: data?.stocks.edges
                   ?.filter(
-                    (x: GraphQLNode<Stock>) => x.node.currency?.code === "CAD"
+                    (x: GraphQLNode<Stock>) =>
+                      x.node.currency?.code === currency.node.code
                   )
-                  .map((x: GraphQLNode<Stock>) => {
-                    return {
-                      value: x.node.id,
-                      label: `${x.node.name} (${x.node.ticker})`,
-                    };
-                  }),
-              },
-              {
-                label: "USD",
-                options: data?.stocks.edges
-                  ?.filter(
-                    (x: GraphQLNode<Stock>) => x.node.currency?.code === "USD"
-                  )
-                  .map((x: GraphQLNode<Stock>) => {
-                    return {
-                      value: x.node.id,
-                      label: `${x.node.name} (${x.node.ticker})`,
-                    };
-                  }),
-              },
-            ]}
+                  .map((x: GraphQLNode<Stock>) => ({
+                    value: x.node.id,
+                    label: `${x.node.name} (${x.node.ticker})`,
+                  })),
+              })
+            )}
           />
         )}
       </Col>

@@ -18,7 +18,6 @@ export const ALL_STOCKS_CURRENCY = gql(`
             edges {
                 node {
                     id
-                    name
                     code
                 }
             }

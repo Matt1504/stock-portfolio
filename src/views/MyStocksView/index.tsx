@@ -22,7 +22,6 @@ const MyStocksView = () => {
         <SelectedStockInfo
           stock={selectedStock.id}
           name={selectedStock.name}
-          ticker={selectedStock.ticker}
           currency={selectedStock.currency?.code}
           columnData={data}
         />

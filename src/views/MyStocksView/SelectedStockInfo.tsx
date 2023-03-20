@@ -47,7 +47,6 @@ import { TRANSACTIONS_BY_STOCK } from "./gql";
 type SSProps = {
   stock: string | undefined;
   name: string | undefined;
-  ticker: string | undefined;
   currency: string | undefined;
   columnData: any;
 };
@@ -287,7 +286,7 @@ const defaultHoldingDetails: HoldingDetail[] = [
 ];
 
 const SelectedStockInfo = (props: SSProps) => {
-  const { stock, name, ticker, currency, columnData } = props;
+  const { stock, name, currency, columnData } = props;
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
