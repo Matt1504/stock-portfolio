@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 
 import { NotificationComponent } from "../../components/Notification";
-import { Account } from "../../interfaces/Account";
-import { Currency } from "../../interfaces/Currency";
-import { GraphQLNode } from "../../interfaces/GraphQLNode";
-import { Platform } from "../../interfaces/Platform";
-import { Stock } from "../../interfaces/Stock";
+import { Account } from "../../models/Account";
+import { Currency } from "../../models/Currency";
+import { GraphQLNode } from "../../models/GraphQLNode";
+import { Platform } from "../../models/Platform";
+import { Stock } from "../../models/Stock";
 import { ALL_ACCOUNT_PLATFORMS, CREATE_PLATFORM } from "./gql";
 
 type AADProps = {
@@ -59,7 +59,6 @@ const AccountsAddDropdown = (props: AADProps) => {
       (x: GraphQLNode<Platform>) => x.node.id === value
     );
     let x: Platform = arr[index].node;
-    console.log(x);
     setSelectedAccount(x);
   };
 

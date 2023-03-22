@@ -3,9 +3,9 @@ import { Button, Col, Form, Input, Radio, Row, Select } from "antd";
 import { useMutation, useQuery } from "@apollo/client";
 
 import { NotificationComponent } from "../../components/Notification";
-import { Currency } from "../../interfaces/Currency";
-import { GraphQLNode } from "../../interfaces/GraphQLNode";
-import { Stock } from "../../interfaces/Stock";
+import { Currency } from "../../models/Currency";
+import { GraphQLNode } from "../../models/GraphQLNode";
+import { Stock } from "../../models/Stock";
 import { ALL_STOCKS_CURRENCY, CREATE_STOCK } from "./gql";
 
 type SADProps = {

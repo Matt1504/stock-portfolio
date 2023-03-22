@@ -17,12 +17,12 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 
 import { NotificationComponent } from "../../components/Notification";
-import { Activity } from "../../interfaces/Activity";
-import { Currency } from "../../interfaces/Currency";
-import { GraphQLNode } from "../../interfaces/GraphQLNode";
-import { Platform } from "../../interfaces/Platform";
-import { Stock } from "../../interfaces/Stock";
-import { TransactionForm } from "../../interfaces/Transaction";
+import { Activity } from "../../models/Activity";
+import { Currency } from "../../models/Currency";
+import { GraphQLNode } from "../../models/GraphQLNode";
+import { Platform } from "../../models/Platform";
+import { Stock } from "../../models/Stock";
+import { TransactionForm } from "../../models/Transaction";
 import { formatDate, formatDecimalTwoPlaces } from "../../utils/utils";
 import { CREATE_TRANSACTION, GET_PLATFORM_INFO } from "./gql";
 

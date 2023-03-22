@@ -51,3 +51,55 @@ export const CREATE_PLATFORM = gql(`
             }
         }
     }`);
+
+export const TRANSACTIONS_BY_ACCOUNT = gql(`
+    query transaction_account($account: ID) {
+        transactionsByAccount(account: $account) {
+            id
+            account {
+                id
+                code
+            }
+            platform {
+                id
+                name
+                currency {
+                    code
+                }
+            }
+            activity {
+                name
+            }
+            transactionDate
+            price
+            shares
+            fee
+            total
+        }
+    }`);
+
+export const TRANSACTIONS_BY_PLATFORM = gql(`
+    query transaction_platform($platform: ID) {
+        transactionsByPlatform(platform: $platform) {
+            id
+            account {
+                id
+                code
+            }
+            platform {
+                id
+                name
+                currency {
+                    code
+                }
+            }
+            activity {
+                name
+            }
+            transactionDate
+            price
+            shares
+            fee
+            total
+        }
+    }`);

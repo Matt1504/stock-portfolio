@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { useQuery } from "@apollo/client";
 
-import { Stock } from "../../interfaces/Stock";
+import { Stock } from "../../models/Stock";
 import { ACTIVITY_PLATFORM_ACCOUNT_NAMES } from "./gql";
 import SelectedStockInfo from "./SelectedStockInfo";
 import StocksAddDropdown from "./StocksAddDropdown";

@@ -11,7 +11,6 @@ import {
   PieChart,
   ReferenceLine,
   ResponsiveContainer,
-  Sector,
   Tooltip,
   XAxis,
   YAxis
@@ -19,23 +18,21 @@ import {
 
 import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
-import { Box } from "@mui/system";
 import {
-  DataGrid,
   GridColDef,
-  GridToolbarColumnsButton,
-  GridToolbarContainer,
-  GridToolbarDensitySelector,
-  GridToolbarExport,
   GridValueFormatterParams,
   GridValueGetterParams
 } from "@mui/x-data-grid";
 
-import { Account } from "../../interfaces/Account";
-import { Activity } from "../../interfaces/Activity";
-import { GraphQLNode } from "../../interfaces/GraphQLNode";
-import { Platform } from "../../interfaces/Platform";
-import { Transaction } from "../../interfaces/Transaction";
+import { CustomTooltip } from "../../components/BarChartTooltip";
+import { RenderActiveShape } from "../../components/PieChartShape";
+import { TransactionDataGrid } from "../../components/TransactionDataGrid";
+import { Account } from "../../models/Account";
+import { Activity } from "../../models/Activity";
+import { GraphData } from "../../models/GraphData";
+import { GraphQLNode } from "../../models/GraphQLNode";
+import { Platform } from "../../models/Platform";
+import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
   formatNumberAsCurrency,
@@ -58,148 +55,6 @@ type HoldingDetail = {
   colour: string;
   precision: number | undefined;
 };
-
-type PieShapeProps = {
-  cx: number;
-  cy: number;
-  midAngle: number;
-  innerRadius: number;
-  outerRadius: number;
-  startAngle: number;
-  endAngle: number;
-  fill: string;
-  payload: any;
-  percent: number;
-  value: number;
-};
-
-class GraphData {
-  name: string;
-  value: number;
-  value_1: number | undefined;
-  label: string | undefined;
-
-  constructor(
-    name: string,
-    value: number,
-    value_1: number | undefined,
-    label: string | undefined
-  ) {
-    this.name = name;
-    this.value = value;
-    this.value_1 = value_1;
-    this.label = label;
-  }
-}
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active) {
-    console.log(typeof payload);
-    return (
-      <div className="custom-chart-tooltip">
-        <p className="chart-label">{label}</p>
-        <p className="chart-desc">
-          {payload?.[0].name}:{" "}
-          <span style={{ color: payload?.[0].fill }}>
-            ${payload?.[0].value?.toFixed(2)}
-          </span>
-        </p>
-        {payload?.[1] && (
-          <p className="chart-desc">
-            {payload?.[1].name}:{" "}
-            <span style={{ color: payload?.[1].fill }}>
-              ${payload?.[1].value?.toFixed(2)}
-            </span>
-          </p>
-        )}
-      </div>
-    );
-  }
-  return null;
-};
-
-const renderActiveShape = (props: PieShapeProps) => {
-  const RADIAN = Math.PI / 180;
-  const {
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    startAngle,
-    endAngle,
-    fill,
-    payload,
-    percent,
-    value,
-  } = props;
-  const sin = Math.sin(-RADIAN * midAngle);
-  const cos = Math.cos(-RADIAN * midAngle);
-  const sx = cx + (outerRadius + 10) * cos;
-  const sy = cy + (outerRadius + 10) * sin;
-  const mx = cx + (outerRadius + 30) * cos;
-  const my = cy + (outerRadius + 30) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
-  const ey = my;
-  const textAnchor = cos >= 0 ? "start" : "end";
-
-  return (
-    <g>
-      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
-        {payload.name}
-      </text>
-      <Sector
-        cx={cx}
-        cy={cy}
-        innerRadius={innerRadius}
-        outerRadius={outerRadius}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        fill={fill}
-      />
-      <Sector
-        cx={cx}
-        cy={cy}
-        startAngle={startAngle}
-        endAngle={endAngle}
-        innerRadius={outerRadius + 6}
-        outerRadius={outerRadius + 10}
-        fill={fill}
-      />
-      <path
-        d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`}
-        stroke={fill}
-        fill="none"
-      />
-      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
-      <text
-        x={ex + (cos >= 0 ? 1 : -1) * 12}
-        y={ey}
-        textAnchor={textAnchor}
-        fill="#333"
-      >{`$${value.toFixed(2)} or ${payload.label} Share(s)`}</text>
-      <text
-        x={ex + (cos >= 0 ? 1 : -1) * 12}
-        y={ey}
-        dy={18}
-        textAnchor={textAnchor}
-        fill="#999"
-      >
-        {`(Rate ${(percent * 100).toFixed(2)}%)`}
-      </text>
-    </g>
-  );
-};
-
-function CustomToolbar() {
-  return (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <GridToolbarDensitySelector />
-      <GridToolbarExport />
-    </GridToolbarContainer>
-  );
-}
 
 const defaultColumns: GridColDef[] = [
   {
@@ -483,7 +338,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   </text>
                   <Pie
                     activeIndex={activeIndex}
-                    activeShape={renderActiveShape}
+                    activeShape={RenderActiveShape}
                     data={pieGraphPlatData}
                     cx="50%"
                     cy="50%"
@@ -594,23 +449,7 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <Box sx={{ marginTop: 3, width: "100%" }}>
-              <DataGrid
-                autoHeight
-                columns={columns}
-                rows={data?.transactionsByStock}
-                initialState={{
-                  sorting: {
-                    sortModel: [{ field: "transactionDate", sort: "desc" }],
-                  },
-                  pagination: { paginationModel: { pageSize: 5 } },
-                }}
-                pageSizeOptions={[5, 10, 25]}
-                slots={{
-                  toolbar: CustomToolbar,
-                }}
-              />
-            </Box>
+            <TransactionDataGrid columns={columns} data={data} />
           </Col>
         </>
       )}
