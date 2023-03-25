@@ -1,6 +1,5 @@
 export const CustomTooltip = ({ active, payload, label }: any) => {
     if (active) {
-      console.log(typeof payload);
       return (
         <div className="custom-chart-tooltip">
           <p className="chart-label">{label}</p>

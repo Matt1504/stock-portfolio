@@ -41,7 +41,7 @@ export const RenderActiveShape = (props: PieShapeProps) => {
   
     return (
       <g>
-        <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
+        <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill} fontWeight={600}>
           {payload.name}
         </text>
         <Sector

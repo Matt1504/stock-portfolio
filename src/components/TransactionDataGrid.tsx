@@ -11,6 +11,8 @@ import {
 type TDGProps = {
   columns: GridColDef[];
   data: any;
+  defaultSort: string,
+  ascending: boolean
 };
 
 function CustomToolbar() {
@@ -24,16 +26,16 @@ function CustomToolbar() {
 }
 
 export const TransactionDataGrid = (props: TDGProps) => {
-  const { columns, data } = props;
+  const { columns, data, defaultSort, ascending } = props;
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
       <DataGrid
         autoHeight
         columns={columns}
-        rows={data?.transactionsByStock}
+        rows={data}
         initialState={{
           sorting: {
-            sortModel: [{ field: "transactionDate", sort: "desc" }],
+            sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }],
           },
           pagination: { paginationModel: { pageSize: 5 } },
         }}

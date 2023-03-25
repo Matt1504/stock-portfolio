@@ -13,10 +13,11 @@ import { ALL_ACCOUNT_PLATFORMS, CREATE_PLATFORM } from "./gql";
 
 type AADProps = {
   setSelectedAccount: Function;
+  setCurrencies: Function;
 };
 
 const AccountsAddDropdown = (props: AADProps) => {
-  const { setSelectedAccount } = props;
+  const { setSelectedAccount, setCurrencies } = props;
   const { loading, error, data } = useQuery(ALL_ACCOUNT_PLATFORMS);
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
@@ -72,6 +73,7 @@ const AccountsAddDropdown = (props: AADProps) => {
 
   useEffect(() => {
     if (data?.accounts?.edges) {
+      setCurrencies(data.currencies.edges);
       setAccOverviewOptions(
         data.accounts?.edges.map((account: GraphQLNode<Account>) => ({
           node: {

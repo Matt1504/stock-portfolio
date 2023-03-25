@@ -65,35 +65,15 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
                 name
                 currency {
                     code
+                    id
                 }
             }
             activity {
                 name
             }
-            transactionDate
-            price
-            shares
-            fee
-            total
-        }
-    }`);
-
-export const TRANSACTIONS_BY_PLATFORM = gql(`
-    query transaction_platform($platform: ID) {
-        transactionsByPlatform(platform: $platform) {
-            id
-            account {
+            stock {
                 id
-                code
-            }
-            platform {
-                id
-                name
-                currency {
-                    code
-                }
-            }
-            activity {
+                ticker
                 name
             }
             transactionDate

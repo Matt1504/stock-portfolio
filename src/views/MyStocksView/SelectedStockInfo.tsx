@@ -29,12 +29,14 @@ import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { Account } from "../../models/Account";
 import { Activity } from "../../models/Activity";
+import { HoldingDetail } from "../../models/Common";
 import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Platform } from "../../models/Platform";
 import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
+  convertStringToDate,
   formatNumberAsCurrency,
   getColourCodeByAccount,
   getMinMaxDate
@@ -48,21 +50,13 @@ type SSProps = {
   columnData: any;
 };
 
-type HoldingDetail = {
-  title: string;
-  value: number | string;
-  prefix: string | undefined;
-  colour: string;
-  precision: number | undefined;
-};
-
 const defaultColumns: GridColDef[] = [
   {
     field: "transactionDate",
     type: "date",
     headerName: "Transaction Date",
     valueGetter: (params: GridValueGetterParams) =>
-      new Date(params.row.transactionDate),
+      convertStringToDate(params.row.transactionDate),
     width: 200,
   },
   {
@@ -191,10 +185,10 @@ const SelectedStockInfo = (props: SSProps) => {
 
   useEffect(() => {
     if (data?.transactionsByStock) {
-      var shares: number = 0;
-      var bookCost: number = 0;
-      var dividends: number = 0;
-      var lastBuyDate: Date = getMinMaxDate();
+      var shares = 0;
+      var bookCost = 0;
+      var dividends = 0;
+      var lastBuyDate = getMinMaxDate();
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
@@ -286,7 +280,7 @@ const SelectedStockInfo = (props: SSProps) => {
       setBarGraphBuyData(
         Array.from(buyGraphData.values()).map((x: GraphData) => ({
           ...x,
-          label: `${x.label} Shares`,
+          label: `${x.label} Share(s)`,
         }))
       );
       setHoldingDetails((prev: HoldingDetail[]) => {
@@ -380,7 +374,7 @@ const SelectedStockInfo = (props: SSProps) => {
                 >
                   <text
                     x={600}
-                    y={20}
+                    y={10}
                     fill="black"
                     textAnchor="middle"
                     dominantBaseline="central"
@@ -449,7 +443,7 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <TransactionDataGrid columns={columns} data={data} />
+            <TransactionDataGrid columns={columns} data={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} />
           </Col>
         </>
       )}

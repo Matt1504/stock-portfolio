@@ -25,13 +25,20 @@ export function formatDate(date: string) {
     d = new Date(date);
   }
   var month = "" + (d.getMonth() + 1),
-    day = "" + (d.getDate() + 1),
+    day = "" + d.getDate(),
     year = d.getFullYear();
   
   if (month.length < 2) month = "0" + month;
   if (day.length < 2) day = "0" + day;
 
   return [year, month, day].join("-");
+}
+
+export function convertStringToDate(date: string) {
+  // date string follow yyyy-mm-dd format
+  var doo = new Date(date);
+  // eliminate the unwanted offset
+  return new Date( doo.getTime() - doo.getTimezoneOffset() * -60000 );
 }
 
 export function getMinMaxDate(min: boolean = true) {
