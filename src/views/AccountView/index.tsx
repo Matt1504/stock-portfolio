@@ -1,4 +1,4 @@
-import { Divider, Space } from "antd";
+import { Divider } from "antd";
 import React, { useState } from "react";
 
 import { Currency } from "../../models/Currency";
@@ -22,9 +22,10 @@ const AccountView = () => {
       <Divider />
       {selectedPlatform && (
         <SelectedAccountInfo
-          name={selectedPlatform?.name}
-          account={selectedPlatform?.account?.id}
-          accountName={selectedPlatform?.account?.code}
+          platform={selectedPlatform.id}
+          name={selectedPlatform.name}
+          account={selectedPlatform.account?.id}
+          accountName={selectedPlatform.account?.code}
           currencies={currencies}
         />
       )}

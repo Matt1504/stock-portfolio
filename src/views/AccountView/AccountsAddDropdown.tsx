@@ -1,4 +1,5 @@
 import { Button, Col, Form, Input, Radio, Row, Select } from "antd";
+import { platform } from "os";
 import { useEffect, useState } from "react";
 
 import { useMutation, useQuery } from "@apollo/client";
@@ -21,7 +22,10 @@ const AccountsAddDropdown = (props: AADProps) => {
   const { loading, error, data } = useQuery(ALL_ACCOUNT_PLATFORMS);
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
-  const [accOverviewOptions, setAccOverviewOptions] = useState<GraphQLNode<Account>[]>([]);
+  const [accOverviewOptions, setAccOverviewOptions] = useState<
+    GraphQLNode<Account>[]
+  >([]);
+  const [platfromOptions, setPlatformOptions] = useState<GraphQLNode<Platform>[]>([]);
 
   const [createPlatform] = useMutation(CREATE_PLATFORM, {
     update: (cache: any, mutationResult: any) => {
@@ -55,12 +59,11 @@ const AccountsAddDropdown = (props: AADProps) => {
   });
 
   const handleChange = async (value: string) => {
-    var arr = accOverviewOptions.concat(data.platforms.edges);
+    var arr = accOverviewOptions.concat(platfromOptions);
     var index = arr.findIndex(
       (x: GraphQLNode<Platform>) => x.node.id === value
     );
-    let x: Platform = arr[index].node;
-    setSelectedAccount(x);
+    setSelectedAccount(arr[index].node);
   };
 
   const onFinish = async (values: Stock) => {
@@ -87,6 +90,27 @@ const AccountsAddDropdown = (props: AADProps) => {
         }))
       );
     }
+    if (data?.platforms?.edges) {
+      var plats: GraphQLNode<Platform>[] = [];
+      data?.platforms?.edges.forEach((platform: GraphQLNode<Platform>) => {
+        let index = plats.findIndex((x: GraphQLNode<Platform>) => x.node.name === platform.node.name && x.node.account?.id === platform.node.account?.id);
+        if (index === -1) {
+          plats.push(platform);
+        } else {
+          let obj: GraphQLNode<Platform> = {
+            node: {
+              id: `${plats[index].node.id},${platform.node.id}`,
+              name: plats[index].node.name,
+              account: plats[index].node.account,
+              __typename: plats[index].node.__typename,
+            },
+            __typename: plats[index].__typename,
+          };
+          plats[index] = obj;
+        }
+      });
+      setPlatformOptions(plats);
+    }
   }, [data]);
 
   return (
@@ -107,20 +131,11 @@ const AccountsAddDropdown = (props: AADProps) => {
             options={data.accounts?.edges.map(
               (account: GraphQLNode<Account>) => ({
                 label: account.node.code,
-                options: accOverviewOptions.concat(data?.platforms.edges)
+                options: accOverviewOptions
+                  .concat(platfromOptions)
                   ?.filter(
                     (x: GraphQLNode<Platform>) =>
                       x.node.account?.code === account.node.code
-                  )
-                  .reduce(
-                    (unique: any, item: GraphQLNode<Platform>) =>
-                      unique.some(
-                        (y: GraphQLNode<Platform>) =>
-                          y.node.name === item.node.name
-                      )
-                        ? unique
-                        : [...unique, item],
-                    []
                   )
                   .map((x: GraphQLNode<Platform>) => ({
                     value: x.node.id,

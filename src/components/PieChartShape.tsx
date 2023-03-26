@@ -81,7 +81,7 @@ export const RenderActiveShape = (props: PieShapeProps) => {
           textAnchor={textAnchor}
           fill="#999"
         >
-          {`(Rate ${(percent * 100).toFixed(2)}%)`}
+          {`${(percent * 100).toFixed(2)}%`}
         </text>
       </g>
     );

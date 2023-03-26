@@ -18,26 +18,15 @@ import {
 
 import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
-import {
-  GridColDef,
-  GridValueFormatterParams,
-  GridValueGetterParams
-} from "@mui/x-data-grid";
 
 import { CustomTooltip } from "../../components/BarChartTooltip";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
-import { Account } from "../../models/Account";
-import { Activity } from "../../models/Activity";
 import { HoldingDetail } from "../../models/Common";
 import { GraphData } from "../../models/GraphData";
-import { GraphQLNode } from "../../models/GraphQLNode";
-import { Platform } from "../../models/Platform";
 import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
-  convertStringToDate,
-  formatNumberAsCurrency,
   getColourCodeByAccount,
   getMinMaxDate
 } from "../../utils/utils";
@@ -47,61 +36,7 @@ type SSProps = {
   stock: string | undefined;
   name: string | undefined;
   currency: string | undefined;
-  columnData: any;
 };
-
-const defaultColumns: GridColDef[] = [
-  {
-    field: "transactionDate",
-    type: "date",
-    headerName: "Transaction Date",
-    valueGetter: (params: GridValueGetterParams) =>
-      convertStringToDate(params.row.transactionDate),
-    width: 200,
-  },
-  {
-    field: "activity",
-    headerName: "Activity",
-    valueGetter: (params: GridValueGetterParams) => params.row.activity.name,
-    width: 200,
-  },
-  {
-    field: "account",
-    headerName: "Account",
-    valueGetter: (params: GridValueGetterParams) => params.row.account.code,
-    width: 100,
-  },
-  {
-    field: "platform",
-    headerName: "Platform",
-    valueGetter: (params: GridValueGetterParams) => params.row.platform.name,
-    width: 300,
-  },
-  {
-    field: "price",
-    headerName: "Price ($)",
-    type: "number",
-    width: 100,
-    valueFormatter: (params: GridValueFormatterParams<number>) =>
-      formatNumberAsCurrency(params.value, false),
-  },
-  {
-    field: "shares",
-    headerName: "Shares",
-    type: "number",
-    width: 100,
-    valueFormatter: (params: GridValueFormatterParams<number>) =>
-      params.value ?? "-",
-  },
-  {
-    field: "total",
-    headerName: "Total ($)",
-    type: "number",
-    width: 100,
-    valueFormatter: (params: GridValueFormatterParams<number>) =>
-      formatNumberAsCurrency(params.value, false),
-  },
-];
 
 const defaultHoldingDetails: HoldingDetail[] = [
   {
@@ -135,12 +70,11 @@ const defaultHoldingDetails: HoldingDetail[] = [
 ];
 
 const SelectedStockInfo = (props: SSProps) => {
-  const { stock, name, currency, columnData } = props;
+  const { stock, name, currency } = props;
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
   const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
-  const [columns, setColumns] = useState<GridColDef[]>(defaultColumns);
   const [activeIndex, setActiveIndex] = useState(0);
   const { loading, error, data } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
@@ -149,39 +83,6 @@ const SelectedStockInfo = (props: SSProps) => {
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };
-
-  useEffect(() => {
-    if (columnData.accounts && columnData.activities && columnData.platforms) {
-      let activities: string[] = columnData.activities.edges.map(
-        (x: GraphQLNode<Activity>) => x.node.name
-      );
-      let accounts: string[] = columnData.accounts.edges.map(
-        (x: GraphQLNode<Account>) => x.node.code
-      );
-      let platforms: string[] = columnData.platforms.edges.map(
-        (x: GraphQLNode<Platform>) => x.node.name
-      );
-      setColumns((prev: any[]) => {
-        let update = [...prev];
-        // activity
-        update[1].type = "singleSelect";
-        update[1].valueOptions = activities;
-
-        // account
-        update[2].type = "singleSelect";
-        update[2].valueOptions = accounts;
-
-        // platform
-        update[3].type = "singleSelect";
-        update[3].valueOptions = platforms.reduce(
-          (unique: any, item: string) =>
-            unique.includes(item) ? unique : [...unique, item],
-          []
-        );
-        return update;
-      });
-    }
-  }, [columnData]);
 
   useEffect(() => {
     if (data?.transactionsByStock) {
@@ -274,7 +175,7 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
         }
       });
-      console.log(divGraphData);
+
       setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
@@ -322,7 +223,7 @@ const SelectedStockInfo = (props: SSProps) => {
                 <PieChart width={450} height={450}>
                   <text
                     x={600}
-                    y={20}
+                    y={25}
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
@@ -443,7 +344,7 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <TransactionDataGrid columns={columns} data={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} />
+            <TransactionDataGrid gridData={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} removeColumns={["stock"]}/>
           </Col>
         </>
       )}

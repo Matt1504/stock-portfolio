@@ -1,18 +1,28 @@
 import { Card, Col, Row, Statistic, Tabs } from "antd";
 import { useEffect, useState } from "react";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 
+import { RenderActiveShape } from "../../components/PieChartShape";
+import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
 import { Currency } from "../../models/Currency";
+import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Stock } from "../../models/Stock";
 import { Transaction } from "../../models/Transaction";
-import { TRANSACTIONS_BY_ACCOUNT } from "./gql";
+import { getColourCodeByAccount } from "../../utils/utils";
+import {
+  TRANSACTIONS_BY_ACCOUNT,
+  TRANSACTIONS_BY_PLATFORM,
+  TRANSACTIONS_BY_PLATFORMS
+} from "./gql";
 
 type SAProps = {
   name: string | undefined;
+  platform: string | undefined;
   account: string | undefined;
   accountName: string | undefined;
   currencies: GraphQLNode<Currency>[];
@@ -21,12 +31,10 @@ type SAProps = {
 class StockHolding {
   total: number;
   shares: number;
-  label: string;
 
-  constructor(total: number, shares: number, label: string) {
+  constructor(total: number, shares: number) {
     this.total = total;
     this.shares = shares;
-    this.label = label;
   }
 }
 
@@ -90,11 +98,32 @@ const defaultAccountDetails: HoldingDetail[] = [
 ];
 
 const SelectedAccountInfo = (props: SAProps) => {
-  const { name, account, accountName, currencies } = props;
+  const { name, platform, account, accountName, currencies } = props;
+
+  var query = TRANSACTIONS_BY_ACCOUNT;
+
+  var platform_one = "";
+  var platform_two = "";
+
+  if (platform && !platform?.includes("all")) {
+    query = TRANSACTIONS_BY_PLATFORM;
+    var platforms: string[] = platform.split(",");
+    platform_one = platforms[0];
+    if (platforms.length > 1) {
+      platform_two = platforms[1];
+      query = TRANSACTIONS_BY_PLATFORMS;
+    }
+  }
+
   const [accountDetails, setAccountDetails] = useState(defaultAccountDetails);
   const [selectedCurrrency, setSelectedCurrency] = useState("");
-  const { loading, error, data } = useQuery(TRANSACTIONS_BY_ACCOUNT, {
-    variables: { account },
+  const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
+    []
+  );
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const { loading, error, data } = useQuery(query, {
+    variables: { account, platform_one, platform_two },
   });
 
   const handleTabChange = (key: string) => {
@@ -102,15 +131,19 @@ const SelectedAccountInfo = (props: SAProps) => {
     processTransactionData(key);
   };
 
+  const onPieEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
   useEffect(() => {
-    if (currencies && data?.transactionsByAccount) {
+    if (currencies && data?.transactions) {
       setSelectedCurrency(currencies[0].node.id ?? "");
       processTransactionData(currencies[0].node.id ?? "");
     }
   }, [currencies, name, data]);
 
   const processTransactionData = (currency: string) => {
-    if (!data?.transactionsByAccount || !currency) {
+    if (!data?.transactions || !currency) {
       return;
     }
 
@@ -122,80 +155,101 @@ const SelectedAccountInfo = (props: SAProps) => {
     var dividends = 0;
 
     var stockHoldings = new Map<Stock, StockHolding>();
-    var transactions = data?.transactionsByAccount.filter(
-      (transaction: Transaction) =>
-        transaction.platform?.currency?.id === currency &&
-        (name === "Overview" || transaction.platform.name === name)
-    );
+    var transactions = data?.transactions;
+    if (data?.transactions_two) {
+      transactions = transactions.concat(data.transactions_two);
+    }
 
     if (!transactions.length) return;
 
-    transactions.map((transaction: Transaction) => {
-      switch (transaction.activity.name) {
-        case "Contribution":
-          contributions += transaction.total ?? 0;
-          break;
-        case "Transfer In":
-          transferIn += transaction.total ?? 0;
-          break;
-        case "Transfer Out":
-          transferOut += transaction.total ?? 0;
-          break;
-        case "Buy":
-          shares += transaction.shares ?? 0;
-          bookCost += transaction.total ?? 0;
-          var holding = stockHoldings.get(transaction.stock as Stock);
-          if (holding) {
-            holding.shares += transaction.shares ?? 0;
-            holding.total += transaction.total ?? 0;
-          } else {
-            holding = new StockHolding(
-              transaction.total ?? 0,
-              transaction.shares ?? 0,
-              transaction.stock?.ticker as string
-            );
-          }
-          stockHoldings.set(transaction.stock as Stock, holding);
-          break;
-        case "Stock Split":
-          shares += transaction.shares ?? 0;
-          break;
-        case "Sell":
-          shares -= transaction.shares ?? 0;
-          var holding = stockHoldings.get(transaction.stock as Stock);
-          if (holding) {
-            holding.shares -= transaction.shares ?? 0;
-            holding.total -= transaction.total ?? 0;
-          } else {
-            holding = new StockHolding(
-              (transaction.total ?? 0) * -1,
-              (transaction.shares ?? 0) * -1,
-              transaction.stock?.ticker as string
-            );
-          }
-          stockHoldings.set(transaction.stock as Stock, holding);
-          break;
-        case "Dividends":
-          dividends += transaction.total ?? 0;
-          break;
-        case "Withholding Tax":
-          dividends -= transaction.total ?? 0;
-      }
-    });
+    transactions
+      .filter(
+        (transaction: Transaction) =>
+          transaction.platform?.currency?.id === currency
+      )
+      .map((transaction: Transaction) => {
+        switch (transaction.activity.name) {
+          case "Contribution":
+            contributions += transaction.total ?? 0;
+            break;
+          case "Transfer In":
+            transferIn += transaction.total ?? 0;
+            break;
+          case "Transfer Out":
+            transferOut += transaction.total ?? 0;
+            break;
+          case "Buy":
+            shares += transaction.shares ?? 0;
+            bookCost += transaction.total ?? 0;
+            var holding = stockHoldings.get(transaction.stock as Stock);
+            if (holding) {
+              holding.shares += transaction.shares ?? 0;
+              holding.total += transaction.total ?? 0;
+            } else {
+              holding = new StockHolding(
+                transaction.total ?? 0,
+                transaction.shares ?? 0
+              );
+            }
+            stockHoldings.set(transaction.stock as Stock, holding);
+            break;
+          case "Stock Split":
+            shares += transaction.shares ?? 0;
+            break;
+          case "Sell":
+            shares -= transaction.shares ?? 0;
+            holding = stockHoldings.get(transaction.stock as Stock);
+            if (holding) {
+              holding.shares -= transaction.shares ?? 0;
+              holding.total -= transaction.total ?? 0;
+            } else {
+              holding = new StockHolding(
+                (transaction.total ?? 0) * -1,
+                (transaction.shares ?? 0) * -1
+              );
+            }
+            stockHoldings.set(transaction.stock as Stock, holding);
+            break;
+          case "Dividends":
+            dividends += transaction.total ?? 0;
+            break;
+          case "Withholding Tax":
+            dividends -= transaction.total ?? 0;
+        }
+      });
 
-    var maxHolding = new StockHolding(0, 0, "");
+    var maxHolding: Stock;
     if (stockHoldings.size) {
-      maxHolding = Array.from(stockHoldings.values()).reduce(
-        (prev: StockHolding, current: StockHolding) =>
-          prev.total > current.total ? prev : current
+      maxHolding = Array.from(stockHoldings.keys()).reduce(
+        (prev: Stock, current: Stock) =>
+          (stockHoldings.get(prev) as StockHolding).total >
+          (stockHoldings.get(current) as StockHolding).total
+            ? prev
+            : current
       );
     }
+
+    setPieGraphHoldingData(
+      Array.from(stockHoldings.keys()).map((stock: Stock) => {
+        var totals: StockHolding = stockHoldings.get(stock) as StockHolding;
+        return new GraphData(
+          `${stock.ticker}`,
+          totals.total,
+          undefined,
+          totals.shares.toString()
+        );
+      })
+    );
 
     setAccountDetails((prev: HoldingDetail[]) => {
       let update = [...prev];
       update[0].value = shares;
       update[1].value = stockHoldings.size;
-      update[2].value = stockHoldings.size ? `${maxHolding.label} | $${maxHolding.total.toFixed(2)}` : "-";
+      update[2].value = stockHoldings.size
+        ? `${maxHolding.ticker} | $${
+            (stockHoldings.get(maxHolding) as StockHolding).total.toFixed(2)
+          }`
+        : "-";
       update[3].value = contributions;
       update[4].value = transferIn;
       update[5].value = transferOut;
@@ -225,12 +279,15 @@ const SelectedAccountInfo = (props: SAProps) => {
                 key: currency.node.id ?? "",
                 disabled:
                   loading ||
-                  data?.transactionsByAccount.filter(
-                    (transaction: Transaction) =>
-                      transaction.platform?.currency?.id === currency.node.id &&
-                      (name === "Overview" ||
-                        transaction.platform.name === name)
-                  ).length === 0,
+                  data?.transactions
+                    .concat(data?.transactions_two ?? [])
+                    .filter(
+                      (transaction: Transaction) =>
+                        transaction.platform?.currency?.id ===
+                          currency.node.id &&
+                        (name === "Overview" ||
+                          transaction.platform.name === name)
+                    ).length === 0,
               };
             }
           )}
@@ -249,6 +306,69 @@ const SelectedAccountInfo = (props: SAProps) => {
           </Card>
         </Col>
       ))}
+      {data && (
+        <>
+          <Col span={24}>
+            {pieGraphHoldingData.length ? (
+              <Col span={24} className="pie-chart-container">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart width={450} height={450}>
+                    <text
+                      x={600}
+                      y={20}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                    >
+                      <tspan fontWeight="600" fontSize="18">
+                        Stock Holdings Distribution
+                      </tspan>
+                    </text>
+                    <Pie
+                      activeIndex={activeIndex}
+                      activeShape={RenderActiveShape}
+                      data={pieGraphHoldingData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={100}
+                      outerRadius={140}
+                      fill="#8884d8"
+                      dataKey="value"
+                      onMouseEnter={onPieEnter}
+                    >
+                      {pieGraphHoldingData.map(
+                        (entry: GraphData, index: number) => {
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={getColourCodeByAccount(entry.name ?? "")}
+                            />
+                          );
+                        }
+                      )}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </Col>
+            ) : (
+              <></>
+            )}
+          </Col>
+          <Col span={24}>
+            <TransactionDataGrid
+              gridData={data?.transactions
+                .concat(data?.transactions_two ?? [])
+                .filter(
+                  (transaction: Transaction) =>
+                    transaction.platform?.currency?.id === selectedCurrrency &&
+                    (name === "Overview" || transaction.platform.name === name)
+                )}
+              defaultSort="transactionDate"
+              ascending={false}
+              removeColumns={name === "Overview" ? ["account"] : ["account", "platform"]}
+            />
+          </Col>
+        </>
+      )}
     </Row>
   );
 };
