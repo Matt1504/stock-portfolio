@@ -60,7 +60,6 @@ const AddTransactionView = () => {
           "shares",
           "fee",
           "description",
-          "transaction",
         ];
         if (isIndex) setIsIndex(false);
         fields.forEach((field: string) => {

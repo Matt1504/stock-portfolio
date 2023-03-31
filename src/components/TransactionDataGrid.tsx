@@ -51,7 +51,7 @@ const defaultColumns: GridColDef[] = [
     headerName: "Activity",
     type: "singleSelect",
     valueGetter: (params: GridValueGetterParams) => params.row.activity.name,
-    width: 200,
+    width: 150,
   },
   {
     field: "account",
@@ -99,6 +99,11 @@ const defaultColumns: GridColDef[] = [
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
       formatNumberAsCurrency(params.value, false),
+  },
+  {
+    field: "description",
+    width: 200,
+    headerName: "Description",
   },
 ];
 

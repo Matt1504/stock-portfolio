@@ -344,7 +344,7 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <TransactionDataGrid gridData={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} removeColumns={["stock"]}/>
+            <TransactionDataGrid gridData={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} removeColumns={["stock", "description"]}/>
           </Col>
         </>
       )}

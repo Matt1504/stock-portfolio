@@ -76,6 +76,7 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
                 ticker
                 name
             }
+            description
             transactionDate
             price
             shares
@@ -109,6 +110,7 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
                 name
             }
             transactionDate
+            description
             price
             shares
             fee
@@ -141,6 +143,7 @@ export const TRANSACTIONS_BY_PLATFORMS = gql(`
                 name
             }
             transactionDate
+            description
             price
             shares
             fee
@@ -169,6 +172,7 @@ export const TRANSACTIONS_BY_PLATFORMS = gql(`
                 name
             }
             transactionDate
+            description
             price
             shares
             fee
