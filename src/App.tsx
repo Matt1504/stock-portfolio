@@ -35,7 +35,7 @@ const App = () => {
         <Route
           path="/add"
           element={
-            <LayoutComponent title="Add Activity" view={<AddTransactionView />} />
+            <LayoutComponent title="Add Transaction" view={<AddTransactionView />} />
           }
         />
         <Route
