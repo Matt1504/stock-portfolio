@@ -1,9 +1,11 @@
-import { Card, Col, Row, Statistic, Tabs } from "antd";
+import { Button, Card, Col, Row, Statistic, Tabs } from "antd";
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
+import { ReloadOutlined } from "@ant-design/icons";
 import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
+import { Stack } from "@mui/system";
 
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
@@ -122,7 +124,7 @@ const SelectedAccountInfo = (props: SAProps) => {
   );
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const { loading, error, data } = useQuery(query, {
+  const { loading, error, data, refetch } = useQuery(query, {
     variables: { account, platform_one, platform_two },
   });
 
@@ -167,7 +169,7 @@ const SelectedAccountInfo = (props: SAProps) => {
         (transaction: Transaction) =>
           transaction.platform?.currency?.id === currency
       )
-      .map((transaction: Transaction) => {
+      .forEach((transaction: Transaction) => {
         switch (transaction.activity.name) {
           case "Contribution":
             contributions += transaction.total ?? 0;
@@ -246,9 +248,9 @@ const SelectedAccountInfo = (props: SAProps) => {
       update[0].value = shares;
       update[1].value = stockHoldings.size;
       update[2].value = stockHoldings.size
-        ? `${maxHolding.ticker} | $${
-            (stockHoldings.get(maxHolding) as StockHolding).total.toFixed(2)
-          }`
+        ? `${maxHolding.ticker} | $${(
+            stockHoldings.get(maxHolding) as StockHolding
+          ).total.toFixed(2)}`
         : "-";
       update[3].value = contributions;
       update[4].value = transferIn;
@@ -262,9 +264,18 @@ const SelectedAccountInfo = (props: SAProps) => {
   return (
     <Row>
       <Col span={24}>
-        <Typography gutterBottom variant="h6">
-          {accountName} {name}
-        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
+          mb={1}
+        >
+          <Typography gutterBottom variant="h6">
+            {accountName} {name}
+          </Typography>
+          <Button onClick={() => refetch()} type="primary" shape="round" icon={<ReloadOutlined />} />
+        </Stack>
       </Col>
       <Col span={24}>
         <Tabs
@@ -364,7 +375,9 @@ const SelectedAccountInfo = (props: SAProps) => {
                 )}
               defaultSort="transactionDate"
               ascending={false}
-              removeColumns={name === "Overview" ? ["account"] : ["account", "platform"]}
+              removeColumns={
+                name === "Overview" ? ["account"] : ["account", "platform"]
+              }
             />
           </Col>
         </>

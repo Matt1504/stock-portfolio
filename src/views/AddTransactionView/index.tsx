@@ -52,15 +52,16 @@ const AddTransactionView = () => {
           "Transaction Added",
           "The transaction was successfully added to the database."
         );
-        if (activity === "Withholding Tax") return;
-        var fields = [
-          "total",
-          "stock",
-          "price",
-          "shares",
-          "fee",
-          "description",
-        ];
+        var fields = ["total"];
+        if (activity !== "Withholding Tax") {
+          fields = fields.concat([
+            "stock",
+            "price",
+            "shares",
+            "fee",
+            "description",
+          ]);
+        }
         if (isIndex) setIsIndex(false);
         fields.forEach((field: string) => {
           form.setFieldValue(field, null);
@@ -69,25 +70,26 @@ const AddTransactionView = () => {
     },
   });
 
-  const onRadioChange = (e: RadioChangeEvent, updateFunc: Function) => {
-    updateFunc(e.target.value);
+  const onRadioChangeCurrency = (e: RadioChangeEvent, updateFunc: Function) => {
+    onRadioChange(e, updateFunc);
 
-    if (updateFunc.toString() === setCurrency.toString()) {
-      form.setFieldValue("stock", null);
-      if (!e.target.value) return;
+    form.setFieldValue("stock", null);
+    if (!e.target.value) return;
 
-      setStockOptions(
-        data.stocks.edges
-          .filter(
-            (x: GraphQLNode<Stock>) => x.node.currency?.id === e.target.value
-          )
-          .map((x: GraphQLNode<Stock>) => ({
-            value: x.node.id,
-            label: `${x.node.name} (${x.node.ticker})`,
-          }))
-      );
-    }
+    setStockOptions(
+      data.stocks.edges
+        .filter(
+          (x: GraphQLNode<Stock>) => x.node.currency?.id === e.target.value
+        )
+        .map((x: GraphQLNode<Stock>) => ({
+          value: x.node.id,
+          label: `${x.node.name} (${x.node.ticker})`,
+        }))
+    );
   };
+
+  const onRadioChange = (e: RadioChangeEvent, updateFunc: Function) =>
+    updateFunc(e.target.value);
 
   const onSelectActivityChange = (value: { value: string; label: string }) => {
     setActivity(value.label);
@@ -208,7 +210,7 @@ const AddTransactionView = () => {
                 optionType="button"
                 buttonStyle="solid"
                 onChange={(e: RadioChangeEvent) =>
-                  onRadioChange(e, setCurrency)
+                  onRadioChangeCurrency(e, setCurrency)
                 }
               >
                 {data?.currencies?.edges.map(
@@ -324,10 +326,7 @@ const AddTransactionView = () => {
               />
             </Form.Item>
             <Form.Item hidden={!["Buy", "Sell"].includes(activity)}>
-              <Checkbox
-                checked={isIndex}
-                onChange={onIndexCheckboxChange}
-              >
+              <Checkbox checked={isIndex} onChange={onIndexCheckboxChange}>
                 Index Fund
               </Checkbox>
             </Form.Item>

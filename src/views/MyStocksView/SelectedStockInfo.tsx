@@ -1,4 +1,4 @@
-import { Card, Col, Row, Statistic } from "antd";
+import { Button, Card, Col, Row, Statistic } from "antd";
 import { useEffect, useState } from "react";
 import {
   Bar,
@@ -16,8 +16,9 @@ import {
   YAxis
 } from "recharts";
 
+import { ReloadOutlined } from "@ant-design/icons";
 import { useQuery } from "@apollo/client";
-import { Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 
 import { CustomTooltip } from "../../components/BarChartTooltip";
 import { RenderActiveShape } from "../../components/PieChartShape";
@@ -76,7 +77,7 @@ const SelectedStockInfo = (props: SSProps) => {
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
   const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const { loading, error, data } = useQuery(TRANSACTIONS_BY_STOCK, {
+  const { loading, error, data, refetch } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
   });
 
@@ -93,8 +94,9 @@ const SelectedStockInfo = (props: SSProps) => {
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
-      data.transactionsByStock.map((transaction: Transaction) => {
+      data.transactionsByStock.forEach((transaction: Transaction) => {
         var transDate = transaction.transactionDate.toString();
+        var divData = divGraphData.get(transDate);
         switch (transaction.activity.name) {
           case "Stock Split":
             shares += transaction.shares ?? 0;
@@ -144,7 +146,6 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
           case "Dividends":
             dividends += transaction.total ?? 0;
-            var divData = divGraphData.get(transDate);
             if (divData) {
               divData.value += transaction.total ?? 0;
             } else {
@@ -159,7 +160,6 @@ const SelectedStockInfo = (props: SSProps) => {
             break;
           case "Withholding Tax":
             dividends -= transaction.total ?? 0;
-            var divData = divGraphData.get(transDate);
             if (divData) {
               divData.value_1 =
                 (divData.value_1 ?? 0) - (transaction.total ?? 0);
@@ -198,9 +198,23 @@ const SelectedStockInfo = (props: SSProps) => {
   return (
     <Row>
       <Col span={24}>
-        <Typography gutterBottom variant="h6">
-          {name} | {currency}
-        </Typography>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
+          mb={1}
+        >
+          <Typography gutterBottom variant="h6">
+            {name} | {currency}
+          </Typography>
+          <Button
+            onClick={() => refetch()}
+            type="primary"
+            shape="round"
+            icon={<ReloadOutlined />}
+          />
+        </Stack>
       </Col>
       {holdingDetails.map((x: HoldingDetail, index: number) => (
         <Col span={6} key={index}>
@@ -280,7 +294,9 @@ const SelectedStockInfo = (props: SSProps) => {
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
-                    <tspan fontWeight="600" fontSize="18">Buy History</tspan>
+                    <tspan fontWeight="600" fontSize="18">
+                      Buy History
+                    </tspan>
                   </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
@@ -319,7 +335,9 @@ const SelectedStockInfo = (props: SSProps) => {
                     textAnchor="middle"
                     dominantBaseline="central"
                   >
-                    <tspan fontWeight="600" fontSize="18">Dividend History</tspan>
+                    <tspan fontWeight="600" fontSize="18">
+                      Dividend History
+                    </tspan>
                   </text>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
@@ -344,7 +362,12 @@ const SelectedStockInfo = (props: SSProps) => {
             <></>
           )}
           <Col span={24}>
-            <TransactionDataGrid gridData={data?.transactionsByStock} defaultSort="transactionDate" ascending={false} removeColumns={["stock", "description"]}/>
+            <TransactionDataGrid
+              gridData={data?.transactionsByStock}
+              defaultSort="transactionDate"
+              ascending={false}
+              removeColumns={["stock", "description"]}
+            />
           </Col>
         </>
       )}
