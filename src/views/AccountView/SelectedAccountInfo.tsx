@@ -1,12 +1,24 @@
 import { Button, Card, Col, Row, Statistic, Tabs } from "antd";
 import { useEffect, useState } from "react";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import {
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
 
 import { ReloadOutlined } from "@ant-design/icons";
 import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
+import { CustomTooltip } from "../../components/BarChartTooltip";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
@@ -15,7 +27,11 @@ import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Stock } from "../../models/Stock";
 import { Transaction } from "../../models/Transaction";
-import { getColourCodeByAccount } from "../../utils/utils";
+import {
+  compareDates,
+  convertStringToDate,
+  getColourCodeByAccount
+} from "../../utils/utils";
 import {
   TRANSACTIONS_BY_ACCOUNT,
   TRANSACTIONS_BY_PLATFORM,
@@ -122,6 +138,9 @@ const SelectedAccountInfo = (props: SAProps) => {
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
+  const [barGraphBookCostData, setBarGraphBookCostData] = useState<GraphData[]>(
+    []
+  );
   const [activeIndex, setActiveIndex] = useState(0);
 
   const { loading, error, data, refetch } = useQuery(query, {
@@ -157,6 +176,7 @@ const SelectedAccountInfo = (props: SAProps) => {
     var dividends = 0;
 
     var stockHoldings = new Map<Stock, StockHolding>();
+    var bookCostHistory = new Map<string, GraphData>();
     var transactions = data?.transactions;
     if (data?.transactions_two) {
       transactions = transactions.concat(data.transactions_two);
@@ -169,7 +189,13 @@ const SelectedAccountInfo = (props: SAProps) => {
         (transaction: Transaction) =>
           transaction.platform?.currency?.id === currency
       )
+      .sort((a: Transaction, b: Transaction) =>
+        compareDates(a.transactionDate, b.transactionDate)
+      )
       .forEach((transaction: Transaction) => {
+        var transDate = transaction.transactionDate.toString();
+        var holding = stockHoldings.get(transaction.stock as Stock);
+        var transHistory = bookCostHistory.get(transDate);
         switch (transaction.activity.name) {
           case "Contribution":
             contributions += transaction.total ?? 0;
@@ -183,7 +209,9 @@ const SelectedAccountInfo = (props: SAProps) => {
           case "Buy":
             shares += transaction.shares ?? 0;
             bookCost += transaction.total ?? 0;
-            var holding = stockHoldings.get(transaction.stock as Stock);
+            console.log(transaction);
+            console.log(bookCost);
+            console.log("----");
             if (holding) {
               holding.shares += transaction.shares ?? 0;
               holding.total += transaction.total ?? 0;
@@ -194,13 +222,23 @@ const SelectedAccountInfo = (props: SAProps) => {
               );
             }
             stockHoldings.set(transaction.stock as Stock, holding);
+            if (transHistory) {
+              transHistory.value = bookCost;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                undefined,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
             break;
           case "Stock Split":
             shares += transaction.shares ?? 0;
             break;
           case "Sell":
             shares -= transaction.shares ?? 0;
-            holding = stockHoldings.get(transaction.stock as Stock);
             if (holding) {
               holding.shares -= transaction.shares ?? 0;
               holding.total -= transaction.total ?? 0;
@@ -243,6 +281,8 @@ const SelectedAccountInfo = (props: SAProps) => {
       })
     );
 
+    setBarGraphBookCostData(Array.from(bookCostHistory.values()));
+
     setAccountDetails((prev: HoldingDetail[]) => {
       let update = [...prev];
       update[0].value = shares;
@@ -274,7 +314,12 @@ const SelectedAccountInfo = (props: SAProps) => {
           <Typography gutterBottom variant="h6">
             {accountName} {name}
           </Typography>
-          <Button onClick={() => refetch()} type="primary" shape="round" icon={<ReloadOutlined />} />
+          <Button
+            onClick={() => refetch()}
+            type="primary"
+            shape="round"
+            icon={<ReloadOutlined />}
+          />
         </Stack>
       </Col>
       <Col span={24}>
@@ -344,6 +389,7 @@ const SelectedAccountInfo = (props: SAProps) => {
                       outerRadius={140}
                       fill="#8884d8"
                       dataKey="value"
+                      name="Book Cost"
                       onMouseEnter={onPieEnter}
                     >
                       {pieGraphHoldingData.map(
@@ -363,6 +409,45 @@ const SelectedAccountInfo = (props: SAProps) => {
             ) : (
               <></>
             )}
+          </Col>
+          <Col span={24} className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                width={800}
+                height={400}
+                data={barGraphBookCostData}
+                margin={{
+                  top: 30,
+                  right: 30,
+                  left: 0,
+                  bottom: 0,
+                }}
+              >
+                <text
+                  x={600}
+                  y={10}
+                  fill="black"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                >
+                  <tspan fontWeight="600" fontSize="18">
+                    Book Cost History
+                  </tspan>
+                </text>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value: any, name: any) => `$${value.toFixed(2)}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name="Book Cost"
+                  stroke="#8884d8"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </Col>
           <Col span={24}>
             <TransactionDataGrid

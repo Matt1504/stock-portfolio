@@ -28,6 +28,7 @@ import { GraphData } from "../../models/GraphData";
 import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
+  convertStringToDate,
   getColourCodeByAccount,
   getMinMaxDate
 } from "../../utils/utils";
@@ -94,89 +95,96 @@ const SelectedStockInfo = (props: SSProps) => {
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
-      data.transactionsByStock.forEach((transaction: Transaction) => {
-        var transDate = transaction.transactionDate.toString();
-        var divData = divGraphData.get(transDate);
-        switch (transaction.activity.name) {
-          case "Stock Split":
-            shares += transaction.shares ?? 0;
-            break;
-          case "Buy":
-            shares += transaction.shares ?? 0;
-            bookCost += transaction.total ?? 0;
-            if (compareDates(lastBuyDate, transaction.transactionDate) === -1) {
-              lastBuyDate = transaction.transactionDate;
-            }
-            var buyData = buyGraphData.get(transDate);
-            if (buyData) {
-              buyData.value += transaction.total ?? 0;
-              var shareLabel = Number(buyData.label ?? 0);
-              shareLabel += transaction.shares ?? 0;
-              buyData.label = shareLabel.toString();
-            } else {
-              buyData = new GraphData(
-                transDate,
-                transaction.total ?? 0,
-                undefined,
-                (transaction.shares ?? 0).toString()
-              );
-            }
-            buyGraphData.set(transDate, buyData);
-            if (transaction.platform.name && transaction.account.code) {
-              let key = `${transaction.platform.name} (${transaction.account.code})`;
-              var platData = platformBuyData.get(key);
-              if (platData) {
-                platData.value += transaction.total ?? 0;
-                let shareCount = Number(platData.label);
-                platData.label = (shareCount +=
-                  transaction.shares ?? 0).toString();
+      data.transactionsByStock
+        .sort((a: Transaction, b: Transaction) =>
+          compareDates(a.transactionDate, b.transactionDate)
+        )
+        .forEach((transaction: Transaction) => {
+          var transDate = transaction.transactionDate.toString();
+          var divData = divGraphData.get(transDate);
+          switch (transaction.activity.name) {
+            case "Stock Split":
+              shares += transaction.shares ?? 0;
+              break;
+            case "Buy":
+              shares += transaction.shares ?? 0;
+              bookCost += transaction.total ?? 0;
+              if (
+                compareDates(lastBuyDate, transaction.transactionDate) === -1
+              ) {
+                lastBuyDate = transaction.transactionDate;
+              }
+              var buyData = buyGraphData.get(transDate);
+              if (buyData) {
+                buyData.value += transaction.total ?? 0;
+                var shareLabel = Number(buyData.label ?? 0);
+                shareLabel += transaction.shares ?? 0;
+                buyData.label = shareLabel.toString();
               } else {
-                platData = new GraphData(
-                  key,
+                buyData = new GraphData(
+                  transDate,
                   transaction.total ?? 0,
                   undefined,
                   (transaction.shares ?? 0).toString()
                 );
               }
-              platformBuyData.set(key, platData);
-            }
-            break;
-          case "Sell":
-            shares -= transaction.shares ?? 0;
-            break;
-          case "Dividends":
-            dividends += transaction.total ?? 0;
-            if (divData) {
-              divData.value += transaction.total ?? 0;
-            } else {
-              divData = new GraphData(
-                transDate,
-                transaction.total ?? 0,
-                undefined,
-                undefined
-              );
-            }
-            divGraphData.set(transDate, divData);
-            break;
-          case "Withholding Tax":
-            dividends -= transaction.total ?? 0;
-            if (divData) {
-              divData.value_1 =
-                (divData.value_1 ?? 0) - (transaction.total ?? 0);
-            } else {
-              divData = new GraphData(
-                transDate,
-                0,
-                (transaction.total ?? 0) * -1,
-                undefined
-              );
-            }
-            divGraphData.set(transDate, divData);
-            break;
-        }
-      });
+              buyGraphData.set(transDate, buyData);
+              if (transaction.platform.name && transaction.account.code) {
+                let key = `${transaction.platform.name} (${transaction.account.code})`;
+                var platData = platformBuyData.get(key);
+                if (platData) {
+                  platData.value += transaction.total ?? 0;
+                  let shareCount = Number(platData.label);
+                  platData.label = (shareCount +=
+                    transaction.shares ?? 0).toString();
+                } else {
+                  platData = new GraphData(
+                    key,
+                    transaction.total ?? 0,
+                    undefined,
+                    (transaction.shares ?? 0).toString()
+                  );
+                }
+                platformBuyData.set(key, platData);
+              }
+              break;
+            case "Sell":
+              shares -= transaction.shares ?? 0;
+              break;
+            case "Dividends":
+              dividends += transaction.total ?? 0;
+              if (divData) {
+                divData.value += transaction.total ?? 0;
+              } else {
+                divData = new GraphData(
+                  transDate,
+                  transaction.total ?? 0,
+                  undefined,
+                  undefined
+                );
+              }
+              divGraphData.set(transDate, divData);
+              break;
+            case "Withholding Tax":
+              dividends -= transaction.total ?? 0;
+              if (divData) {
+                divData.value_1 =
+                  (divData.value_1 ?? 0) - (transaction.total ?? 0);
+              } else {
+                divData = new GraphData(
+                  transDate,
+                  0,
+                  (transaction.total ?? 0) * -1,
+                  undefined
+                );
+              }
+              divGraphData.set(transDate, divData);
+              break;
+          }
+        });
 
       setPieGraphPlatData(Array.from(platformBuyData.values()));
+      console.log(divGraphData.values());
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
         Array.from(buyGraphData.values()).map((x: GraphData) => ({

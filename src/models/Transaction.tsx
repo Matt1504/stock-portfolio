@@ -1,6 +1,5 @@
 import { Account } from "./Account";
 import { Activity } from "./Activity";
-import { SelectInput } from "./Common";
 import { Currency } from "./Currency";
 import { GraphQLType } from "./GraphQLType";
 import { Platform } from "./Platform";
