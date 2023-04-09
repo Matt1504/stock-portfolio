@@ -19,6 +19,7 @@ import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
+import LoadingProgress from "../../components/LoadingProgress";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
@@ -365,7 +366,7 @@ const SelectedAccountInfo = (props: SAProps) => {
           </Card>
         </Col>
       ))}
-      {data && (
+      {data && !loading ? (
         <>
           <Col span={24}>
             {pieGraphHoldingData.length ? (
@@ -476,7 +477,7 @@ const SelectedAccountInfo = (props: SAProps) => {
             />
           </Col>
         </>
-      )}
+      ) : <LoadingProgress />}
     </Row>
   );
 };

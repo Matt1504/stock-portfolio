@@ -21,6 +21,7 @@ import { useQuery } from "@apollo/client";
 import { Stack, Typography } from "@mui/material";
 
 import { CustomTooltip } from "../../components/BarChartTooltip";
+import LoadingProgress from "../../components/LoadingProgress";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
@@ -237,7 +238,7 @@ const SelectedStockInfo = (props: SSProps) => {
           </Card>
         </Col>
       ))}
-      {data && (
+      {data && !loading ? (
         <>
           {pieGraphPlatData.length ? (
             <Col span={24} className="pie-chart-container">
@@ -378,7 +379,7 @@ const SelectedStockInfo = (props: SSProps) => {
             />
           </Col>
         </>
-      )}
+      ) : <LoadingProgress />}
     </Row>
   );
 };
