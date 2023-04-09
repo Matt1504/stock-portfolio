@@ -185,7 +185,6 @@ const SelectedStockInfo = (props: SSProps) => {
         });
 
       setPieGraphPlatData(Array.from(platformBuyData.values()));
-      console.log(divGraphData.values());
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
         Array.from(buyGraphData.values()).map((x: GraphData) => ({
