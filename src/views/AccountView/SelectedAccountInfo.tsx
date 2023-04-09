@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
@@ -18,7 +19,6 @@ import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
-import { CustomTooltip } from "../../components/BarChartTooltip";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
@@ -27,11 +27,7 @@ import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Stock } from "../../models/Stock";
 import { Transaction } from "../../models/Transaction";
-import {
-  compareDates,
-  convertStringToDate,
-  getColourCodeByAccount
-} from "../../utils/utils";
+import { compareDates, getColourCodeByAccount } from "../../utils/utils";
 import {
   TRANSACTIONS_BY_ACCOUNT,
   TRANSACTIONS_BY_PLATFORM,
@@ -138,9 +134,7 @@ const SelectedAccountInfo = (props: SAProps) => {
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
-  const [barGraphBookCostData, setBarGraphBookCostData] = useState<GraphData[]>(
-    []
-  );
+  const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const { loading, error, data, refetch } = useQuery(query, {
@@ -177,7 +171,8 @@ const SelectedAccountInfo = (props: SAProps) => {
 
     var stockHoldings = new Map<Stock, StockHolding>();
     var bookCostHistory = new Map<string, GraphData>();
-    var transactions = data?.transactions;
+
+    var transactions = [...data?.transactions];
     if (data?.transactions_two) {
       transactions = transactions.concat(data.transactions_two);
     }
@@ -199,6 +194,17 @@ const SelectedAccountInfo = (props: SAProps) => {
         switch (transaction.activity.name) {
           case "Contribution":
             contributions += transaction.total ?? 0;
+            if (transHistory) {
+              transHistory.value_1 = contributions;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                contributions,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
             break;
           case "Transfer In":
             transferIn += transaction.total ?? 0;
@@ -209,9 +215,6 @@ const SelectedAccountInfo = (props: SAProps) => {
           case "Buy":
             shares += transaction.shares ?? 0;
             bookCost += transaction.total ?? 0;
-            console.log(transaction);
-            console.log(bookCost);
-            console.log("----");
             if (holding) {
               holding.shares += transaction.shares ?? 0;
               holding.total += transaction.total ?? 0;
@@ -228,7 +231,7 @@ const SelectedAccountInfo = (props: SAProps) => {
               transHistory = new GraphData(
                 transDate,
                 bookCost,
-                undefined,
+                contributions,
                 undefined
               );
             }
@@ -281,7 +284,7 @@ const SelectedAccountInfo = (props: SAProps) => {
       })
     );
 
-    setBarGraphBookCostData(Array.from(bookCostHistory.values()));
+    setGraphBookCostData(Array.from(bookCostHistory.values()));
 
     setAccountDetails((prev: HoldingDetail[]) => {
       let update = [...prev];
@@ -415,7 +418,7 @@ const SelectedAccountInfo = (props: SAProps) => {
               <LineChart
                 width={800}
                 height={400}
-                data={barGraphBookCostData}
+                data={graphBookCostData}
                 margin={{
                   top: 30,
                   right: 30,
@@ -431,12 +434,13 @@ const SelectedAccountInfo = (props: SAProps) => {
                   dominantBaseline="central"
                 >
                   <tspan fontWeight="600" fontSize="18">
-                    Book Cost History
+                    Book Cost and Contribution History
                   </tspan>
                 </text>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
+                <Legend verticalAlign="bottom" height={36} />
                 <Tooltip
                   formatter={(value: any, name: any) => `$${value.toFixed(2)}`}
                 />
@@ -445,6 +449,12 @@ const SelectedAccountInfo = (props: SAProps) => {
                   dataKey="value"
                   name="Book Cost"
                   stroke="#8884d8"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value_1"
+                  name="Contribution"
+                  stroke="#82ca9d"
                 />
               </LineChart>
             </ResponsiveContainer>

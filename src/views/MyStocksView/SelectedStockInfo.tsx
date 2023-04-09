@@ -28,7 +28,6 @@ import { GraphData } from "../../models/GraphData";
 import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
-  convertStringToDate,
   getColourCodeByAccount,
   getMinMaxDate
 } from "../../utils/utils";
@@ -95,7 +94,8 @@ const SelectedStockInfo = (props: SSProps) => {
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
-      data.transactionsByStock
+      var transactions = [...data.transactionsByStock];
+      transactions
         .sort((a: Transaction, b: Transaction) =>
           compareDates(a.transactionDate, b.transactionDate)
         )
