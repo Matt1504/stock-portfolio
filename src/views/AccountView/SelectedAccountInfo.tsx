@@ -140,6 +140,7 @@ const SelectedAccountInfo = (props: SAProps) => {
 
   const { loading, error, data, refetch } = useQuery(query, {
     variables: { account, platform_one, platform_two },
+    notifyOnNetworkStatusChange: true,
   });
 
   const handleTabChange = (key: string) => {
@@ -332,25 +333,22 @@ const SelectedAccountInfo = (props: SAProps) => {
           size="large"
           type="card"
           onChange={handleTabChange}
-          items={currencies.map(
-            (currency: GraphQLNode<Currency>, index: number) => {
-              return {
-                label: currency.node.code,
-                key: currency.node.id ?? "",
-                disabled:
-                  loading ||
-                  data?.transactions
-                    .concat(data?.transactions_two ?? [])
-                    .filter(
-                      (transaction: Transaction) =>
-                        transaction.platform?.currency?.id ===
-                          currency.node.id &&
-                        (name === "Overview" ||
-                          transaction.platform.name === name)
-                    ).length === 0,
-              };
-            }
-          )}
+          items={currencies.map((currency: GraphQLNode<Currency>) => {
+            return {
+              label: currency.node.code,
+              key: currency.node.id ?? "",
+              disabled:
+                loading ||
+                data?.transactions
+                  .concat(data?.transactions_two ?? [])
+                  .filter(
+                    (transaction: Transaction) =>
+                      transaction.platform?.currency?.id === currency.node.id &&
+                      (name === "Overview" ||
+                        transaction.platform.name === name)
+                  ).length === 0,
+            };
+          })}
         />
       </Col>
       {accountDetails.map((x: HoldingDetail, index: number) => (
@@ -477,7 +475,9 @@ const SelectedAccountInfo = (props: SAProps) => {
             />
           </Col>
         </>
-      ) : <LoadingProgress />}
+      ) : (
+        <LoadingProgress />
+      )}
     </Row>
   );
 };

@@ -80,6 +80,7 @@ const SelectedStockInfo = (props: SSProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const { loading, error, data, refetch } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
+    notifyOnNetworkStatusChange: true
   });
 
   const onPieEnter = (_: any, index: number) => {

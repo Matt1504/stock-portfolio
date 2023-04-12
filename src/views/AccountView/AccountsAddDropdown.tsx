@@ -1,5 +1,4 @@
 import { Button, Col, Form, Input, Radio, Row, Select } from "antd";
-import { platform } from "os";
 import { useEffect, useState } from "react";
 
 import { useMutation, useQuery } from "@apollo/client";
@@ -11,6 +10,7 @@ import { GraphQLNode } from "../../models/GraphQLNode";
 import { Platform } from "../../models/Platform";
 import { Stock } from "../../models/Stock";
 import { ALL_ACCOUNT_PLATFORMS, CREATE_PLATFORM } from "./gql";
+import TransferAccountModal from "./TransferAccountModal";
 
 type AADProps = {
   setSelectedAccount: Function;
@@ -25,7 +25,9 @@ const AccountsAddDropdown = (props: AADProps) => {
   const [accOverviewOptions, setAccOverviewOptions] = useState<
     GraphQLNode<Account>[]
   >([]);
-  const [platfromOptions, setPlatformOptions] = useState<GraphQLNode<Platform>[]>([]);
+  const [platformOptions, setPlatformOptions] = useState<
+    GraphQLNode<Platform>[]
+  >([]);
 
   const [createPlatform] = useMutation(CREATE_PLATFORM, {
     update: (cache: any, mutationResult: any) => {
@@ -59,7 +61,7 @@ const AccountsAddDropdown = (props: AADProps) => {
   });
 
   const handleChange = async (value: string) => {
-    var arr = accOverviewOptions.concat(platfromOptions);
+    var arr = accOverviewOptions.concat(platformOptions);
     var index = arr.findIndex(
       (x: GraphQLNode<Platform>) => x.node.id === value
     );
@@ -93,7 +95,11 @@ const AccountsAddDropdown = (props: AADProps) => {
     if (data?.platforms?.edges) {
       var plats: GraphQLNode<Platform>[] = [];
       data?.platforms?.edges.forEach((platform: GraphQLNode<Platform>) => {
-        let index = plats.findIndex((x: GraphQLNode<Platform>) => x.node.name === platform.node.name && x.node.account?.id === platform.node.account?.id);
+        let index = plats.findIndex(
+          (x: GraphQLNode<Platform>) =>
+            x.node.name === platform.node.name &&
+            x.node.account?.id === platform.node.account?.id
+        );
         if (index === -1) {
           plats.push(platform);
         } else {
@@ -116,7 +122,7 @@ const AccountsAddDropdown = (props: AADProps) => {
   return (
     <Row>
       {notification.contextHolder}
-      <Col span={6}>
+      <Col span={5}>
         {data && (
           <Select
             showSearch
@@ -132,7 +138,7 @@ const AccountsAddDropdown = (props: AADProps) => {
               (account: GraphQLNode<Account>) => ({
                 label: account.node.code,
                 options: accOverviewOptions
-                  .concat(platfromOptions)
+                  .concat(platformOptions)
                   ?.filter(
                     (x: GraphQLNode<Platform>) =>
                       x.node.account?.code === account.node.code
@@ -146,13 +152,20 @@ const AccountsAddDropdown = (props: AADProps) => {
           />
         )}
       </Col>
-      <Col span={18}>
+      <Col span={19}>
         <Form
           form={form}
           name="horizontal_add_platform"
           layout="inline"
           onFinish={onFinish}
         >
+          <Form.Item>
+            <TransferAccountModal
+              accounts={data?.accounts?.edges as GraphQLNode<Account>[]}
+              platforms={data?.platforms?.edges as GraphQLNode<Platform>[]}
+              notification={notification}
+            />
+          </Form.Item>
           <Form.Item
             name="name"
             label="Add Platform"

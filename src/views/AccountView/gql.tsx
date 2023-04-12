@@ -20,6 +20,9 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
                         id
                         code
                     }
+                    currency {
+                        code
+                    }
                 }
             }
         }
@@ -51,6 +54,13 @@ export const CREATE_PLATFORM = gql(`
             }
         }
     }`);
+
+export const TRANSFER_ACCOUNT = gql(`
+    mutation transferPlatform($transferFrom: ID!, $transferTo: ID!) {
+        transferAccount(transFrom: $transferFrom, transTo: $transferTo) {
+            success
+        }
+  }`);
 
 export const TRANSACTIONS_BY_ACCOUNT = gql(`
     query transaction_account($account: ID) {
