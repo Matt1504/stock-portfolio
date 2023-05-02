@@ -388,7 +388,7 @@ const AddTransactionView = () => {
               rules={[
                 {
                   required: activity !== "Stock Split",
-                  message: "Please select the platform.",
+                  message: "Please enter the total.",
                 },
               ]}
             >
