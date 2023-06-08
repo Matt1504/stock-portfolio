@@ -214,7 +214,7 @@ const AccountsAddDropdown = (props: AADProps) => {
                     .length
                 }
               >
-                Add Platform
+                Add
               </Button>
             )}
           </Form.Item>

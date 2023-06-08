@@ -170,6 +170,7 @@ const SelectedAccountInfo = (props: SAProps) => {
     var shares = 0;
     var bookCost = 0;
     var dividends = 0;
+    var netDeposit = 0;
 
     var stockHoldings = new Map<Stock, StockHolding>();
     var bookCostHistory = new Map<string, GraphData>();
@@ -196,13 +197,14 @@ const SelectedAccountInfo = (props: SAProps) => {
         switch (transaction.activity.name) {
           case "Contribution":
             contributions += transaction.total ?? 0;
+            netDeposit += transaction.total ?? 0;
             if (transHistory) {
-              transHistory.value_1 = contributions;
+              transHistory.value_1 = netDeposit;
             } else {
               transHistory = new GraphData(
                 transDate,
                 bookCost,
-                contributions,
+                netDeposit,
                 undefined
               );
             }
@@ -210,9 +212,33 @@ const SelectedAccountInfo = (props: SAProps) => {
             break;
           case "Transfer In":
             transferIn += transaction.total ?? 0;
+            netDeposit += transaction.total ?? 0;
+            if (transHistory) {
+              transHistory.value_1 = netDeposit;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                netDeposit,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
             break;
           case "Transfer Out":
             transferOut += transaction.total ?? 0;
+            netDeposit -= transaction.total ?? 0;
+            if (transHistory) {
+              transHistory.value_1 = netDeposit;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                netDeposit,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
             break;
           case "Buy":
             shares += transaction.shares ?? 0;
@@ -233,7 +259,7 @@ const SelectedAccountInfo = (props: SAProps) => {
               transHistory = new GraphData(
                 transDate,
                 bookCost,
-                contributions,
+                netDeposit,
                 undefined
               );
             }
@@ -257,9 +283,34 @@ const SelectedAccountInfo = (props: SAProps) => {
             break;
           case "Dividends":
             dividends += transaction.total ?? 0;
+            netDeposit += transaction.total ?? 0;
+            if (transHistory) {
+              transHistory.value_1 = netDeposit;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                netDeposit,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
             break;
           case "Withholding Tax":
             dividends -= transaction.total ?? 0;
+            netDeposit -= transaction.total ?? 0;
+            if (transHistory) {
+              transHistory.value_1 = netDeposit;
+            } else {
+              transHistory = new GraphData(
+                transDate,
+                bookCost,
+                netDeposit,
+                undefined
+              );
+            }
+            bookCostHistory.set(transDate, transHistory);
+            break;
         }
       });
 
@@ -433,7 +484,7 @@ const SelectedAccountInfo = (props: SAProps) => {
                   dominantBaseline="central"
                 >
                   <tspan fontWeight="600" fontSize="18">
-                    Book Cost and Contribution History
+                    Book Cost and Net Deposit History
                   </tspan>
                 </text>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -452,7 +503,7 @@ const SelectedAccountInfo = (props: SAProps) => {
                 <Line
                   type="monotone"
                   dataKey="value_1"
-                  name="Contribution"
+                  name="Net Deposit"
                   stroke="#82ca9d"
                 />
               </LineChart>

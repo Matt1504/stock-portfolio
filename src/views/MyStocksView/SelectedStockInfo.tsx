@@ -104,6 +104,7 @@ const SelectedStockInfo = (props: SSProps) => {
         .forEach((transaction: Transaction) => {
           var transDate = transaction.transactionDate.toString();
           var divData = divGraphData.get(transDate);
+          var buyData = buyGraphData.get(transDate);
           switch (transaction.activity.name) {
             case "Stock Split":
               shares += transaction.shares ?? 0;
@@ -116,7 +117,6 @@ const SelectedStockInfo = (props: SSProps) => {
               ) {
                 lastBuyDate = transaction.transactionDate;
               }
-              var buyData = buyGraphData.get(transDate);
               if (buyData) {
                 buyData.value += transaction.total ?? 0;
                 var shareLabel = Number(buyData.label ?? 0);
@@ -145,13 +145,25 @@ const SelectedStockInfo = (props: SSProps) => {
                     transaction.total ?? 0,
                     undefined,
                     (transaction.shares ?? 0).toString()
-                  );
+                    );
                 }
+                console.log(platData);
                 platformBuyData.set(key, platData);
               }
               break;
             case "Sell":
               shares -= transaction.shares ?? 0;
+              if (buyData) {
+                buyData.value_1 = (buyData.value_1 ?? 0) - (transaction.total ?? 0);
+              } else {
+                buyData = new GraphData(
+                  transDate,
+                  0,
+                  (transaction.total ?? 0) * -1,
+                  (transaction.shares ?? 0).toString()
+                )
+              }
+              buyGraphData.set(transDate, buyData);
               break;
             case "Dividends":
               dividends += transaction.total ?? 0;
@@ -185,6 +197,7 @@ const SelectedStockInfo = (props: SSProps) => {
           }
         });
 
+      console.log(platformBuyData.values());
       setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
@@ -304,7 +317,7 @@ const SelectedStockInfo = (props: SSProps) => {
                     dominantBaseline="central"
                   >
                     <tspan fontWeight="600" fontSize="18">
-                      Buy History
+                      Transaction History
                     </tspan>
                   </text>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -316,6 +329,15 @@ const SelectedStockInfo = (props: SSProps) => {
                   <Bar dataKey="value" fill="#ACE1AF" name="Book Cost">
                     <LabelList dataKey="label" position="top" />
                   </Bar>
+                  {barGraphBuyData.some(
+                    (x: GraphData) => x.value_1 !== undefined
+                  ) && (
+                    <Bar
+                      dataKey="value_1"
+                      fill="#FF6961"
+                      name="Sell Price"
+                      />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </Col>
