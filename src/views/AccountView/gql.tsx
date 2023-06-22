@@ -38,8 +38,8 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
     }`);
 
 export const CREATE_PLATFORM = gql(`
-    mutation creatStock($platform: PlatformInput!) {
-        createStock(platformData: $platform) {
+    mutation createPlatform($platform: PlatformInput!) {
+        createPlatform(platformData: $platform) {
             platform {
                 id
                 name

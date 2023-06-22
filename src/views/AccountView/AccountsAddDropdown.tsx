@@ -54,7 +54,7 @@ const AccountsAddDropdown = (props: AADProps) => {
       notification.openNotificationWithIcon(
         "success",
         "Platform Added",
-        `"${newPlatform.currency?.code} ${newPlatform.account?.name} for ${newPlatform.name} was successfully added to the database.`
+        `"${newPlatform.currency?.code} ${newPlatform.account?.code} for ${newPlatform.name} was successfully added to the database.`
       );
       form.resetFields();
     },
