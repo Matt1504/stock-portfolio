@@ -34,7 +34,7 @@ const AccountsAddDropdown = (props: AADProps) => {
       if (!mutationResult.data.createPlatform) {
         notification.openNotificationWithIcon(
           "error",
-          "Error Adding Stock",
+          "Error Adding Platform",
           "The stock could not be added to the database because it already exists."
         );
       }

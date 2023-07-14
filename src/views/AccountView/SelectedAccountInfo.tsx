@@ -29,11 +29,7 @@ import { GraphQLNode } from "../../models/GraphQLNode";
 import { Stock } from "../../models/Stock";
 import { Transaction } from "../../models/Transaction";
 import { compareDates, getColourCodeByAccount } from "../../utils/utils";
-import {
-  TRANSACTIONS_BY_ACCOUNT,
-  TRANSACTIONS_BY_PLATFORM,
-  TRANSACTIONS_BY_PLATFORMS
-} from "./gql";
+import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
 
 type SAProps = {
   name: string | undefined;
@@ -120,18 +116,18 @@ const SelectedAccountInfo = (props: SAProps) => {
   var platform_one = "";
   var platform_two = "";
 
+
   if (platform && !platform?.includes("all")) {
     query = TRANSACTIONS_BY_PLATFORM;
     var platforms: string[] = platform.split(",");
     platform_one = platforms[0];
     if (platforms.length > 1) {
       platform_two = platforms[1];
-      query = TRANSACTIONS_BY_PLATFORMS;
     }
   }
 
+  const [selectedPlatform, setSelectedPlatform] = useState(platform_one);
   const [accountDetails, setAccountDetails] = useState(defaultAccountDetails);
-  const [selectedCurrrency, setSelectedCurrency] = useState("");
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
@@ -139,13 +135,12 @@ const SelectedAccountInfo = (props: SAProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const { loading, error, data, refetch } = useQuery(query, {
-    variables: { account, platform_one, platform_two },
+    variables: { account, platform_one: selectedPlatform },
     notifyOnNetworkStatusChange: true,
   });
 
   const handleTabChange = (key: string) => {
-    setSelectedCurrency(key);
-    processTransactionData(key);
+    setSelectedPlatform(key);
   };
 
   const onPieEnter = (_: any, index: number) => {
@@ -153,14 +148,13 @@ const SelectedAccountInfo = (props: SAProps) => {
   };
 
   useEffect(() => {
-    if (currencies && data?.transactions) {
-      setSelectedCurrency(currencies[0].node.id ?? "");
-      processTransactionData(currencies[0].node.id ?? "");
+    if (data) {
+      processTransactionData();
     }
-  }, [currencies, name, data]);
+  }, [data])
 
-  const processTransactionData = (currency: string) => {
-    if (!data?.transactions || !currency) {
+  const processTransactionData = () => {
+    if (!data?.transactions) {
       return;
     }
 
@@ -176,17 +170,10 @@ const SelectedAccountInfo = (props: SAProps) => {
     var bookCostHistory = new Map<string, GraphData>();
 
     var transactions = [...data?.transactions];
-    if (data?.transactions_two) {
-      transactions = transactions.concat(data.transactions_two);
-    }
 
     if (!transactions.length) return;
 
     transactions
-      .filter(
-        (transaction: Transaction) =>
-          transaction.platform?.currency?.id === currency
-      )
       .sort((a: Transaction, b: Transaction) =>
         compareDates(a.transactionDate, b.transactionDate)
       )
@@ -380,24 +367,15 @@ const SelectedAccountInfo = (props: SAProps) => {
       </Col>
       <Col span={24}>
         <Tabs
-          activeKey={selectedCurrrency}
+          activeKey={selectedPlatform}
           size="large"
           type="card"
           onChange={handleTabChange}
-          items={currencies.map((currency: GraphQLNode<Currency>) => {
+          items={currencies.map((currency: GraphQLNode<Currency>, index: number) => {
             return {
               label: currency.node.code,
-              key: currency.node.id ?? "",
-              disabled:
-                loading ||
-                data?.transactions
-                  .concat(data?.transactions_two ?? [])
-                  .filter(
-                    (transaction: Transaction) =>
-                      transaction.platform?.currency?.id === currency.node.id &&
-                      (name === "Overview" ||
-                        transaction.platform.name === name)
-                  ).length === 0,
+              key: index === 0 ? platform_one : platform_two,
+              disabled: index === 1 && !platform_two
             };
           })}
         />
@@ -511,13 +489,7 @@ const SelectedAccountInfo = (props: SAProps) => {
           </Col>
           <Col span={24}>
             <TransactionDataGrid
-              gridData={data?.transactions
-                .concat(data?.transactions_two ?? [])
-                .filter(
-                  (transaction: Transaction) =>
-                    transaction.platform?.currency?.id === selectedCurrrency &&
-                    (name === "Overview" || transaction.platform.name === name)
-                )}
+              gridData={data?.transactions}
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={

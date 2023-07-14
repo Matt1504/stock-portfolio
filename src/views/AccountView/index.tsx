@@ -8,7 +8,7 @@ import AccountsAddDropdown from "./AccountsAddDropdown";
 import SelectedAccountInfo from "./SelectedAccountInfo";
 
 const AccountView = () => {
-  const [selectedPlatform, setSelectedStock] = useState<Platform | undefined>(
+  const [selectedPlatform, seetSelectedPlatform] = useState<Platform | undefined>(
     undefined
   );
   const [currencies, setCurrencies] = useState<GraphQLNode<Currency>[]>([]);
@@ -16,7 +16,7 @@ const AccountView = () => {
   return (
     <>
       <AccountsAddDropdown
-        setSelectedAccount={setSelectedStock}
+        setSelectedAccount={seetSelectedPlatform}
         setCurrencies={setCurrencies}
       />
       <Divider />
