@@ -523,6 +523,7 @@ const SelectedAccountInfo = (props: SAProps) => {
               removeColumns={
                 name === "Overview" ? ["account"] : ["account", "platform"]
               }
+              query={query}
             />
           </Col>
         </>

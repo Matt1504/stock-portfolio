@@ -8,6 +8,7 @@
     "@emotion/styled": "^11.10.6",
     "@graphql-codegen/cli": "^3.0.0",
     "@graphql-codegen/client-preset": "^2.0.0",
+    "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.11.13",
     "@mui/x-data-grid": "^6.0.2",
     "@testing-library/jest-dom": "^5.16.5",

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { useQuery } from "@apollo/client";
+import { DocumentNode, useMutation, useQuery } from "@apollo/client";
+import EditIcon from "@mui/icons-material/Edit";
+import { IconButton } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -17,14 +19,21 @@ import { Account } from "../models/Account";
 import { Activity } from "../models/Activity";
 import { GraphQLNode } from "../models/GraphQLNode";
 import { Platform } from "../models/Platform";
+import { Transaction } from "../models/Transaction";
 import { convertStringToDate, formatNumberAsCurrency } from "../utils/utils";
-import { ACTIVITY_PLATFORM_ACCOUNT_NAMES } from "../views/MyStocksView/gql";
+import {
+  ACTIVITY_PLATFORM_ACCOUNT_NAMES,
+  UPDATE_TRANSACTION
+} from "../views/MyStocksView/gql";
+import { NotificationComponent } from "./Notification";
+import TransactionEditDialog from "./TransactionEditDialog";
 
 type TDGProps = {
-  gridData: any;
+  gridData: [Transaction];
   defaultSort: string;
   ascending: boolean;
   removeColumns: string[];
+  query: DocumentNode;
 };
 
 function CustomToolbar() {
@@ -93,6 +102,14 @@ const defaultColumns: GridColDef[] = [
       params.value ?? "-",
   },
   {
+    field: "fee",
+    headerName: "Fee",
+    type: "number",
+    width: 100,
+    valueFormatter: (params: GridValueFormatterParams<number>) =>
+      params.value ?? "-",
+  },
+  {
     field: "total",
     headerName: "Total ($)",
     type: "number",
@@ -104,13 +121,76 @@ const defaultColumns: GridColDef[] = [
     field: "description",
     width: 200,
     headerName: "Description",
-  },
+  }
 ];
 
 export const TransactionDataGrid = (props: TDGProps) => {
   const { loading, error, data } = useQuery(ACTIVITY_PLATFORM_ACCOUNT_NAMES);
   const [columns, setColumns] = useState<GridColDef[]>(defaultColumns);
-  const { gridData, defaultSort, ascending, removeColumns } = props;
+  const { gridData, defaultSort, ascending, removeColumns, query}  = props;
+  const [selectedItem, setSelectedItem] = useState<Transaction>();
+  const [open, setOpen] = useState(false);
+  const notification = new NotificationComponent();
+  const [updateTransaction] = useMutation(UPDATE_TRANSACTION, {
+    update: (cache: any, mutationResult: any) => {
+      if (!mutationResult.data.updateTransaction) {
+        notification.openNotificationWithIcon(
+          "error",
+          "Error Updating Transaction",
+          "There was an error updating the transaction. Please check the logs."
+        );
+      } else {
+        notification.openNotificationWithIcon(
+          "success",
+          "Transaction Updated",
+          "The transaction was successfully updated."
+        );
+        const updatedTrans: Transaction = mutationResult.data.updateTransaction.trans;
+        cache.writeQuery({
+          query: query,
+          data: {
+            transactions: gridData.map((x: any) => {
+              if (x.id === updatedTrans?.id) {
+                return {
+                  ...x, 
+                  price: updatedTrans?.price, 
+                  shares: updatedTrans?.shares,
+                  fee: updatedTrans?.fee,
+                  total: updatedTrans?.total,
+                };
+              }
+              return {...x};
+            })
+          }
+        })
+      }
+    }
+  })
+
+  const handleEditClick = (dataItem: any) => {
+    setSelectedItem(dataItem);
+    setOpen(true);
+  }
+
+  const handleDialogClose = () => {
+    setOpen(false);
+    setSelectedItem(undefined);
+  }
+
+  const handleDialogUpdate = async (transaction: Transaction) => {
+    await updateTransaction({
+      variables: {
+        trans: {
+          id: transaction.id,
+          price: transaction.price,
+          shares: transaction.shares,
+          fee: transaction.fee,
+          total: transaction.total,
+        },
+      }
+    });
+    handleDialogClose();
+  }
 
   useEffect(() => {
     if (!data) {
@@ -144,6 +224,15 @@ export const TransactionDataGrid = (props: TDGProps) => {
           }
         });
 
+        if (update[update.length - 1].field !== "actions") {
+          update.push({
+            field: "actions",
+            headerName: "Edit",
+            disableColumnMenu: true,
+            disableReorder: true,
+            renderCell: (params: any) => <IconButton onClick={() => handleEditClick(params.row)}><EditIcon /></IconButton>
+          });
+        }
         return update;
       });
     }
@@ -151,6 +240,8 @@ export const TransactionDataGrid = (props: TDGProps) => {
 
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
+      {notification.contextHolder}
+      {selectedItem && <TransactionEditDialog open={open} setOpen={setOpen} handleDialogSave={handleDialogUpdate} onCancel={handleDialogClose} dataItem={selectedItem} />}
       <DataGrid
         autoHeight
         columns={columns}

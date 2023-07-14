@@ -88,7 +88,7 @@ const SelectedStockInfo = (props: SSProps) => {
   };
 
   useEffect(() => {
-    if (data?.transactionsByStock) {
+    if (data?.transactions) {
       var shares = 0;
       var bookCost = 0;
       var dividends = 0;
@@ -96,7 +96,7 @@ const SelectedStockInfo = (props: SSProps) => {
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       var platformBuyData = new Map<string, GraphData>();
-      var transactions = [...data.transactionsByStock];
+      var transactions = [...data.transactions];
       transactions
         .sort((a: Transaction, b: Transaction) =>
           compareDates(a.transactionDate, b.transactionDate)
@@ -147,7 +147,6 @@ const SelectedStockInfo = (props: SSProps) => {
                     (transaction.shares ?? 0).toString()
                     );
                 }
-                console.log(platData);
                 platformBuyData.set(key, platData);
               }
               break;
@@ -196,8 +195,6 @@ const SelectedStockInfo = (props: SSProps) => {
               break;
           }
         });
-
-      console.log(platformBuyData.values());
       setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
@@ -394,10 +391,11 @@ const SelectedStockInfo = (props: SSProps) => {
           )}
           <Col span={24}>
             <TransactionDataGrid
-              gridData={data?.transactionsByStock}
+              gridData={data?.transactions}
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={["stock", "description"]}
+              query={TRANSACTIONS_BY_STOCK}
             />
           </Col>
         </>

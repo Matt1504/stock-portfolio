@@ -65,7 +65,7 @@ export const CREATE_STOCK = gql(`
 
 export const TRANSACTIONS_BY_STOCK = gql(`
     query transaction_stock($stock: ID) {
-        transactionsByStock(stock: $stock) {
+        transactions: transactionsByStock(stock: $stock) {
             id
             account {
                 id
@@ -81,10 +81,27 @@ export const TRANSACTIONS_BY_STOCK = gql(`
             activity {
                 name
             }
+            stock {
+                name
+                ticker
+            }
             transactionDate
             price
             shares
             fee
             total
+        }
+    }`);
+
+export const UPDATE_TRANSACTION = gql(`
+    mutation UpdateTransaction($trans:TransactionInput!){
+        updateTransaction(transData:$trans) {
+            trans {
+                id
+                price
+                shares
+                fee
+                total
+            }
         }
     }`);
