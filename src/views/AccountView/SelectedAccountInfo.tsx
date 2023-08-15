@@ -15,7 +15,7 @@ import {
 } from "recharts";
 
 import { ReloadOutlined } from "@ant-design/icons";
-import { useQuery } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
@@ -112,10 +112,8 @@ const SelectedAccountInfo = (props: SAProps) => {
   const { name, platform, account, accountName, currencies } = props;
 
   var query = TRANSACTIONS_BY_ACCOUNT;
-
   var platform_one = "";
   var platform_two = "";
-
 
   if (platform && !platform?.includes("all")) {
     query = TRANSACTIONS_BY_PLATFORM;
@@ -127,6 +125,7 @@ const SelectedAccountInfo = (props: SAProps) => {
   }
 
   const [selectedPlatform, setSelectedPlatform] = useState(platform_one);
+  const [currentTab, setCurrentTab] = useState(platform_one ? platform_one : "CAD");
   const [accountDetails, setAccountDetails] = useState(defaultAccountDetails);
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
@@ -134,26 +133,45 @@ const SelectedAccountInfo = (props: SAProps) => {
   const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const { loading, error, data, refetch } = useQuery(query, {
+  const [fetchData, {loading, data}] = useLazyQuery(query, {
     variables: { account, platform_one: selectedPlatform },
     notifyOnNetworkStatusChange: true,
   });
 
+  function processTabValue(value: string) {
+    if (["CAD", "USD"].includes(value)) {
+      processTransactionData(value);
+    } else {
+      setSelectedPlatform(value);
+    }
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedPlatform]);
+
+  useEffect(() => {
+    if (data) {
+      processTransactionData(currentTab);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const tabValue = platform_one ? platform_one : "CAD";
+    setCurrentTab(tabValue);
+    processTabValue(tabValue);
+  }, [platform]);
+
   const handleTabChange = (key: string) => {
-    setSelectedPlatform(key);
+    setCurrentTab(key);
+    processTabValue(key);
   };
 
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };
 
-  useEffect(() => {
-    if (data) {
-      processTransactionData();
-    }
-  }, [data])
-
-  const processTransactionData = () => {
+  const processTransactionData = (filter: string) => {
     if (!data?.transactions) {
       return;
     }
@@ -170,7 +188,9 @@ const SelectedAccountInfo = (props: SAProps) => {
     var bookCostHistory = new Map<string, GraphData>();
 
     var transactions = [...data?.transactions];
-
+    if (["CAD", "USD"].includes(filter)) {
+      transactions = transactions.filter((trans: Transaction) => trans.platform.currency?.code === filter);
+    }
     if (!transactions.length) return;
 
     transactions
@@ -358,7 +378,7 @@ const SelectedAccountInfo = (props: SAProps) => {
             {accountName} {name}
           </Typography>
           <Button
-            onClick={() => refetch()}
+            onClick={() => fetchData()}
             type="primary"
             shape="round"
             icon={<ReloadOutlined />}
@@ -367,15 +387,15 @@ const SelectedAccountInfo = (props: SAProps) => {
       </Col>
       <Col span={24}>
         <Tabs
-          activeKey={selectedPlatform}
+          activeKey={currentTab}
           size="large"
           type="card"
           onChange={handleTabChange}
           items={currencies.map((currency: GraphQLNode<Currency>, index: number) => {
             return {
               label: currency.node.code,
-              key: index === 0 ? platform_one : platform_two,
-              disabled: index === 1 && !platform_two
+              key: index === 0 ? platform_one ? platform_one : "CAD" : platform_two ? platform_two : "USD",
+              disabled: index === 1 && (!platform?.includes("all") && platform_two === "")
             };
           })}
         />
