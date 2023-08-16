@@ -29,11 +29,12 @@ type CLProps = {
 
 const ContributionLimits = (props: CLProps) => {
     const {accounts} = props;
+    const [isLoading, setIsLoading] = useState(true);
     const [contributionId, setContributionId] = useState("");
     const [contributionLimits, setContributionLimits] = useState<Map<string, number>>();
     const [contributions, setContributions] = useState<Map<string, number>>();
-    const {loading, error, data } = useQuery(GET_CONTRIBUTION_LIMITS);
-    const [fetchContributions, {loading: transLoading, data: transactions}] = useLazyQuery(TRANSACTIONS_BY_ACTIVITY, {
+    const {data } = useQuery(GET_CONTRIBUTION_LIMITS);
+    const [fetchContributions, { data: transactions}] = useLazyQuery(TRANSACTIONS_BY_ACTIVITY, {
         variables: { activity: contributionId },
         notifyOnNetworkStatusChange: true,
     });
@@ -91,6 +92,7 @@ const ContributionLimits = (props: CLProps) => {
 
         setContributionLimits(limitMap);
         setContributions(contributionMap);
+        setIsLoading(false);
     }
 
     function computeContributionUsed(accountId: string) {
@@ -117,13 +119,13 @@ const ContributionLimits = (props: CLProps) => {
                     <Col span={8} key={account.node.id}>
                         <Card style={{ marginTop: 8, marginBottom: 16, marginLeft: 24, marginRight: 24 }}>
                             <Statistic 
-                                loading={loading && transLoading}
+                                loading={isLoading}
                                 title={`${account.node.name} (${account.node.code})`}
                                 value={computeContributionUsed(account.node.id ?? "")}
                                 suffix="%"
                                 precision={2}
                             />
-                            <Typography display="block" variant="overline">{printContributionUsed(account.node.id ?? "")}</Typography>
+                            {!isLoading && <Typography display="block" variant="overline">{printContributionUsed(account.node.id ?? "")}</Typography>}
                         </Card>
                     </Col>
                 )
