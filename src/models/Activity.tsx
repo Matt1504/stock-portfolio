@@ -14,4 +14,5 @@ export enum ActivityEnum {
   WITHHOLDINGTAX = "Withholding Tax",
   ADJUSTMENT = "Adjustment",
   STOCKSPLIT = "Stock Split",
+  INTEREST = "Interest",
 }

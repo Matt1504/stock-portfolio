@@ -18,7 +18,11 @@ export interface TransactionForm {
     total: number
     transaction?: object,
     transactionDate: string,
+    maturity?: object,
+    maturityDate?: string,
+    rate?: number
 }
+
 export interface Transaction extends GraphQLType {
     account: Account,
     stock?: Stock,

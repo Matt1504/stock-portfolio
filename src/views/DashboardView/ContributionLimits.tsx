@@ -1,14 +1,4 @@
-import {
-  Button,
-  Card,
-  Col,
-  Form,
-  Input,
-  InputNumber,
-  Radio,
-  Row,
-  Statistic
-} from "antd";
+import { Card, Col, Row, Statistic } from "antd";
 import { useEffect, useState } from "react";
 
 import { useLazyQuery, useQuery } from "@apollo/client";
@@ -21,19 +11,22 @@ import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Transaction } from "../../models/Transaction";
 import { formatNumberAsCurrency } from "../../utils/utils";
+import ContributionGraph from "./ContributionGraph";
 import { GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
 
 type CLProps = {
     accounts: GraphQLEdge<Account>;
+    reload: boolean;
+    setReload: Function;
 };
 
 const ContributionLimits = (props: CLProps) => {
-    const {accounts} = props;
+    const {accounts, reload, setReload} = props;
     const [isLoading, setIsLoading] = useState(true);
     const [contributionId, setContributionId] = useState("");
-    const [contributionLimits, setContributionLimits] = useState<Map<string, number>>();
-    const [contributions, setContributions] = useState<Map<string, number>>();
-    const {data } = useQuery(GET_CONTRIBUTION_LIMITS);
+    const [contributionLimits, setContributionLimits] = useState<Map<string, number>>(new Map<string, number>());
+    const [contributions, setContributions] = useState<Map<string, number>>(new Map<string, number>());
+    const {data} = useQuery(GET_CONTRIBUTION_LIMITS);
     const [fetchContributions, { data: transactions}] = useLazyQuery(TRANSACTIONS_BY_ACTIVITY, {
         variables: { activity: contributionId },
         notifyOnNetworkStatusChange: true,
@@ -47,6 +40,13 @@ const ContributionLimits = (props: CLProps) => {
             }
         }
     }, [data]);
+
+    useEffect(() => {
+        if (reload) {
+            fetchContributions();
+            setReload(false);
+        }
+    }, [reload]);
 
     useEffect(() => {
         if (contributionId) {
@@ -130,6 +130,9 @@ const ContributionLimits = (props: CLProps) => {
                     </Col>
                 )
             })}
+            <Col span={24}>
+                <ContributionGraph accounts={accounts?.edges ?? []} contributionLimits={data?.contributionLimits} transactions={transactions?.transactions ?? []} />
+            </Col>
         </Row>
     );
 };

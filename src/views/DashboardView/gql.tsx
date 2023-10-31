@@ -35,6 +35,8 @@ export const DASHBOARD_TRANSACTIONS = gql(`
       price
       shares
       fee
+      rate
+      maturityDate
       total
     }
   }`);
@@ -68,6 +70,8 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           price
           shares
           fee
+          rate
+          maturityDate
           total
       }
   }`);
@@ -92,7 +96,7 @@ export const GET_CONTRIBUTION_LIMITS = gql(`
             code
           }
           amount
-          year
+          yearEnd
         }
       }
     }
@@ -109,7 +113,7 @@ export const CREATE_CONTRIBUTION = gql(`
           code
         }
         amount
-        year
+        yearEnd
       }
     }
   }`);

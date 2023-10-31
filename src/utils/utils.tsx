@@ -35,6 +35,9 @@ export function formatDate(date: string) {
 }
 
 export function convertStringToDate(date: string) {
+  if (date === null) {
+    return null;
+  }
   // date string follow yyyy-mm-dd format
   var doo = new Date(date);
   // eliminate the unwanted offset

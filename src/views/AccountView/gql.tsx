@@ -91,6 +91,8 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
             price
             shares
             fee
+            rate
+            maturityDate
             total
         }
     }`);
@@ -124,6 +126,8 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
             price
             shares
             fee
+            rate
+            maturityDate
             total
         }
     }`);

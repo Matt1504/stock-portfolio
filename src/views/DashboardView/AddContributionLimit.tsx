@@ -1,12 +1,16 @@
-import { Button, Col, Form, Input, InputNumber, Radio, Row } from "antd";
+import { Button, Col, DatePicker, Form, InputNumber, Radio, Row } from "antd";
 
 import { useMutation } from "@apollo/client";
 
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
-import { ContributionLimt } from "../../models/ContributionLimit";
+import {
+  ContributionLimitForm,
+  ContributionLimt
+} from "../../models/ContributionLimit";
 import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
+import { formatDate } from "../../utils/utils";
 import { CREATE_CONTRIBUTION, GET_CONTRIBUTION_LIMITS } from "./gql";
 
 type ACSProps = {
@@ -41,13 +45,15 @@ const AddContributionLimit = (props: ACSProps) => {
       notification.openNotificationWithIcon(
         "success",
         "Contribution Limit Added",
-        `Contribution Limit of $${newContributionLimit.amount} for ${newContributionLimit.account?.code} for the year ${newContributionLimit.year} successfully added to the database.`
+        `Contribution Limit of $${newContributionLimit.amount} for ${newContributionLimit.account?.code} with deadline ${newContributionLimit.yearEnd} successfully added to the database.`
       );
       form.resetFields();
     },
   });
 
-  const onFinish = async (values: ContributionLimt) => {
+  const onFinish = async (values: ContributionLimitForm) => {
+    values.yearEnd = formatDate((values.year ?? "").toString());
+    delete values.year;
     await createContributionLimit({
       variables: {
         contribution: values,
@@ -67,8 +73,8 @@ const AddContributionLimit = (props: ACSProps) => {
         >
           <Form.Item
             name="amount"
-            label="Add Contribution Limit"
-            style={{ width: 400 }}
+            label="Contribution Limit"
+            style={{ width: 350 }}
             rules={[
               {
                 required: true,
@@ -86,15 +92,16 @@ const AddContributionLimit = (props: ACSProps) => {
           </Form.Item>
           <Form.Item
             name="year"
-            style={{ width: 150 }}
+            label="Year End Deadline"
+            style={{ width: 350 }}
             rules={[
               {
                 required: true,
-                message: "Please input the year!",
+                message: "Please input the deadline!",
               },
             ]}
           >
-            <Input type="number" placeholder="Year" />
+            <DatePicker />
           </Form.Item>
           <Form.Item name="account" rules={[{ required: true }]}>
             <Radio.Group optionType="button" buttonStyle="solid">

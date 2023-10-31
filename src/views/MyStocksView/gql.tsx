@@ -89,6 +89,8 @@ export const TRANSACTIONS_BY_STOCK = gql(`
             price
             shares
             fee
+            rate
+            maturityDate
             total
         }
     }`);

@@ -100,7 +100,7 @@ const defaultAccountDetails: HoldingDetail[] = [
     precision: 2,
   },
   {
-    title: "Total Dividends Earned",
+    title: "Dividends/Interest Earned",
     value: 0,
     prefix: "$",
     colour: "",
@@ -288,6 +288,7 @@ const SelectedAccountInfo = (props: SAProps) => {
             }
             stockHoldings.set(transaction.stock as Stock, holding);
             break;
+          case "Interest":
           case "Dividends":
             dividends += transaction.total ?? 0;
             netDeposit += transaction.total ?? 0;

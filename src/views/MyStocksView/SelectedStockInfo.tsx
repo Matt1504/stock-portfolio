@@ -56,7 +56,7 @@ const defaultHoldingDetails: HoldingDetail[] = [
     precision: 2,
   },
   {
-    title: "Dividends Earned",
+    title: "Dividends/Interest Earned",
     value: 0,
     prefix: "$",
     colour: "",
@@ -164,6 +164,7 @@ const SelectedStockInfo = (props: SSProps) => {
               }
               buyGraphData.set(transDate, buyData);
               break;
+            case "Interest":
             case "Dividends":
               dividends += transaction.total ?? 0;
               if (divData) {

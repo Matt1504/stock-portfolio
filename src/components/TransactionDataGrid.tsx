@@ -110,6 +110,22 @@ const defaultColumns: GridColDef[] = [
       params.value ?? "-",
   },
   {
+    field: "rate",
+    headerName: "Rate (%)",
+    type: "number",
+    width: 100,
+    valueFormatter: (params: GridValueFormatterParams<number>) => 
+      params.value ?? "-",
+  },
+  {
+    field: "maturityDate",
+    headerName: "Maturity Date",
+    type: "date",
+    valueGetter: (params: GridValueGetterParams) =>
+      convertStringToDate(params.row.maturityDate),
+    width: 200,
+  },
+  {
     field: "total",
     headerName: "Total ($)",
     type: "number",

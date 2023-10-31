@@ -1,7 +1,6 @@
 import {
   Button,
   Card,
-  Checkbox,
   Col,
   DatePicker,
   Form,
@@ -27,7 +26,7 @@ import { formatDate, formatDecimalTwoPlaces } from "../../utils/utils";
 import { CREATE_TRANSACTION, GET_PLATFORM_INFO } from "./gql";
 
 const AddTransactionView = () => {
-  const { loading, error, data } = useQuery(GET_PLATFORM_INFO);
+  const { loading, data } = useQuery(GET_PLATFORM_INFO);
   const [form] = Form.useForm();
   const notification = new NotificationComponent();
 
@@ -36,7 +35,7 @@ const AddTransactionView = () => {
   const [account, setAccount] = useState("");
   const [currency, setCurrency] = useState("");
   const [activity, setActivity] = useState("");
-  const [isIndex, setIsIndex] = useState(false);
+  const [nonStock, setNonStock] = useState("");
 
   const [createTransaction] = useMutation(CREATE_TRANSACTION, {
     update: (cache: any, mutationResult: any) => {
@@ -62,7 +61,9 @@ const AddTransactionView = () => {
             "description",
           ]);
         }
-        if (isIndex) setIsIndex(false);
+        if (nonStock) {
+          setNonStock("");
+        }
         fields.forEach((field: string) => {
           form.setFieldValue(field, null);
         });
@@ -93,7 +94,9 @@ const AddTransactionView = () => {
 
   const onSelectActivityChange = (value: { value: string; label: string }) => {
     setActivity(value.label);
-    if (isIndex) setIsIndex(false);
+    if (nonStock) {
+      setNonStock("");
+    }
     form.setFieldValue("activity", value.value);
     form.setFieldValue("description", null);
   };
@@ -101,9 +104,10 @@ const AddTransactionView = () => {
   const onInputNumberChange = (
     shares: number | null = null,
     price: number | null = null,
-    fee: number | null = null
+    fee: number | null = null,
   ) => {
     if (!["Buy", "Sell"].includes(activity)) return;
+    
     if (shares === null) {
       shares = form.getFieldValue("shares");
     }
@@ -130,22 +134,37 @@ const AddTransactionView = () => {
 
   const onReset = () => form.resetFields();
 
-  const onIndexCheckboxChange = (e: { target: { checked: boolean } }) =>
-    setIsIndex(e.target.checked);
-
   const onFinish = async (values: TransactionForm) => {
     values.transactionDate = formatDate((values.transaction ?? "").toString());
     values.total = formatDecimalTwoPlaces(values.total);
+    values.maturityDate = formatDate((values.maturity ?? "").toString());
     delete values.transaction;
     delete values.currency;
+    delete values.maturity;
     if (values.price) values.price = formatDecimalTwoPlaces(values.price);
     if (values.fee) values.fee = formatDecimalTwoPlaces(values.fee);
+    if (values.rate) values.rate = formatDecimalTwoPlaces(values.rate);
     await createTransaction({
       variables: {
         trans: values,
       },
     });
   };
+
+  useEffect(() => {
+    if (!nonStock || nonStock === "index") {
+      // set the gic stuff to null
+      form.setFieldValue("rate", null);
+      form.setFieldValue("maturity", null);
+    }
+    form.setFieldValue("total", null);
+    if (!nonStock) {
+      return;
+    }
+    form.setFieldValue("price", null);
+    form.setFieldValue("shares", null);
+    form.setFieldValue("fee", null);
+  }, [nonStock]);
 
   useEffect(() => {
     form.setFieldValue("platform", null);
@@ -326,17 +345,19 @@ const AddTransactionView = () => {
               />
             </Form.Item>
             <Form.Item hidden={!["Buy", "Sell"].includes(activity)}>
-              <Checkbox checked={isIndex} onChange={onIndexCheckboxChange}>
-                Index Fund
-              </Checkbox>
+              <Radio.Group value={nonStock} onChange={(e: RadioChangeEvent) => onRadioChange(e, setNonStock)}>
+                <Radio value="">Stock</Radio>
+                <Radio value="index">Index Fund</Radio>
+                <Radio value="gic">GIC</Radio>
+              </Radio.Group>
             </Form.Item>
             <Form.Item
               name="price"
               label="Price"
-              hidden={!["Buy", "Sell"].includes(activity)}
+              hidden={!["Buy", "Sell"].includes(activity) || nonStock !== ""}
               rules={[
                 {
-                  required: ["Buy", "Sell"].includes(activity) && !isIndex,
+                  required: ["Buy", "Sell"].includes(activity) && !nonStock,
                   message: "Please include the price.",
                 },
               ]}
@@ -352,12 +373,11 @@ const AddTransactionView = () => {
             <Form.Item
               name="shares"
               label="Shares"
-              hidden={!["Stock Split", "Buy", "Sell"].includes(activity)}
+              hidden={!["Stock Split", "Buy", "Sell"].includes(activity) || nonStock !== ""}
               rules={[
                 {
                   required:
-                    ["Stock Split", "Buy", "Sell"].includes(activity) &&
-                    !isIndex,
+                    ["Stock Split", "Buy", "Sell"].includes(activity) && !nonStock,
                   message: "Please include the shares.",
                 },
               ]}
@@ -371,7 +391,7 @@ const AddTransactionView = () => {
             <Form.Item
               name="fee"
               label="Fee"
-              hidden={!["Buy", "Sell"].includes(activity)}
+              hidden={!["Buy", "Sell"].includes(activity) || nonStock !== ""}
             >
               <InputNumber
                 step={0.01}
@@ -380,6 +400,37 @@ const AddTransactionView = () => {
                 min={0}
                 addonBefore="$"
               />
+            </Form.Item>
+            <Form.Item
+              name="rate"
+              label="Interest Rate"
+              hidden={nonStock !== "gic"}
+              rules={[
+                {
+                  required: nonStock === "gic",
+                  message: "Please enter the interest rate.",
+                },
+              ]}
+            >
+              <InputNumber
+                step={0.01}
+                keyboard
+                min={0}
+                addonAfter="%"
+              />
+            </Form.Item>
+            <Form.Item
+              name="maturity"
+              label="Maturity Date"
+              hidden={nonStock !== "gic"}
+              rules={[
+                {
+                  required: nonStock === "gic",
+                  message: "Please enter the maturity date.",
+                },
+              ]}
+            >
+              <DatePicker />
             </Form.Item>
             <Form.Item
               name="total"
