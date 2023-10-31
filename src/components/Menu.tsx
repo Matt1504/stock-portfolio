@@ -33,7 +33,7 @@ function getItem(
 
 const items: MenuItem[] = [
   getItem("Dashboard", "/home", <AreaChartOutlined />),
-  getItem("Stock Finder", "/stocks", <SearchOutlined />),
+  // getItem("Stock Finder", "/stocks", <SearchOutlined />),
   getItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
   getItem("Add Transaction", "/add", <PlusOutlined />),

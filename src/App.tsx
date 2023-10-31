@@ -10,7 +10,8 @@ import AccountOverviewView from "./views/AccountView";
 import AddTransactionView from "./views/AddTransactionView";
 import DashboardView from "./views/DashboardView";
 import MyStocksView from "./views/MyStocksView";
-import StocksView from "./views/StocksView";
+
+// import StocksView from "./views/StocksView";
 
 const App = () => {
   return (
@@ -26,12 +27,12 @@ const App = () => {
             />
           }
         />
-        <Route
+        {/* <Route
           path="/stocks"
           element={
             <LayoutComponent title="Stock Finder" view={<StocksView />} />
           }
-        />
+        /> */}
         <Route
           path="/add"
           element={
