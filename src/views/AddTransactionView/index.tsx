@@ -137,7 +137,7 @@ const AddTransactionView = () => {
   const onFinish = async (values: TransactionForm) => {
     values.transactionDate = formatDate((values.transaction ?? "").toString());
     values.total = formatDecimalTwoPlaces(values.total);
-    values.maturityDate = formatDate((values.maturity ?? "").toString());
+    if (nonStock === 'gic') values.maturityDate = formatDate((values.maturity ?? "").toString());
     delete values.transaction;
     delete values.currency;
     delete values.maturity;
