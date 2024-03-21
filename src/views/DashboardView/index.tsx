@@ -45,10 +45,10 @@ const DashboardView = () => {
           <ContributionLimits accounts={data.accounts} reload={reload} setReload={setReload} />
           <Col span={24}>
             <Typography variant="h6">
-              Transactions This Week
+              Transactions From Last 30 Days
             </Typography>
             <TransactionDataGrid
-              gridData={data?.transactionsFromThisWeek}
+              gridData={data?.transactionsFromLastMonth}
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={[]}

@@ -71,7 +71,9 @@ const ContributionGraph = (props: CGProps) => {
                 if (increment) {
                     counter++;
                     const currLimit = accountContributionLimits[counter];
-                    limitTotal += (currLimit.node.amount ?? 0)
+                    if  (currLimit) {
+                        limitTotal += (currLimit.node.amount ?? 0);
+                    }
                 }
                 x.value_1 = limitTotal;
             });

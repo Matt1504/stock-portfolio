@@ -11,7 +11,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           }
       }
     }
-    transactionsFromThisWeek {
+    transactionsFromLastMonth {
       id
       account {
           id
