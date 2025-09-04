@@ -169,7 +169,7 @@ const AccountsAddDropdown = (props: AADProps) => {
           <Form.Item
             name="name"
             label="Add Platform"
-            style={{ width: 350 }}
+            style={{ width: 300 }}
             rules={[
               {
                 required: true,
@@ -177,7 +177,7 @@ const AccountsAddDropdown = (props: AADProps) => {
               },
             ]}
           >
-            <Input placeholder="Name" />
+            <Input placeholder="Name" style={{width: 185 }} />
           </Form.Item>
           <Form.Item name="account" rules={[{ required: true }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
