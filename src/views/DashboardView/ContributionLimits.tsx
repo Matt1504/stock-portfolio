@@ -120,7 +120,7 @@ const ContributionLimits = (props: CLProps) => {
                         <Card style={{ marginTop: 8, marginBottom: 16, marginLeft: 24, marginRight: 24 }}>
                             <Statistic 
                                 loading={isLoading}
-                                title={`${account.node.name} (${account.node.code})`}
+                                title={account.node.name}
                                 value={computeContributionUsed(account.node.id ?? "")}
                                 suffix="%"
                                 precision={2}

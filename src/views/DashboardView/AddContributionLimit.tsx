@@ -86,6 +86,7 @@ const AddContributionLimit = (props: ACSProps) => {
                 step={0.01}
                 placeholder="Amount"
                 keyboard
+                style={{ width: 200 }}
                 min={0}
                 addonBefore="$"
               />
@@ -125,7 +126,7 @@ const AddContributionLimit = (props: ACSProps) => {
                     .length
                 }
               >
-                Add Contribution Limit
+                Add Limit
               </Button>
             )}
           </Form.Item>
