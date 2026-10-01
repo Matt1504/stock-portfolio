@@ -1,49 +1,37 @@
-import { Button, Col, Divider } from "antd";
-import React, { useEffect, useState } from "react";
+import { Col, Divider } from "antd";
 
-import { ReloadOutlined } from "@ant-design/icons";
-import { useLazyQuery } from "@apollo/client";
+import { useApolloClient, useQuery } from "@apollo/client";
 import { Stack, Typography } from "@mui/material";
 
 import LoadingProgress from "../../components/LoadingProgress";
+import ReloadButton from "../../components/ReloadButton";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import AddContributionLimit from "./AddContributionLimit";
 import ContributionLimits from "./ContributionLimits";
-import { DASHBOARD_TRANSACTIONS } from "./gql";
+import { DASHBOARD_TRANSACTIONS, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
 
 const DashboardView = () => {
-  const [fetchData, {loading, data}] = useLazyQuery(DASHBOARD_TRANSACTIONS, {
+  const client = useApolloClient();
+  const {loading, data} = useQuery(DASHBOARD_TRANSACTIONS, {
     notifyOnNetworkStatusChange: true,
   });
-  const [reload, setReload] = useState(false);
-
-  const handleReload = () => {
-    setReload(true);
-    fetchData();
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const handleReload = () => client.refetchQueries({
+    include: [DASHBOARD_TRANSACTIONS, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY],
+  });
 
   return (
-        loading || !data ? <LoadingProgress/> :
+        !data ? <LoadingProgress/> :
         <>
           <AddContributionLimit accounts={data.accounts}/>
           <Divider />
           <Stack
             direction="row"
             justifyContent="flex-end"
-            alignItems="center">
-            <Button
-              onClick={() => handleReload()}
-              type="primary"
-              shape="round"
-              icon={<ReloadOutlined />}
-            />
+            alignItems="center" sx={{ mb: 2 }}>
+            <ReloadButton onReload={handleReload} loading={loading} />
           </Stack>
-          <ContributionLimits accounts={data.accounts} reload={reload} setReload={setReload} />
-          <Col span={24}>
+          <ContributionLimits accounts={data.accounts} />
+          <Col span={24} style={{ marginTop: 32 }}>
             <Typography variant="h6">
               Transactions From Last 30 Days
             </Typography>

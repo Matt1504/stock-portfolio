@@ -9,6 +9,7 @@ export const ALL_STOCKS_CURRENCY = gql(`
                     name
                     ticker
                     currency {
+                        id
                         code
                     }
                 }
@@ -57,6 +58,7 @@ export const CREATE_STOCK = gql(`
                 name
                 ticker
                 currency {
+                    id
                     code
                 }
             }
@@ -75,6 +77,7 @@ export const TRANSACTIONS_BY_STOCK = gql(`
                 id
                 name
                 currency {
+                    id
                     code
                 }
             }
@@ -82,6 +85,7 @@ export const TRANSACTIONS_BY_STOCK = gql(`
                 name
             }
             stock {
+                id
                 name
                 ticker
             }
@@ -100,6 +104,7 @@ export const UPDATE_TRANSACTION = gql(`
         updateTransaction(transData:$trans) {
             trans {
                 id
+                transactionDate
                 price
                 shares
                 fee

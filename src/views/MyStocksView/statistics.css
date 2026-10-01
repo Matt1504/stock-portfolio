@@ -1,0 +1,14 @@
+.stock-statistics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+@media (min-width: 576px) {
+  .stock-statistics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 768px) {
+  .stock-statistics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1200px) {
+  .stock-statistics-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}

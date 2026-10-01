@@ -1,60 +1,37 @@
-import { Layout, theme } from "antd";
+import { BulbOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import { Button, Layout, Tooltip, Typography } from "antd";
 import { ReactNode, useState } from "react";
-import { useParams } from "react-router-dom";
-
+import { useAppTheme } from "../theme/AppTheme";
 import MenuComponent from "./Menu";
-import Title from "./Title";
 
 const { Header, Content, Footer } = Layout;
-
-type LcProps = {
-  title: String;
-  view: ReactNode;
+const descriptions: Record<string, string> = {
+  "Stock Portfolio Dashboard": "Your portfolio at a glance",
+  "My Accounts": "Explore your accounts, holdings, and contributions",
+  "My Stocks": "Track your holdings and understand their performance",
+  "Add Transaction": "Keep your investment history up to date",
 };
 
-const titleDict: { [dir: string]: string } = {
-  di: "TD Direct Investing",
-  et: "TD Easy Trade",
-  ws: "Wealthsimple",
-  cl: "Canada Life",
-  overview: "",
-  "": "",
-};
-
-const LayoutComponent = (props: LcProps) => {
-  const {
-    token: { colorBgContainer },
-  } = theme.useToken();
-
-  const { title, view } = props;
-  const { account, platform } = useParams();
+const LayoutComponent = ({ title, view }: { title: string; view: ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
-
-  return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <MenuComponent collapsed={collapsed} setCollapsed={setCollapsed} />
-      <Layout className="site-layout">
-        <Header
-          style={{ height: 48, padding: 0, background: colorBgContainer }}
-        >
-          <Title
-            collapsed={collapsed}
-            title={`${
-              account
-                ? `${account.toUpperCase()} ${titleDict[platform ?? ""]} `
-                : ""
-            }${title}`}
-          />
-        </Header>
-        <Content style={{ margin: 16, transition: "margin-left 0.3s", marginLeft: collapsed ? 80 : 200, padding: 24 }}>
-          {view}
-        </Content>
-        <Footer style={{ transition: "margin-left 0.3s", marginLeft: collapsed ? 80 : 200, padding: 24, textAlign: "center" }}>
-          Stock Portfolio ©2023 Created by Matthew Lee
-        </Footer>
-      </Layout>
+  const { mode, toggleTheme } = useAppTheme();
+  return <Layout className="portfolio-layout">
+    <MenuComponent collapsed={collapsed} setCollapsed={setCollapsed} />
+    <Layout className={`portfolio-main ${collapsed ? "sidebar-collapsed" : ""}`}>
+      <Header className="portfolio-header">
+        <div className="portfolio-heading">
+          <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(value => !value)} />
+          <div><Typography.Title level={3}>{title}</Typography.Title><Typography.Text type="secondary">{descriptions[title]}</Typography.Text></div>
+        </div>
+        <Tooltip title={`Switch to ${mode === "light" ? "dark" : "light"} mode`}>
+          <Button className="theme-toggle" icon={<BulbOutlined aria-hidden />} onClick={toggleTheme} aria-label={`Switch to ${mode === "light" ? "dark" : "light"} mode`}>
+            <span>{mode === "light" ? "Dark mode" : "Light mode"}</span>
+          </Button>
+        </Tooltip>
+      </Header>
+      <Content className="portfolio-content">{view}</Content>
+      <Footer className="portfolio-footer">Stock Portfolio · Your investment record</Footer>
     </Layout>
-  );
+  </Layout>;
 };
-
 export default LayoutComponent;

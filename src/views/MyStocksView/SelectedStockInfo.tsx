@@ -1,4 +1,5 @@
-import { Button, Card, Col, Row, Statistic } from "antd";
+import { DownOutlined, UpOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, Row, Statistic } from "antd";
 import { useEffect, useState } from "react";
 import {
   Bar,
@@ -16,23 +17,24 @@ import {
   YAxis
 } from "recharts";
 
-import { ReloadOutlined } from "@ant-design/icons";
 import { useQuery } from "@apollo/client";
 import { Stack, Typography } from "@mui/material";
 
 import { CustomTooltip } from "../../components/BarChartTooltip";
 import LoadingProgress from "../../components/LoadingProgress";
+import ReloadButton from "../../components/ReloadButton";
+import StatisticTitle, { stockStatisticDescription } from "../../components/StatisticTitle";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
-import { HoldingDetail } from "../../models/Common";
 import { GraphData } from "../../models/GraphData";
 import { Transaction } from "../../models/Transaction";
 import {
   compareDates,
-  getColourCodeByAccount,
-  getMinMaxDate
+  getColourCodeByAccount
 } from "../../utils/utils";
 import { TRANSACTIONS_BY_STOCK } from "./gql";
+import { stockStatistics } from "./statistics";
+import "./statistics.css";
 
 type SSProps = {
   stock: string | undefined;
@@ -40,39 +42,12 @@ type SSProps = {
   currency: string | undefined;
 };
 
-const defaultHoldingDetails: HoldingDetail[] = [
-  {
-    title: "Share(s) Owned",
-    value: 0,
-    prefix: undefined,
-    colour: "",
-    precision: undefined,
-  },
-  {
-    title: "Book Cost",
-    value: 0,
-    prefix: "$",
-    colour: "",
-    precision: 2,
-  },
-  {
-    title: "Dividends/Interest Earned",
-    value: 0,
-    prefix: "$",
-    colour: "",
-    precision: 2,
-  },
-  {
-    title: "Last Buy Date",
-    value: "",
-    prefix: "",
-    precision: undefined,
-    colour: "",
-  },
-];
+const defaultHoldingDetails = stockStatistics([]).details;
 
 const SelectedStockInfo = (props: SSProps) => {
   const { stock, name, currency } = props;
+  const [expanded, setExpanded] = useState(false);
+  const [hasHoldingIssues, setHasHoldingIssues] = useState(false);
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
@@ -89,13 +64,8 @@ const SelectedStockInfo = (props: SSProps) => {
 
   useEffect(() => {
     if (data?.transactions) {
-      var shares = 0;
-      var bookCost = 0;
-      var dividends = 0;
-      var lastBuyDate = getMinMaxDate();
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
-      var platformBuyData = new Map<string, GraphData>();
       var transactions = [...data.transactions];
       transactions
         .sort((a: Transaction, b: Transaction) =>
@@ -107,16 +77,8 @@ const SelectedStockInfo = (props: SSProps) => {
           var buyData = buyGraphData.get(transDate);
           switch (transaction.activity.name) {
             case "Stock Split":
-              shares += transaction.shares ?? 0;
               break;
             case "Buy":
-              shares += transaction.shares ?? 0;
-              bookCost += transaction.total ?? 0;
-              if (
-                compareDates(lastBuyDate, transaction.transactionDate) === -1
-              ) {
-                lastBuyDate = transaction.transactionDate;
-              }
               if (buyData) {
                 buyData.value += transaction.total ?? 0;
                 var shareLabel = Number(buyData.label ?? 0);
@@ -131,27 +93,8 @@ const SelectedStockInfo = (props: SSProps) => {
                 );
               }
               buyGraphData.set(transDate, buyData);
-              if (transaction.platform.name && transaction.account.code) {
-                let key = `${transaction.platform.name} (${transaction.account.code})`;
-                var platData = platformBuyData.get(key);
-                if (platData) {
-                  platData.value += transaction.total ?? 0;
-                  let shareCount = Number(platData.label);
-                  platData.label = (shareCount +=
-                    transaction.shares ?? 0).toString();
-                } else {
-                  platData = new GraphData(
-                    key,
-                    transaction.total ?? 0,
-                    undefined,
-                    (transaction.shares ?? 0).toString()
-                    );
-                }
-                platformBuyData.set(key, platData);
-              }
               break;
             case "Sell":
-              shares -= transaction.shares ?? 0;
               if (buyData) {
                 buyData.value_1 = (buyData.value_1 ?? 0) - (transaction.total ?? 0);
               } else {
@@ -166,7 +109,6 @@ const SelectedStockInfo = (props: SSProps) => {
               break;
             case "Interest":
             case "Dividends":
-              dividends += transaction.total ?? 0;
               if (divData) {
                 divData.value += transaction.total ?? 0;
               } else {
@@ -180,7 +122,6 @@ const SelectedStockInfo = (props: SSProps) => {
               divGraphData.set(transDate, divData);
               break;
             case "Withholding Tax":
-              dividends -= transaction.total ?? 0;
               if (divData) {
                 divData.value_1 =
                   (divData.value_1 ?? 0) - (transaction.total ?? 0);
@@ -196,7 +137,6 @@ const SelectedStockInfo = (props: SSProps) => {
               break;
           }
         });
-      setPieGraphPlatData(Array.from(platformBuyData.values()));
       setBarGraphDivData(Array.from(divGraphData.values()));
       setBarGraphBuyData(
         Array.from(buyGraphData.values()).map((x: GraphData) => ({
@@ -204,51 +144,52 @@ const SelectedStockInfo = (props: SSProps) => {
           label: `${x.label} Share(s)`,
         }))
       );
-      setHoldingDetails((prev: HoldingDetail[]) => {
-        let update = [...prev];
-        update[0].value = shares;
-        update[1].value = bookCost;
-        update[2].value = dividends;
-        update[3].value = lastBuyDate.toString();
-        return update;
-      });
+      const summary = stockStatistics(data.transactions);
+      setHoldingDetails(summary.details);
+      setHasHoldingIssues(summary.portfolio.issues.length > 0 || summary.portfolio.realizedGain === undefined);
+      setActiveIndex(0);
+      setPieGraphPlatData(summary.portfolio.positions.filter(position => position.bookCost > 0).map(position =>
+        new GraphData(`${position.platform} (${position.accountCode ?? ""})`, position.bookCost, undefined, position.shares.toString())
+      ));
     }
   }, [data]);
 
   return (
-    <Row>
+    <Row className="portfolio-details" gutter={[24, 24]}>
       <Col span={24}>
         <Stack
           direction="row"
           justifyContent="space-between"
           alignItems="center"
           spacing={2}
-          mb={1}
+          mb={0}
         >
-          <Typography gutterBottom variant="h6">
+          <Typography variant="h6">
             {name} | {currency}
           </Typography>
-          <Button
-            onClick={() => refetch()}
-            type="primary"
-            shape="round"
-            icon={<ReloadOutlined />}
-          />
+          <ReloadButton onReload={() => refetch()} loading={loading} />
         </Stack>
       </Col>
-      {holdingDetails.map((x: HoldingDetail, index: number) => (
-        <Col span={6} key={index}>
-          <Card style={{ marginBottom: 16, marginLeft: 8, marginRight: 8 }}>
-            <Statistic
-              loading={loading}
-              title={x.title}
-              value={x.value}
-              prefix={x.prefix}
-              precision={x.precision}
-            />
-          </Card>
-        </Col>
-      ))}
+      {hasHoldingIssues && !loading && <Col span={24}><Alert type="warning" showIcon message="Some sales exceed recorded holdings. Review the transaction history; realized gain/loss is unavailable until missing entries are corrected." style={{ marginBottom: 16 }} /></Col>}
+      <Col span={24}>
+        <div className="stock-statistics-grid">
+          {holdingDetails.slice(0, 5).map(detail => <div key={detail.title}>
+            <Card style={{ height: "100%" }}><Statistic loading={loading} title={<StatisticTitle title={detail.title} description={stockStatisticDescription(detail.title)} />} value={detail.value} prefix={detail.prefix} precision={detail.precision} /></Card>
+          </div>)}
+        </div>
+        <div id="additional-stock-statistics" hidden={!expanded} style={{ marginTop: 16 }}>
+          <div className="stock-statistics-grid">
+            {holdingDetails.slice(5).map(detail => <div key={detail.title}>
+              <Card style={{ height: "100%" }}><Statistic loading={loading} title={<StatisticTitle title={detail.title} description={stockStatisticDescription(detail.title)} />} value={detail.value} prefix={detail.prefix} precision={detail.precision} /></Card>
+            </div>)}
+          </div>
+        </div>
+        <div style={{ textAlign: "center", margin: "12px 0 20px" }}>
+          <Button type="text" icon={expanded ? <UpOutlined aria-hidden /> : <DownOutlined aria-hidden />} aria-expanded={expanded} aria-controls="additional-stock-statistics" onClick={() => setExpanded(value => !value)}>
+            {expanded ? "Show fewer statistics" : "Show more statistics"}
+          </Button>
+        </div>
+      </Col>
       {data && !loading ? (
         <>
           {pieGraphPlatData.length ? (
@@ -256,7 +197,7 @@ const SelectedStockInfo = (props: SSProps) => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart width={450} height={450}>
                   <text
-                    x={600}
+                    x="50%"
                     y={25}
                     textAnchor="middle"
                     dominantBaseline="central"
@@ -308,7 +249,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   }}
                 >
                   <text
-                    x={600}
+                    x="50%"
                     y={10}
                     fill="black"
                     textAnchor="middle"
@@ -358,7 +299,7 @@ const SelectedStockInfo = (props: SSProps) => {
                   }}
                 >
                   <text
-                    x={600}
+                    x="50%"
                     y={30}
                     fill="black"
                     textAnchor="middle"

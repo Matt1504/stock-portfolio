@@ -1,7 +1,7 @@
 import { Card, Col, Row, Statistic } from "antd";
 import { useEffect, useState } from "react";
 
-import { useLazyQuery, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 
 import { Account } from "../../models/Account";
@@ -16,51 +16,27 @@ import { GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
 
 type CLProps = {
     accounts: GraphQLEdge<Account>;
-    reload: boolean;
-    setReload: Function;
 };
 
 const ContributionLimits = (props: CLProps) => {
-    const {accounts, reload, setReload} = props;
-    const [isLoading, setIsLoading] = useState(true);
-    const [contributionId, setContributionId] = useState("");
+    const {accounts} = props;
     const [contributionLimits, setContributionLimits] = useState<Map<string, number>>(new Map<string, number>());
     const [contributions, setContributions] = useState<Map<string, number>>(new Map<string, number>());
-    const {data} = useQuery(GET_CONTRIBUTION_LIMITS);
-    const [fetchContributions, { data: transactions}] = useLazyQuery(TRANSACTIONS_BY_ACTIVITY, {
-        variables: { activity: contributionId },
+    const {data, loading: limitsLoading} = useQuery(GET_CONTRIBUTION_LIMITS, {
         notifyOnNetworkStatusChange: true,
     });
+    const contributionId = data?.activities.edges.find(
+        (activity: GraphQLNode<Activity>) => activity.node.name === "Contribution"
+    )?.node.id;
+    const { data: transactions, loading: contributionsLoading } = useQuery(TRANSACTIONS_BY_ACTIVITY, {
+        variables: { activity: contributionId },
+        skip: !contributionId,
+        notifyOnNetworkStatusChange: true,
+    });
+    const isLoading = limitsLoading || contributionsLoading;
 
     useEffect(() => {
-        if (data) {
-            var contribution_activity = data.activities.edges.filter((x: GraphQLNode<Activity>) => x.node.name === "Contribution");
-            if (contribution_activity.length) {
-                setContributionId(contribution_activity[0].node.id)
-            }
-        }
-    }, [data]);
-
-    useEffect(() => {
-        if (reload) {
-            fetchContributions();
-            setReload(false);
-        }
-    }, [reload]);
-
-    useEffect(() => {
-        if (contributionId) {
-            fetchContributions();
-        }
-    }, [contributionId]);
-
-    useEffect(() => {
-        if (transactions) {
-            processContributions();
-        }
-    }, [transactions]);
-
-    const processContributions = () => {
+        if (!data) return;
         var limitMap = new Map<string, number>();
         var contributionMap = new Map<string, number>(); 
 
@@ -77,7 +53,7 @@ const ContributionLimits = (props: CLProps) => {
             limitMap.set(account, value);
         });
 
-        transactions.transactions.forEach((transaction: Transaction) => {
+        (transactions?.transactions ?? []).forEach((transaction: Transaction) => {
             const account = transaction.account?.id ?? "";
             const amount = transaction.total ?? 0;
 
@@ -92,8 +68,7 @@ const ContributionLimits = (props: CLProps) => {
 
         setContributionLimits(limitMap);
         setContributions(contributionMap);
-        setIsLoading(false);
-    }
+    }, [data, transactions]);
 
     function computeContributionUsed(accountId: string) {
         const contribution = contributions?.get(accountId) ?? 0;
@@ -108,7 +83,7 @@ const ContributionLimits = (props: CLProps) => {
     }
 
     return (
-        <Row>
+        <Row gutter={[24, 24]}>
             <Col span={24}>
                 <Typography variant="h6">
                 Contribution Limits
@@ -116,8 +91,8 @@ const ContributionLimits = (props: CLProps) => {
             </Col>
             {accounts.edges.map((account: GraphQLNode<Account>) => {
                 return (
-                    <Col span={8} key={account.node.id}>
-                        <Card style={{ marginTop: 8, marginBottom: 16, marginLeft: 24, marginRight: 24 }}>
+                    <Col xs={24} md={12} xl={8} key={account.node.id}>
+                        <Card>
                             <Statistic 
                                 loading={isLoading}
                                 title={account.node.name}
@@ -125,13 +100,13 @@ const ContributionLimits = (props: CLProps) => {
                                 suffix="%"
                                 precision={2}
                             />
-                            {!isLoading && <Typography display="block" variant="overline">{printContributionUsed(account.node.id ?? "")}</Typography>}
+                            {!isLoading && <Typography display="block" variant="overline" sx={{ mt: 2, lineHeight: 1.6 }}>{printContributionUsed(account.node.id ?? "")}</Typography>}
                         </Card>
                     </Col>
                 )
             })}
             <Col span={24}>
-                <ContributionGraph accounts={accounts?.edges ?? []} contributionLimits={data?.contributionLimits} transactions={transactions?.transactions ?? []} />
+                {data && accounts.edges.length > 0 && <ContributionGraph accounts={accounts.edges} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
             </Col>
         </Row>
     );

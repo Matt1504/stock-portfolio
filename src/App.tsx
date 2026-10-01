@@ -5,6 +5,8 @@ import {
   Routes
 } from "react-router-dom";
 
+import AppTheme from "./theme/AppTheme";
+
 import LayoutComponent from "./components/Layout";
 import AccountOverviewView from "./views/AccountView";
 import AddTransactionView from "./views/AddTransactionView";
@@ -15,7 +17,7 @@ import MyStocksView from "./views/MyStocksView";
 
 const App = () => {
   return (
-    <Router>
+    <AppTheme><Router>
       <Routes>
         <Route path="/" element={<Navigate to="/home" />} />
         <Route
@@ -52,7 +54,7 @@ const App = () => {
           }
         />
       </Routes>
-    </Router>
+    </Router></AppTheme>
   );
 };
 

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { Button, DatePicker, InputNumber, Popover, Select, Space, Typography } from "antd";
+import dayjs from "dayjs";
+import { useEffect, useMemo, useState } from "react";
 
-import { DocumentNode, useMutation, useQuery } from "@apollo/client";
+import { DocumentNode, useMutation } from "@apollo/client";
 import EditIcon from "@mui/icons-material/Edit";
 import { IconButton } from "@mui/material";
 import { Box } from "@mui/system";
@@ -9,27 +11,22 @@ import {
   GridColDef,
   GridToolbarColumnsButton,
   GridToolbarContainer,
-  GridToolbarDensitySelector,
   GridToolbarExport,
   GridValueFormatterParams,
   GridValueGetterParams
 } from "@mui/x-data-grid";
 
-import { Account } from "../models/Account";
-import { Activity } from "../models/Activity";
-import { GraphQLNode } from "../models/GraphQLNode";
-import { Platform } from "../models/Platform";
 import { Transaction } from "../models/Transaction";
 import { convertStringToDate, formatNumberAsCurrency } from "../utils/utils";
 import {
-  ACTIVITY_PLATFORM_ACCOUNT_NAMES,
   UPDATE_TRANSACTION
 } from "../views/MyStocksView/gql";
 import { NotificationComponent } from "./Notification";
 import TransactionEditDialog from "./TransactionEditDialog";
+import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences, TransactionFilters } from "./transactionTableState";
 
 type TDGProps = {
-  gridData: [Transaction];
+  gridData: Transaction[];
   defaultSort: string;
   ascending: boolean;
   removeColumns: string[];
@@ -40,11 +37,12 @@ function CustomToolbar() {
   return (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
-      <GridToolbarDensitySelector />
       <GridToolbarExport />
     </GridToolbarContainer>
   );
 }
+
+const emptyRows: Transaction[] = [];
 
 const defaultColumns: GridColDef[] = [
   {
@@ -140,9 +138,7 @@ const defaultColumns: GridColDef[] = [
   }
 ];
 
-export const TransactionDataGrid = (props: TDGProps) => {
-  const { loading, error, data } = useQuery(ACTIVITY_PLATFORM_ACCOUNT_NAMES);
-  const [columns, setColumns] = useState<GridColDef[]>(defaultColumns);
+const TransactionDataGridContent = (props: TDGProps) => {
   const { gridData, defaultSort, ascending, removeColumns, query}  = props;
   const [selectedItem, setSelectedItem] = useState<Transaction>();
   const [open, setOpen] = useState(false);
@@ -161,24 +157,8 @@ export const TransactionDataGrid = (props: TDGProps) => {
           "Transaction Updated",
           "The transaction was successfully updated."
         );
-        const updatedTrans: Transaction = mutationResult.data.updateTransaction.trans;
-        cache.writeQuery({
-          query: query,
-          data: {
-            transactions: gridData.map((x: any) => {
-              if (x.id === updatedTrans?.id) {
-                return {
-                  ...x, 
-                  price: updatedTrans?.price, 
-                  shares: updatedTrans?.shares,
-                  fee: updatedTrans?.fee,
-                  total: updatedTrans?.total,
-                };
-              }
-              return {...x};
-            })
-          }
-        })
+        // Apollo updates each normalized transaction from the mutation result.
+        // Avoid writing a filtered table back into an unfiltered query cache.
       }
     }
   })
@@ -198,6 +178,7 @@ export const TransactionDataGrid = (props: TDGProps) => {
       variables: {
         trans: {
           id: transaction.id,
+          transactionDate: transaction.transactionDate,
           price: transaction.price,
           shares: transaction.shares,
           fee: transaction.fee,
@@ -208,73 +189,79 @@ export const TransactionDataGrid = (props: TDGProps) => {
     handleDialogClose();
   }
 
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-    if (data.accounts && data.activities && data.platforms) {
-      let activities: string[] = data.activities.edges.map(
-        (x: GraphQLNode<Activity>) => x.node.name
-      );
-      let accounts: string[] = data.accounts.edges.map(
-        (x: GraphQLNode<Account>) => x.node.code
-      );
-      let platforms: string[] = data.platforms.edges.map(
-        (x: GraphQLNode<Platform>) => x.node.name
-      );
-
-      setColumns((prev: any[]) => {
-        let update = [...prev];
-        update[1].valueOptions = activities;
-        update[2].valueOptions = accounts;
-        update[3].valueOptions = platforms.reduce(
-          (unique: any, item: string) =>
-            unique.includes(item) ? unique : [...unique, item],
-          []
-        );
-
-        removeColumns.forEach((col: string) => {
-          let index = update.findIndex((x: any) => x.field === col);
-          if (index !== -1) {
-            update.splice(index, 1);
-          }
-        });
-
-        if (update[update.length - 1].field !== "actions") {
-          update.push({
-            field: "actions",
-            headerName: "Edit",
-            disableColumnMenu: true,
-            disableReorder: true,
-            renderCell: (params: any) => <IconButton onClick={() => handleEditClick(params.row)}><EditIcon /></IconButton>
-          });
-        }
-        return update;
-      });
-    }
-  }, [data]);
+  const operation = query.definitions.find(definition => definition.kind === "OperationDefinition");
+  const viewName = operation?.kind === "OperationDefinition" ? operation.name?.value ?? "transactions" : "transactions";
+  const preferenceKey = `stock-portfolio-table-v1:${viewName}:${[...removeColumns].sort().join(",")}`;
+  const defaults: TablePreferences = { sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }], pageSize: 10, visibility: {}, widths: {}, density: "standard" };
+  const [preferences, setPreferences] = useState(() => readTablePreferences(preferenceKey, defaults));
+  const [filters, setFilters] = useState<TransactionFilters>({});
+  const [page, setPage] = useState(0);
+  useEffect(() => { saveTablePreferences(preferenceKey, preferences); }, [preferenceKey, preferences]);
+  const rows = gridData ?? emptyRows;
+  const filteredRows = useMemo(() => filterTransactions(rows, filters), [rows, filters]);
+  const setFilter = (update: Partial<TransactionFilters>) => { setFilters(value => ({ ...value, ...update })); setPage(0); };
+  const options = (getValue: (row: Transaction) => string | undefined, getLabel: (row: Transaction) => string | undefined) =>
+    Array.from(new Map(rows.map(row => [getValue(row), { value: getValue(row), label: getLabel(row) }])).values())
+      .filter(option => option.value).sort((a, b) => (a.label ?? "").localeCompare(b.label ?? ""));
+  const activityOptions = options(row => row.activity.name, row => row.activity.name);
+  const accountOptions = options(row => row.account.id ?? row.account.code, row => row.account.code);
+  const stockOptions = options(row => row.stock ? row.stock.id ?? row.stock.ticker : "__no_stock__", row => row.stock ? `${row.stock.name} (${row.stock.ticker})` : "No stock / cash transaction");
+  const columns: GridColDef[] = defaultColumns.filter(column => !removeColumns.includes(column.field)).map(column => ({
+    ...column, width: preferences.widths[column.field] ?? column.width,
+    ...(column.field === "activity" ? { valueOptions: activityOptions.map(option => option.value) } : {}),
+    ...(column.field === "account" ? { valueOptions: Array.from(new Set(rows.map(row => row.account.code))) } : {}),
+    ...(column.field === "platform" ? { valueOptions: Array.from(new Set(rows.map(row => row.platform.name))) } : {}),
+  }));
+  columns.push({ field: "actions", headerName: "Edit", sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
+    renderCell: params => <IconButton aria-label="Edit transaction" onClick={() => handleEditClick(params.row)}><EditIcon /></IconButton> });
+  const [widthField, setWidthField] = useState("transactionDate");
+  const hasFilters = Object.values(filters).some(Boolean);
 
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
       {notification.contextHolder}
       {selectedItem && <TransactionEditDialog open={open} setOpen={setOpen} handleDialogSave={handleDialogUpdate} onCancel={handleDialogClose} dataItem={selectedItem} />}
+      <Space wrap size={[16, 16]} style={{ marginBottom: 24, width: "100%" }}>
+        <DatePicker.RangePicker aria-label="Transaction date range" placeholder={["Start date", "End date"]}
+          value={filters.start && filters.end ? [dayjs(filters.start), dayjs(filters.end)] : null}
+          onChange={dates => setFilter({ start: dates?.[0]?.format("YYYY-MM-DD"), end: dates?.[1]?.format("YYYY-MM-DD") })} />
+        <Select aria-label="Filter by activity" placeholder="All activities" allowClear showSearch optionFilterProp="label" style={{ width: 180 }} value={filters.activity} options={activityOptions} onChange={activity => setFilter({ activity })} />
+        <Select aria-label="Filter by account" placeholder="All accounts" allowClear showSearch optionFilterProp="label" style={{ width: 160 }} value={filters.account} options={accountOptions} onChange={account => setFilter({ account })} />
+        <Select aria-label="Filter by stock" placeholder="All stocks" allowClear showSearch optionFilterProp="label" style={{ width: 240 }} value={filters.stock} options={stockOptions} onChange={stock => setFilter({ stock })} />
+        <Button disabled={!hasFilters} onClick={() => { setFilters({}); setPage(0); }}>Clear filters</Button>
+        <Popover trigger="click" title="Table settings" content={<Space direction="vertical" style={{ width: 250 }}>
+          <Typography.Text>Row density</Typography.Text>
+          <Select aria-label="Row density" style={{ width: "100%" }} value={preferences.density} options={[{ value: "compact", label: "Compact" }, { value: "standard", label: "Standard" }, { value: "comfortable", label: "Comfortable" }]} onChange={density => setPreferences(value => ({ ...value, density }))} />
+          <Typography.Text>Column width</Typography.Text>
+          <Select aria-label="Column to resize" style={{ width: "100%" }} value={widthField} options={columns.filter(column => column.field !== "actions").map(column => ({ value: column.field, label: column.headerName }))} onChange={setWidthField} />
+          <InputNumber aria-label="Column width in pixels" min={50} max={2000} step={10} value={preferences.widths[widthField] ?? columns.find(column => column.field === widthField)?.width ?? 100} addonAfter="px" onChange={width => { if (width) setPreferences(value => ({ ...value, widths: { ...value.widths, [widthField]: width } })); }} />
+          <Button onClick={() => { setPreferences(defaults); setPage(0); }}>Reset table preferences</Button>
+        </Space>}><Button>Table settings</Button></Popover>
+        <Typography.Text type="secondary" aria-live="polite">{filteredRows.length} of {rows.length} transactions</Typography.Text>
+      </Space>
       <DataGrid
         autoHeight
         columns={columns}
-        rows={gridData}
-        initialState={{
-          sorting: {
-            sortModel: [
-              { field: defaultSort, sort: ascending ? "asc" : "desc" },
-            ],
-          },
-          pagination: { paginationModel: { pageSize: 10 } },
-        }}
+        rows={filteredRows}
+        sortModel={preferences.sortModel.filter(item => columns.some(column => column.field === item.field))}
+        onSortModelChange={sortModel => setPreferences(value => ({ ...value, sortModel }))}
+        paginationModel={{ page: Math.min(page, Math.max(0, Math.ceil(filteredRows.length / preferences.pageSize) - 1)), pageSize: preferences.pageSize }}
+        onPaginationModelChange={model => { setPage(model.page); setPreferences(value => ({ ...value, pageSize: model.pageSize })); }}
+        columnVisibilityModel={preferences.visibility}
+        onColumnVisibilityModelChange={visibility => setPreferences(value => ({ ...value, visibility }))}
+        density={preferences.density}
         pageSizeOptions={[10, 25, 50]}
         slots={{
           toolbar: CustomToolbar,
+          noRowsOverlay: () => <Box sx={{ p: 3, textAlign: "center" }}>{hasFilters ? "No transactions match these filters. Try changing or clearing them." : "No transactions to display."}</Box>,
         }}
       />
     </Box>
   );
+};
+
+export const TransactionDataGrid = (props: TDGProps) => {
+  const operation = props.query.definitions.find(definition => definition.kind === "OperationDefinition");
+  const name = operation?.kind === "OperationDefinition" ? operation.name?.value ?? "transactions" : "transactions";
+  return <TransactionDataGridContent key={`${name}:${[...props.removeColumns].sort().join(",")}`} {...props} />;
 };

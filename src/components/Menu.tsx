@@ -1,12 +1,11 @@
 import { Layout, Menu } from "antd";
 import React from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   AreaChartOutlined,
   FolderOpenOutlined,
   PlusOutlined,
-  SearchOutlined,
   StockOutlined
 } from "@ant-design/icons";
 
@@ -47,6 +46,7 @@ type MProps = {
 const MenuComponent = (props: MProps) => {
   const { collapsed, setCollapsed } = props;
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   function handleMenuClick(path: string) {
     if (path === null || path === "") {
@@ -57,6 +57,10 @@ const MenuComponent = (props: MProps) => {
 
   return (
     <Sider
+      className="portfolio-sidebar"
+      width={224}
+      collapsedWidth={72}
+      breakpoint="lg"
       style={{
         overflow: "auto",
         height: "100vh",
@@ -67,10 +71,9 @@ const MenuComponent = (props: MProps) => {
       collapsed={collapsed}
       onCollapse={(value) => setCollapsed(value)}
     >
-      <div style={{ height: 8, margin: 16 }} />
+      <div className="portfolio-brand"><span className="portfolio-brand-mark"><StockOutlined /></span>{!collapsed && <div><strong>Stock Portfolio</strong><span>INVESTMENT TRACKER</span></div>}</div>
       <Menu
-        defaultSelectedKeys={["1"]}
-        defaultOpenKeys={["sub1"]}
+        selectedKeys={[pathname]}
         mode="inline"
         theme="dark"
         items={items}

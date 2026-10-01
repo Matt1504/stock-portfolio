@@ -188,9 +188,9 @@ const AddTransactionView = () => {
       {notification.contextHolder}
       <Col span={24}>
         {loading ? (
-          <Card style={{ width: 500, marginTop: 16 }} loading={loading} />
+          <Card style={{ width: "100%", maxWidth: 720, marginTop: 16 }} loading={loading} />
         ) : (
-          <Form form={form} name="add_transaction" onFinish={onFinish}>
+          <Form className="portfolio-transaction-form" layout="vertical" form={form} name="add_transaction" onFinish={onFinish}>
             <Form.Item
               name="account"
               label="Account"

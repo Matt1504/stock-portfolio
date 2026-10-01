@@ -1,5 +1,5 @@
-import { Button, Card, Col, Row, Statistic, Tabs } from "antd";
-import { useEffect, useState } from "react";
+import { Alert, Card, Col, Row, Statistic, Tabs } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Cell,
@@ -14,22 +14,23 @@ import {
   YAxis
 } from "recharts";
 
-import { ReloadOutlined } from "@ant-design/icons";
-import { useLazyQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
 import LoadingProgress from "../../components/LoadingProgress";
+import ReloadButton from "../../components/ReloadButton";
+import StatisticTitle, { accountStatisticDescriptions } from "../../components/StatisticTitle";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
 import { Currency } from "../../models/Currency";
 import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
-import { Stock } from "../../models/Stock";
 import { Transaction } from "../../models/Transaction";
 import { compareDates, getColourCodeByAccount } from "../../utils/utils";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
+import { calculateStockHoldings, HoldingIssue } from "./holdings";
 
 type SAProps = {
   name: string | undefined;
@@ -37,17 +38,10 @@ type SAProps = {
   account: string | undefined;
   accountName: string | undefined;
   currencies: GraphQLNode<Currency>[];
+  currency: Currency;
+  availableCurrencyIds: string[];
+  onCurrencyChange: (id: string) => void;
 };
-
-class StockHolding {
-  total: number;
-  shares: number;
-
-  constructor(total: number, shares: number) {
-    this.total = total;
-    this.shares = shares;
-  }
-}
 
 const defaultAccountDetails: HoldingDetail[] = [
   {
@@ -109,89 +103,45 @@ const defaultAccountDetails: HoldingDetail[] = [
 ];
 
 const SelectedAccountInfo = (props: SAProps) => {
-  const { name, platform, account, accountName, currencies } = props;
-
-  var query = TRANSACTIONS_BY_ACCOUNT;
-  var platform_one = "";
-  var platform_two = "";
-
-  if (platform && !platform?.includes("all")) {
-    query = TRANSACTIONS_BY_PLATFORM;
-    var platforms: string[] = platform.split(",");
-    platform_one = platforms[0];
-    if (platforms.length > 1) {
-      platform_two = platforms[1];
-    }
-  }
-
-  const [selectedPlatform, setSelectedPlatform] = useState(platform_one);
-  const [currentTab, setCurrentTab] = useState(platform_one ? platform_one : "CAD");
-  const [accountDetails, setAccountDetails] = useState(defaultAccountDetails);
+  const { name, platform, account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
+  const query = platform ? TRANSACTIONS_BY_PLATFORM : TRANSACTIONS_BY_ACCOUNT;
+  const [accountDetails, setAccountDetails] = useState(() => defaultAccountDetails.map((detail) => ({ ...detail })));
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
   const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [holdingIssues, setHoldingIssues] = useState<HoldingIssue[]>([]);
 
-  const [fetchData, {loading, data}] = useLazyQuery(query, {
-    variables: { account, platform_one: selectedPlatform },
+  const {loading, data, refetch} = useQuery(query, {
+    variables: platform ? { platform_one: platform } : { account },
     notifyOnNetworkStatusChange: true,
   });
 
-  function processTabValue(value: string) {
-    if (["CAD", "USD"].includes(value)) {
-      processTransactionData(value);
-    } else {
-      setSelectedPlatform(value);
-    }
-  }
-
-  useEffect(() => {
-    fetchData();
-  }, [selectedPlatform]);
-
-  useEffect(() => {
-    if (data) {
-      processTransactionData(currentTab);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    const tabValue = platform_one ? platform_one : "CAD";
-    setCurrentTab(tabValue);
-    processTabValue(tabValue);
-  }, [platform]);
-
-  const handleTabChange = (key: string) => {
-    setCurrentTab(key);
-    processTabValue(key);
-  };
+  const filteredTransactions = useMemo(() => data?.transactions.filter(
+    (transaction: Transaction) => transaction.platform.currency?.id === currency.id
+  ), [data, currency.id]);
 
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };
 
-  const processTransactionData = (filter: string) => {
-    if (!data?.transactions) {
+  useEffect(() => {
+    if (!filteredTransactions) {
       return;
     }
 
     var contributions = 0;
     var transferIn = 0;
     var transferOut = 0;
-    var shares = 0;
     var bookCost = 0;
     var dividends = 0;
     var netDeposit = 0;
 
-    var stockHoldings = new Map<Stock, StockHolding>();
+    const portfolio = calculateStockHoldings(filteredTransactions);
     var bookCostHistory = new Map<string, GraphData>();
 
-    var transactions = [...data?.transactions];
-    if (["CAD", "USD"].includes(filter)) {
-      transactions = transactions.filter((trans: Transaction) => trans.platform.currency?.code === filter);
-    }
-    if (!transactions.length) return;
+    var transactions = [...filteredTransactions];
 
     transactions
       .sort((a: Transaction, b: Transaction) =>
@@ -199,7 +149,7 @@ const SelectedAccountInfo = (props: SAProps) => {
       )
       .forEach((transaction: Transaction) => {
         var transDate = transaction.transactionDate.toString();
-        var holding = stockHoldings.get(transaction.stock as Stock);
+        bookCost = portfolio.bookCostAfterTransaction.get(transaction.id ?? "") ?? bookCost;
         var transHistory = bookCostHistory.get(transDate);
         switch (transaction.activity.name) {
           case "Contribution":
@@ -248,18 +198,8 @@ const SelectedAccountInfo = (props: SAProps) => {
             bookCostHistory.set(transDate, transHistory);
             break;
           case "Buy":
-            shares += transaction.shares ?? 0;
-            bookCost += transaction.total ?? 0;
-            if (holding) {
-              holding.shares += transaction.shares ?? 0;
-              holding.total += transaction.total ?? 0;
-            } else {
-              holding = new StockHolding(
-                transaction.total ?? 0,
-                transaction.shares ?? 0
-              );
-            }
-            stockHoldings.set(transaction.stock as Stock, holding);
+          case "Sell":
+          case "Stock Split":
             if (transHistory) {
               transHistory.value = bookCost;
             } else {
@@ -271,22 +211,6 @@ const SelectedAccountInfo = (props: SAProps) => {
               );
             }
             bookCostHistory.set(transDate, transHistory);
-            break;
-          case "Stock Split":
-            shares += transaction.shares ?? 0;
-            break;
-          case "Sell":
-            shares -= transaction.shares ?? 0;
-            if (holding) {
-              holding.shares -= transaction.shares ?? 0;
-              holding.total -= transaction.total ?? 0;
-            } else {
-              holding = new StockHolding(
-                (transaction.total ?? 0) * -1,
-                (transaction.shares ?? 0) * -1
-              );
-            }
-            stockHoldings.set(transaction.stock as Stock, holding);
             break;
           case "Interest":
           case "Dividends":
@@ -322,91 +246,93 @@ const SelectedAccountInfo = (props: SAProps) => {
         }
       });
 
-    var maxHolding: Stock;
-    if (stockHoldings.size) {
-      maxHolding = Array.from(stockHoldings.keys()).reduce(
-        (prev: Stock, current: Stock) =>
-          (stockHoldings.get(prev) as StockHolding).total >
-          (stockHoldings.get(current) as StockHolding).total
-            ? prev
-            : current
-      );
-    }
+    const maxHolding = portfolio.holdings.reduce<typeof portfolio.holdings[number] | undefined>(
+      (largest, holding) => !largest || holding.bookCost > largest.bookCost ? holding : largest,
+      undefined
+    );
 
     setPieGraphHoldingData(
-      Array.from(stockHoldings.keys()).map((stock: Stock) => {
-        var totals: StockHolding = stockHoldings.get(stock) as StockHolding;
+      portfolio.holdings.filter((holding) => holding.bookCost > 0).map((holding) => {
         return new GraphData(
-          `${stock.ticker}`,
-          totals.total,
+          `${holding.stock.ticker}`,
+          holding.bookCost,
           undefined,
-          totals.shares.toString()
+          holding.shares.toString()
         );
       })
     );
 
     setGraphBookCostData(Array.from(bookCostHistory.values()));
+    setHoldingIssues(portfolio.issues);
+    setActiveIndex(0);
 
     setAccountDetails((prev: HoldingDetail[]) => {
-      let update = [...prev];
-      update[0].value = shares;
-      update[1].value = stockHoldings.size;
-      update[2].value = stockHoldings.size
-        ? `${maxHolding.ticker} | $${(
-            stockHoldings.get(maxHolding) as StockHolding
-          ).total.toFixed(2)}`
+      let update = prev.map((detail) => ({ ...detail }));
+      update[0].value = portfolio.totalShares;
+      update[1].value = portfolio.holdings.length;
+      update[2].value = maxHolding
+        ? `${maxHolding.stock.ticker} | $${maxHolding.bookCost.toFixed(2)}`
         : "-";
       update[3].value = contributions;
       update[4].value = transferIn;
       update[5].value = transferOut;
-      update[6].value = bookCost;
+      update[6].value = portfolio.totalBookCost;
       update[7].value = dividends;
       return update;
     });
-  };
+  }, [filteredTransactions]);
 
   return (
-    <Row>
+    <Row className="portfolio-details" gutter={[24, 24]}>
       <Col span={24}>
         <Stack
           direction="row"
           justifyContent="space-between"
           alignItems="center"
           spacing={2}
-          mb={1}
+          mb={0}
         >
-          <Typography gutterBottom variant="h6">
+          <Typography variant="h6">
             {accountName} {name}
           </Typography>
-          <Button
-            onClick={() => fetchData()}
-            type="primary"
-            shape="round"
-            icon={<ReloadOutlined />}
-          />
+          <ReloadButton onReload={() => refetch()} loading={loading} />
         </Stack>
       </Col>
       <Col span={24}>
         <Tabs
-          activeKey={currentTab}
+          activeKey={currency.id}
           size="large"
           type="card"
-          onChange={handleTabChange}
-          items={currencies.map((currency: GraphQLNode<Currency>, index: number) => {
+          onChange={onCurrencyChange}
+          items={currencies.filter(({ node }) => node.id).map(({ node }) => {
             return {
-              label: currency.node.code,
-              key: index === 0 ? platform_one ? platform_one : "CAD" : platform_two ? platform_two : "USD",
-              disabled: index === 1 && (!platform?.includes("all") && platform_two === "")
+              label: node.code,
+              key: node.id!,
+              disabled: !availableCurrencyIds.includes(node.id!)
             };
           })}
         />
       </Col>
+      {!loading && holdingIssues.length > 0 && <Col span={24}>
+        <Alert
+          type="warning"
+          showIcon
+          message="Some stock quantities need review"
+          description={<>
+            {holdingIssues.map((issue) => <div key={`${issue.stock.id}-${issue.platform}`}>
+              {issue.stock.ticker} ({issue.platform}): the recorded share balance is −{issue.missingShares}.
+            </div>)}
+            Review the buy, sell, split, and transfer entries for these stocks. Negative positions are excluded from the current holdings totals and chart.
+          </>}
+          style={{ marginBottom: 16 }}
+        />
+      </Col>}
       {accountDetails.map((x: HoldingDetail, index: number) => (
-        <Col span={6} key={index}>
-          <Card style={{ marginBottom: 16, marginLeft: 8, marginRight: 8 }}>
+        <Col xs={24} sm={12} xl={6} key={index}>
+          <Card style={{ height: "100%" }}>
             <Statistic
               loading={loading}
-              title={x.title}
+              title={<StatisticTitle title={x.title} description={accountStatisticDescriptions[x.title]} />}
               value={x.value}
               prefix={x.prefix}
               precision={x.precision}
@@ -422,7 +348,7 @@ const SelectedAccountInfo = (props: SAProps) => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart width={450} height={450}>
                     <text
-                      x={600}
+                      x="50%"
                       y={20}
                       textAnchor="middle"
                       dominantBaseline="central"
@@ -476,7 +402,7 @@ const SelectedAccountInfo = (props: SAProps) => {
                 }}
               >
                 <text
-                  x={600}
+                  x="50%"
                   y={10}
                   fill="black"
                   textAnchor="middle"
@@ -510,7 +436,7 @@ const SelectedAccountInfo = (props: SAProps) => {
           </Col>
           <Col span={24}>
             <TransactionDataGrid
-              gridData={data?.transactions}
+              gridData={filteredTransactions}
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={

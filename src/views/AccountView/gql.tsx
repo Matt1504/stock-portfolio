@@ -21,6 +21,7 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
                         code
                     }
                     currency {
+                        id
                         code
                     }
                 }

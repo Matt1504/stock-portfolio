@@ -1,51 +1,51 @@
-import { Button, Col, Form, Input, Radio, Row, Select } from "antd";
-import { useEffect, useState } from "react";
+import { PlusOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space } from "antd";
 
-import { useMutation, useQuery } from "@apollo/client";
+import { useMutation } from "@apollo/client";
 
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
-import { Currency } from "../../models/Currency";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Platform } from "../../models/Platform";
-import { Stock } from "../../models/Stock";
 import { ALL_ACCOUNT_PLATFORMS, CREATE_PLATFORM } from "./gql";
 import TransferAccountModal from "./TransferAccountModal";
+import { AccountData, AccountOption } from "./navigation";
 
 type AADProps = {
-  setSelectedAccount: Function;
-  setCurrencies: Function;
+  data?: AccountData;
+  loading: boolean;
+  options: AccountOption[];
+  selectedAccountId?: string;
+  onAccountChange: (id: string) => void;
 };
 
 const AccountsAddDropdown = (props: AADProps) => {
-  const { setSelectedAccount, setCurrencies } = props;
-  const { loading, error, data } = useQuery(ALL_ACCOUNT_PLATFORMS);
+  const { data, loading, options, selectedAccountId, onAccountChange } = props;
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
-  const [accOverviewOptions, setAccOverviewOptions] = useState<
-    GraphQLNode<Account>[]
-  >([]);
-  const [platformOptions, setPlatformOptions] = useState<
-    GraphQLNode<Platform>[]
-  >([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const [createPlatform] = useMutation(CREATE_PLATFORM, {
+  const [createPlatform, { loading: saving }] = useMutation(CREATE_PLATFORM, {
     update: (cache: any, mutationResult: any) => {
-      if (!mutationResult.data.createPlatform) {
+      if (!mutationResult.data?.createPlatform?.platform) {
         notification.openNotificationWithIcon(
           "error",
           "Error Adding Platform",
-          "The stock could not be added to the database because it already exists."
+          "The platform could not be added. It may already exist."
         );
+        return;
       }
       var newPlatform: Platform = mutationResult.data.createPlatform.platform;
       const readData = cache.readQuery({
         query: ALL_ACCOUNT_PLATFORMS,
       });
-      cache.writeQuery({
+      if (readData) cache.writeQuery({
         query: ALL_ACCOUNT_PLATFORMS,
         data: {
+          ...readData,
           platforms: {
+            ...readData.platforms,
             edges: [...readData.platforms.edges, { node: newPlatform }],
           },
           currencies: readData.currencies,
@@ -57,169 +57,80 @@ const AccountsAddDropdown = (props: AADProps) => {
         `"${newPlatform.currency?.code} ${newPlatform.account?.code} for ${newPlatform.name} was successfully added to the database.`
       );
       form.resetFields();
+      setDialogOpen(false);
     },
   });
 
-  const handleChange = async (value: string) => {
-    var arr = accOverviewOptions.concat(platformOptions);
-    var index = arr.findIndex(
-      (x: GraphQLNode<Platform>) => x.node.id === value
-    );
-    setSelectedAccount(arr[index].node);
-  };
-
-  const onFinish = async (values: Stock) => {
-    await createPlatform({
-      variables: {
-        platform: values,
-      },
-    });
-  };
-
-  useEffect(() => {
-    if (data?.accounts?.edges) {
-      setCurrencies(data.currencies.edges);
-      setAccOverviewOptions(
-        data.accounts?.edges.map((account: GraphQLNode<Account>) => ({
-          node: {
-            id: `${account.node.code}-all`,
-            account: {
-              id: account.node.id,
-              code: account.node.code,
-            },
-            name: `Overview`,
-          },
-        }))
-      );
+  const onFinish = async (values: { name: string; account: string; currency: string }) => {
+    if (saving) return;
+    try {
+      await createPlatform({ variables: { platform: { ...values, name: values.name?.trim() } } });
+    } catch {
+      notification.openNotificationWithIcon("error", "Error Adding Platform", "Could not save the platform. Please try again.");
     }
-    if (data?.platforms?.edges) {
-      var plats: GraphQLNode<Platform>[] = [];
-      data?.platforms?.edges.forEach((platform: GraphQLNode<Platform>) => {
-        let index = plats.findIndex(
-          (x: GraphQLNode<Platform>) =>
-            x.node.name === platform.node.name &&
-            x.node.account?.id === platform.node.account?.id
-        );
-        if (index === -1) {
-          plats.push(platform);
-        } else {
-          let obj: GraphQLNode<Platform> = {
-            node: {
-              id: `${plats[index].node.id},${platform.node.id}`,
-              name: plats[index].node.name,
-              account: plats[index].node.account,
-              __typename: plats[index].node.__typename,
-            },
-            __typename: plats[index].__typename,
-          };
-          plats[index] = obj;
-        }
-      });
-      setPlatformOptions(plats);
-    }
-  }, [data]);
+  };
+  const handleCancel = () => {
+    if (saving) return;
+    setDialogOpen(false);
+    form.resetFields();
+  };
 
   return (
-    <Row>
+    <Row gutter={[16, 16]} align="middle">
       {notification.contextHolder}
-      <Col span={5}>
+      <Col xs={24} md={16}>
         {data && (
           <Select
             showSearch
+            aria-label="Select an account"
+            value={selectedAccountId}
             disabled={loading}
-            onChange={handleChange}
-            style={{ width: "90%" }}
+            onChange={onAccountChange}
+            style={{ width: "100%", maxWidth: 480 }}
             placeholder="Select a Platform"
             optionFilterProp="children"
             filterOption={(input, option: any) =>
-              (option?.label ?? "").toLowerCase().includes(input)
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
             }
             options={data.accounts?.edges.map(
               (account: GraphQLNode<Account>) => ({
                 label: account.node.code,
-                options: accOverviewOptions
-                  .concat(platformOptions)
+                options: options
                   ?.filter(
-                    (x: GraphQLNode<Platform>) =>
-                      x.node.account?.code === account.node.code
+                    (option: AccountOption) => option.account.id === account.node.id
                   )
-                  .map((x: GraphQLNode<Platform>) => ({
-                    value: x.node.id,
-                    label: x.node.name,
+                  .map((option: AccountOption) => ({
+                    value: option.id,
+                    label: `${option.account.code} ${option.name}`,
                   })),
               })
             )}
           />
         )}
       </Col>
-      <Col span={19}>
-        <Form
-          form={form}
-          name="horizontal_add_platform"
-          layout="inline"
-          onFinish={onFinish}
-        >
-          <Form.Item>
-            <TransferAccountModal
-              accounts={data?.accounts?.edges as GraphQLNode<Account>[]}
-              platforms={data?.platforms?.edges as GraphQLNode<Platform>[]}
-              notification={notification}
-            />
+      <Col xs={24} md={8} style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Space wrap>
+          <TransferAccountModal accounts={data?.accounts.edges as GraphQLNode<Account>[]} platforms={data?.platforms.edges as GraphQLNode<Platform>[]} notification={notification} />
+          <Button type="primary" icon={<PlusOutlined aria-hidden />} disabled={loading || !data} onClick={() => setDialogOpen(true)}>Add Platform</Button>
+        </Space>
+      </Col>
+      <Modal title="Add Platform" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Platform" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
+        <Form form={form} name="add_platform_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
+          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: "Please enter a name." }]}>
+            <Input placeholder="Platform name, e.g. Wealthsimple" autoFocus />
           </Form.Item>
-          <Form.Item
-            name="name"
-            label="Add Platform"
-            style={{ width: 300 }}
-            rules={[
-              {
-                required: true,
-                message: "Please input the name of the platform!",
-              },
-            ]}
-          >
-            <Input placeholder="Name" style={{width: 185 }} />
-          </Form.Item>
-          <Form.Item name="account" rules={[{ required: true }]}>
+          <Form.Item name="account" label="Account" rules={[{ required: true, message: "Please select an account." }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.accounts?.edges.map((account: GraphQLNode<Account>) => {
-                return (
-                  <Radio key={account.node.id} value={account.node.id}>
-                    {account.node.code}
-                  </Radio>
-                );
-              })}
+              {data?.accounts.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
             </Radio.Group>
           </Form.Item>
-          <Form.Item name="currency" rules={[{ required: true }]}>
+          <Form.Item name="currency" label="Currency" rules={[{ required: true, message: "Please select a currency." }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.currencies?.edges.map(
-                (currency: GraphQLNode<Currency>) => {
-                  return (
-                    <Radio key={currency.node.id} value={currency.node.id}>
-                      {currency.node.code}
-                    </Radio>
-                  );
-                }
-              )}
+              {data?.currencies.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
             </Radio.Group>
-          </Form.Item>
-          <Form.Item shouldUpdate>
-            {() => (
-              <Button
-                type="primary"
-                htmlType="submit"
-                disabled={
-                  !form.isFieldsTouched(true) ||
-                  !!form.getFieldsError().filter(({ errors }) => errors.length)
-                    .length
-                }
-              >
-                Add
-              </Button>
-            )}
           </Form.Item>
         </Form>
-      </Col>
+      </Modal>
     </Row>
   );
 };

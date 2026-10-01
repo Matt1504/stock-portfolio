@@ -1,0 +1,196 @@
+import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { DocumentNode, print } from "graphql";
+
+import ReloadButton from "../components/ReloadButton";
+import SelectedAccountInfo from "./AccountView/SelectedAccountInfo";
+import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./AccountView/gql";
+import DashboardView from "./DashboardView";
+import { DASHBOARD_TRANSACTIONS, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./DashboardView/gql";
+import SelectedStockInfo from "./MyStocksView/SelectedStockInfo";
+import { TRANSACTIONS_BY_STOCK } from "./MyStocksView/gql";
+
+// Keep real Apollo hooks and cache behavior; replace only unrelated rendering.
+jest.mock("../components/TransactionDataGrid", () => ({
+  TransactionDataGrid: ({ gridData }: { gridData: unknown }) => (
+    <div data-testid="transactions">{JSON.stringify(gridData)}</div>
+  ),
+}));
+jest.mock("./DashboardView/AddContributionLimit", () => () => null);
+jest.mock("./DashboardView/ContributionGraph", () => () => null);
+jest.mock("recharts", () => ({
+  ...jest.requireActual("recharts"),
+  ResponsiveContainer: () => null,
+}));
+
+beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+});
+
+const account = { id: "account-1", name: "Tax-Free Savings", code: "TFSA" };
+const accounts = { edges: [{ node: account }] };
+const currencies = [
+  { __typename: "CurrencyEdge", node: { __typename: "CurrencyType", id: "currency-cad", code: "CAD" } },
+  { __typename: "CurrencyEdge", node: { __typename: "CurrencyType", id: "currency-usd", code: "USD" } },
+];
+const transaction = {
+  id: "transaction-1",
+  account,
+  platform: { id: "platform-cad", name: "Broker", currency: { id: "currency-cad", code: "CAD" } },
+  activity: { name: "Buy" },
+  stock: { id: "stock-1", name: "Example", ticker: "EX" },
+  transactionDate: "2026-09-20",
+  description: "Purchase",
+  price: 10,
+  shares: 1,
+  fee: 0,
+  rate: null,
+  maturityDate: null,
+  total: 10,
+};
+
+function metadata(amount: number) {
+  return {
+    activities: { edges: [{ node: { id: "activity-contribution", name: "Contribution" } }] },
+    contributionLimits: {
+      edges: [{ node: { id: "limit-1", account, amount, yearEnd: "2026-12-31" } }],
+    },
+  };
+}
+
+function createClient(responses: Map<string, object>) {
+  const requests: { query: string; variables: Record<string, unknown> }[] = [];
+  const client = new ApolloClient({
+    cache: new InMemoryCache({ addTypename: false }),
+    link: new ApolloLink((operation) => new Observable((observer) => {
+      const query = print(operation.query);
+      requests.push({ query, variables: operation.variables });
+      const timeout = setTimeout(() => {
+        const data = responses.get(query);
+        if (!data) {
+          observer.error(new Error("Unexpected test request"));
+        } else {
+          observer.next({ data });
+          observer.complete();
+        }
+      }, 0);
+      return () => clearTimeout(timeout);
+    })),
+  });
+  return { client, requests };
+}
+
+function seed(client: ApolloClient<object>, query: DocumentNode, data: object, variables?: object) {
+  client.cache.writeQuery({ query, data, variables });
+}
+
+test("dashboard reload requests all three datasets even when Apollo already has them cached", async () => {
+  const responses = new Map<string, object>([
+    [print(DASHBOARD_TRANSACTIONS), { accounts, transactionsFromLastMonth: [{ ...transaction, total: 20 }] }],
+    [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
+    [print(TRANSACTIONS_BY_ACTIVITY), { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 250 }] }],
+  ]);
+  const { client, requests } = createClient(responses);
+  seed(client, DASHBOARD_TRANSACTIONS, { accounts, transactionsFromLastMonth: [transaction] });
+  seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
+  seed(client, TRANSACTIONS_BY_ACTIVITY, { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] }, { activity: "activity-contribution" });
+
+  render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
+  await screen.findByText("$100.00 / $1000.00");
+  expect(requests).toHaveLength(0);
+
+  const reload = screen.getByRole("button", { name: "Reload data" });
+  fireEvent.click(reload);
+  expect(reload).toBeDisabled();
+  await screen.findByText("$250.00 / $2000.00");
+  await waitFor(() => expect(reload).toBeEnabled());
+  expect(requests.map((request) => request.query).sort()).toEqual(Array.from(responses.keys()).sort());
+  expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20');
+
+  fireEvent.click(reload);
+  await waitFor(() => expect(requests).toHaveLength(6));
+  await waitFor(() => expect(reload).toBeEnabled());
+});
+
+test("dashboard recalculates contribution limits when contributions are unchanged", async () => {
+  const contributions = { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] };
+  const responses = new Map<string, object>([
+    [print(DASHBOARD_TRANSACTIONS), { accounts, transactionsFromLastMonth: [transaction] }],
+    [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
+    [print(TRANSACTIONS_BY_ACTIVITY), contributions],
+  ]);
+  const { client } = createClient(responses);
+  seed(client, DASHBOARD_TRANSACTIONS, responses.get(print(DASHBOARD_TRANSACTIONS))!);
+  seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
+  seed(client, TRANSACTIONS_BY_ACTIVITY, contributions, { activity: "activity-contribution" });
+  render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
+  await screen.findByText("$100.00 / $1000.00");
+  fireEvent.click(screen.getByRole("button", { name: "Reload data" }));
+  await screen.findByText("$100.00 / $2000.00");
+});
+
+test.each([
+  ["account overview", TRANSACTIONS_BY_ACCOUNT, undefined, { account: account.id }],
+  ["broker account", TRANSACTIONS_BY_PLATFORM, "platform-cad", { platform_one: "platform-cad" }],
+])("%s reload sends a fresh request with the selected variables", async (_label, query, platform, variables) => {
+  const responses = new Map([[print(query), { transactions: [{ ...transaction, total: 20 }] }]]);
+  const { client, requests } = createClient(responses);
+  seed(client, query, { transactions: [transaction] }, variables);
+  render(
+    <ApolloProvider client={client}>
+      <SelectedAccountInfo name="Overview" platform={platform} account={account.id} accountName="TFSA" currencies={currencies} currency={currencies[0].node} availableCurrencyIds={currencies.map(({ node }) => node.id)} onCurrencyChange={() => {}} />
+    </ApolloProvider>
+  );
+  const reload = await screen.findByRole("button", { name: "Reload data" });
+  await screen.findByTestId("transactions");
+  expect(requests).toHaveLength(0);
+  fireEvent.click(reload);
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0].query).toBe(print(query));
+  expect(requests[0].variables).toEqual(expect.objectContaining(variables));
+  await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20'));
+});
+
+test("stock reload continues to request the API even with cached transactions", async () => {
+  const responses = new Map([[print(TRANSACTIONS_BY_STOCK), { transactions: [{ ...transaction, total: 20 }] }]]);
+  const { client, requests } = createClient(responses);
+  seed(client, TRANSACTIONS_BY_STOCK, { transactions: [transaction] }, { stock: "stock-1" });
+  render(<ApolloProvider client={client}><SelectedStockInfo stock="stock-1" name="Example" currency="CAD" /></ApolloProvider>);
+  await screen.findByTestId("transactions");
+  expect(requests).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Reload data" }));
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0].variables).toEqual({ stock: "stock-1" });
+  await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20'));
+});
+
+test("reload prevents duplicate clicks, reports errors, and allows a retry", async () => {
+  let rejectReload: (error: Error) => void = () => {};
+  const onReload = jest.fn()
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectReload = reject; }))
+    .mockResolvedValueOnce(undefined);
+  render(<ReloadButton onReload={onReload} />);
+  const reload = screen.getByRole("button", { name: "Reload data" });
+  fireEvent.click(reload);
+  fireEvent.click(reload);
+  expect(onReload).toHaveBeenCalledTimes(1);
+  expect(reload).toBeDisabled();
+  await act(async () => { rejectReload(new Error("Offline")); });
+  await screen.findByText("Unable to reload data");
+  expect(reload).toBeEnabled();
+  fireEvent.click(reload);
+  await waitFor(() => expect(reload).toBeEnabled());
+  expect(onReload).toHaveBeenCalledTimes(2);
+});
