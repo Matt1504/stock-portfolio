@@ -1,8 +1,9 @@
+import { useProfileMutation as useMutation } from "../../profiles/hooks";
 import { Button, Modal, Select } from "antd";
 import React, { useEffect, useState } from "react";
 
 import { ArrowDownOutlined } from "@ant-design/icons";
-import { useMutation } from "@apollo/client";
+
 import { CircularProgress, Stack } from "@mui/material";
 
 import { NotificationComponent } from "../../components/Notification";
@@ -25,7 +26,7 @@ const TransferAccountModal = (props: TAMProps) => {
   >();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [transferAccount, { data, error, loading }] = useMutation(
+  const [transferAccount, { loading }] = useMutation(
     TRANSFER_ACCOUNT,
     {
       update: (cache: any, mutationResult: any) => {

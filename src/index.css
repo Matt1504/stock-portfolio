@@ -125,3 +125,11 @@ code {
   .portfolio-content .ant-divider { margin: 24px 0; }
   .pie-chart-container, .chart-container { padding: 16px; }
 }
+
+.portfolio-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; }
+.profile-controls { justify-content: flex-end; }
+@media (max-width: 1100px) {
+  .portfolio-header.ant-layout-header { flex-wrap: wrap; }
+  .portfolio-header-actions { flex: 1 1 100%; justify-content: flex-start; }
+  .profile-controls { justify-content: flex-start; }
+}

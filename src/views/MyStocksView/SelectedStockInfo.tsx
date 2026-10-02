@@ -1,5 +1,7 @@
-import { DownOutlined, UpOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Col, Row, Statistic } from "antd";
+import { useApolloClient } from "@apollo/client";
+import { coldRefetch } from "../../utils/coldRefetch";
+import { useProfileQuery as useQuery } from "../../profiles/hooks";
+import { Alert, Col, Row } from "antd";
 import { useEffect, useState } from "react";
 import {
   Bar,
@@ -17,13 +19,14 @@ import {
   YAxis
 } from "recharts";
 
-import { useQuery } from "@apollo/client";
+
 import { Stack, Typography } from "@mui/material";
 
 import { CustomTooltip } from "../../components/BarChartTooltip";
 import LoadingProgress from "../../components/LoadingProgress";
 import ReloadButton from "../../components/ReloadButton";
-import StatisticTitle, { stockStatisticDescription } from "../../components/StatisticTitle";
+import { stockStatisticDescriptions } from "../../components/StatisticTitle";
+import ExpandableStatistics from "../../components/ExpandableStatistics";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { GraphData } from "../../models/GraphData";
@@ -34,7 +37,6 @@ import {
 } from "../../utils/utils";
 import { TRANSACTIONS_BY_STOCK } from "./gql";
 import { stockStatistics } from "./statistics";
-import "./statistics.css";
 
 type SSProps = {
   stock: string | undefined;
@@ -46,14 +48,14 @@ const defaultHoldingDetails = stockStatistics([]).details;
 
 const SelectedStockInfo = (props: SSProps) => {
   const { stock, name, currency } = props;
-  const [expanded, setExpanded] = useState(false);
   const [hasHoldingIssues, setHasHoldingIssues] = useState(false);
   const [holdingDetails, setHoldingDetails] = useState(defaultHoldingDetails);
   const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
   const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
   const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const { loading, error, data, refetch } = useQuery(TRANSACTIONS_BY_STOCK, {
+  const client = useApolloClient();
+  const { loading, data } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
     notifyOnNetworkStatusChange: true
   });
@@ -122,6 +124,7 @@ const SelectedStockInfo = (props: SSProps) => {
               divGraphData.set(transDate, divData);
               break;
             case "Withholding Tax":
+              if (!transaction.stock) break;
               if (divData) {
                 divData.value_1 =
                   (divData.value_1 ?? 0) - (transaction.total ?? 0);
@@ -167,28 +170,12 @@ const SelectedStockInfo = (props: SSProps) => {
           <Typography variant="h6">
             {name} | {currency}
           </Typography>
-          <ReloadButton onReload={() => refetch()} loading={loading} />
+          <ReloadButton onReload={() => coldRefetch(client, [TRANSACTIONS_BY_STOCK])} loading={loading} />
         </Stack>
       </Col>
       {hasHoldingIssues && !loading && <Col span={24}><Alert type="warning" showIcon message="Some sales exceed recorded holdings. Review the transaction history; realized gain/loss is unavailable until missing entries are corrected." style={{ marginBottom: 16 }} /></Col>}
       <Col span={24}>
-        <div className="stock-statistics-grid">
-          {holdingDetails.slice(0, 5).map(detail => <div key={detail.title}>
-            <Card style={{ height: "100%" }}><Statistic loading={loading} title={<StatisticTitle title={detail.title} description={stockStatisticDescription(detail.title)} />} value={detail.value} prefix={detail.prefix} precision={detail.precision} /></Card>
-          </div>)}
-        </div>
-        <div id="additional-stock-statistics" hidden={!expanded} style={{ marginTop: 16 }}>
-          <div className="stock-statistics-grid">
-            {holdingDetails.slice(5).map(detail => <div key={detail.title}>
-              <Card style={{ height: "100%" }}><Statistic loading={loading} title={<StatisticTitle title={detail.title} description={stockStatisticDescription(detail.title)} />} value={detail.value} prefix={detail.prefix} precision={detail.precision} /></Card>
-            </div>)}
-          </div>
-        </div>
-        <div style={{ textAlign: "center", margin: "12px 0 20px" }}>
-          <Button type="text" icon={expanded ? <UpOutlined aria-hidden /> : <DownOutlined aria-hidden />} aria-expanded={expanded} aria-controls="additional-stock-statistics" onClick={() => setExpanded(value => !value)}>
-            {expanded ? "Show fewer statistics" : "Show more statistics"}
-          </Button>
-        </div>
+        <ExpandableStatistics details={holdingDetails} descriptions={stockStatisticDescriptions} loading={loading} id="additional-stock-statistics" />
       </Col>
       {data && !loading ? (
         <>
@@ -337,6 +324,7 @@ const SelectedStockInfo = (props: SSProps) => {
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={["stock", "description"]}
+              hiddenFilters={["stock"]}
               query={TRANSACTIONS_BY_STOCK}
             />
           </Col>

@@ -1,7 +1,7 @@
 import { gql } from "@apollo/client";
 
 export const DASHBOARD_TRANSACTIONS = gql(`
-  query {
+  query RecentTransactions($profileId: ID!, $startDate: Date, $endDate: Date) {
     accounts {
       edges {
           node {
@@ -11,7 +11,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           }
       }
     }
-    transactionsFromLastMonth {
+    recentTransactions: transactionsByDateRange(profileId: $profileId, startDate: $startDate, endDate: $endDate) {
       id
       account {
           id
@@ -21,6 +21,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           id
           name
           currency {
+              id
               code
           }
       }
@@ -42,8 +43,8 @@ export const DASHBOARD_TRANSACTIONS = gql(`
   }`);
 
   export const TRANSACTIONS_BY_ACTIVITY = gql(`
-  query transaction_activity($activity: ID) {
-      transactions: transactionsByActivity(activity: $activity) {
+  query transaction_activity( $profileId: ID!, $activity: ID!) {
+      transactions: transactionsByActivity(profileId: $profileId, activity: $activity) {
           id
           account {
               id
@@ -77,7 +78,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
   }`);
 
 export const GET_CONTRIBUTION_LIMITS = gql(`
-  query {
+  query($profileId: ID!) {
     activities {
       edges {
         node {
@@ -86,7 +87,7 @@ export const GET_CONTRIBUTION_LIMITS = gql(`
         }
       }
     }
-    contributionLimits {
+    contributionLimits(profileId: $profileId) {
       edges {
         node {
           id
@@ -103,8 +104,8 @@ export const GET_CONTRIBUTION_LIMITS = gql(`
   }`);
 
 export const CREATE_CONTRIBUTION = gql(`
-  mutation createContributionLimit($contribution: ContributionLimitInput!) {
-    createContributionLimit(contrLimitData: $contribution) {
+  mutation createContributionLimit( $profileId: ID!, $contribution: ContributionLimitInput!) {
+    createContributionLimit(profileId: $profileId, contrLimitData: $contribution) {
       contributionLimit {
         id
         account {
@@ -117,3 +118,16 @@ export const CREATE_CONTRIBUTION = gql(`
       }
     }
   }`);
+export const PORTFOLIO_OVERVIEW = gql`
+  query PortfolioOverview($profileId: ID!) {
+    currencies { edges { node { id code } } }
+    platforms(profileId: $profileId) { edges { node { id currency { id code } } } }
+    history: transactionsByDateRange(profileId: $profileId) {
+      id transactionDate price shares fee total
+      activity { name }
+      account { id code }
+      stock { id name ticker }
+      platform { id name currency { id code } }
+    }
+  }
+`;

@@ -26,7 +26,7 @@ export const ALL_STOCKS_CURRENCY = gql(`
     }`);
 
 export const ACTIVITY_PLATFORM_ACCOUNT_NAMES = gql(`
-    query {
+    query($profileId: ID!) {
         accounts {
             edges {
                 node {
@@ -34,7 +34,7 @@ export const ACTIVITY_PLATFORM_ACCOUNT_NAMES = gql(`
                 }
             }
         }
-        platforms {
+        platforms(profileId: $profileId) {
             edges {
                 node {
                     name
@@ -66,8 +66,8 @@ export const CREATE_STOCK = gql(`
     }`);
 
 export const TRANSACTIONS_BY_STOCK = gql(`
-    query transaction_stock($stock: ID) {
-        transactions: transactionsByStock(stock: $stock) {
+    query transaction_stock( $profileId: ID!, $stock: ID!) {
+        transactions: transactionsByStock(profileId: $profileId, stock: $stock) {
             id
             account {
                 id
@@ -100,10 +100,12 @@ export const TRANSACTIONS_BY_STOCK = gql(`
     }`);
 
 export const UPDATE_TRANSACTION = gql(`
-    mutation UpdateTransaction($trans:TransactionInput!){
-        updateTransaction(transData:$trans) {
+    mutation UpdateTransaction( $profileId: ID!, $trans:TransactionInput!){
+        updateTransaction(profileId: $profileId, transData:$trans) {
             trans {
                 id
+                account { id code }
+                platform { id name account { id code } currency { id code } }
                 transactionDate
                 price
                 shares

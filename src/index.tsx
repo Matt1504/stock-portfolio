@@ -7,11 +7,10 @@ import { ApolloClient,
 
 import './index.css';
 import App from './App';
-import reportWebVitals from './reportWebVitals';
 
 async function bootStrap() {
   const link = createHttpLink({
-    uri: "http://127.0.0.1:5002/graphql",
+    uri: process.env.REACT_APP_GRAPHQL_URL || "http://127.0.0.1:5002/graphql",
   });
 
   const client = new ApolloClient({

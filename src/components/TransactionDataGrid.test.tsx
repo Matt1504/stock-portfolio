@@ -11,8 +11,8 @@ beforeEach(() => {
   localStorage.clear();
   Object.defineProperty(window, "matchMedia", { writable: true, value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }) });
 });
-function show() {
-  return render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><TransactionDataGrid gridData={rows} defaultSort="transactionDate" ascending={false} removeColumns={[]} query={query} /></ApolloProvider>);
+function show(hiddenFilters?: ("account" | "stock")[]) {
+  return render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><TransactionDataGrid gridData={rows} hiddenFilters={hiddenFilters} defaultSort="transactionDate" ascending={false} removeColumns={[]} query={query} /></ApolloProvider>);
 }
 test("activity filter changes rows and clearing restores them", async () => {
   show();
@@ -44,4 +44,12 @@ test("sorting is saved and restored", async () => {
   view.unmount();
   show();
   expect(screen.getByRole("columnheader", { name: "Activity" })).toHaveAttribute("aria-sort", "ascending");
+});
+
+
+test.each(["account", "stock"] as const)("hides the redundant %s filter while retaining useful filters", hidden => {
+  show([hidden]);
+  expect(screen.queryByRole("combobox", { name: `Filter by ${hidden}` })).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Filter by activity" })).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: `Filter by ${hidden === "account" ? "stock" : "account"}` })).toBeInTheDocument();
 });

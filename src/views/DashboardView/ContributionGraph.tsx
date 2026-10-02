@@ -1,5 +1,6 @@
+import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../components/ChartTimeRange";
 import { Col, Radio, RadioChangeEvent } from "antd";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -26,15 +27,16 @@ type CGProps = {
 
 const ContributionGraph = (props: CGProps) => {
     const {accounts, transactions, contributionLimits} = props;
-    const [graphContributionData, setGraphContributionData] = useState<GraphData[]>([]);
+    const [chartRange, setChartRange] = useState<ChartRange>("all");
     const [selectedAccount, setSelectedAccount] = useState(0);
 
-    function processContributionData(index = 0) {
-        const account = accounts[index];
+    const graphContributionData = useMemo(() => {
+        const account = accounts[selectedAccount];
+        if (!account) return [];
         const contributionHistory = new Map<string, GraphData>();
         let contributionTotal = 0;
 
-        transactions.filter((transaction: Transaction) => transaction.account?.id === account.node.id).forEach((transaction: Transaction) => {
+        [...transactions].sort((a, b) => compareDates(a.transactionDate, b.transactionDate)).filter((transaction: Transaction) => transaction.account?.id === account.node.id).forEach((transaction: Transaction) => {
             const contributionAmount = (transaction.total ?? 0);
             const transDate = transaction.transactionDate.toString();
             let transHistory = contributionHistory.get(transDate);
@@ -54,7 +56,7 @@ const ContributionGraph = (props: CGProps) => {
             contributionHistory.set(transDate, transHistory);
         });
 
-        const accountContributionLimits = contributionLimits?.edges.filter((limit: GraphQLNode<ContributionLimt>) => limit.node.account?.id === account.node.id);
+        const accountContributionLimits = (contributionLimits?.edges ?? []).filter((limit: GraphQLNode<ContributionLimt>) => limit.node.account?.id === account.node.id);
         const graphData = Array.from(contributionHistory.values());
         
         if (accountContributionLimits.length) {
@@ -78,19 +80,14 @@ const ContributionGraph = (props: CGProps) => {
                 x.value_1 = limitTotal;
             });
         }
-        setGraphContributionData(graphData);
-    }
+        return graphData;
+    }, [accounts, selectedAccount, transactions, contributionLimits]);
 
     const onRadioChange = (e: RadioChangeEvent) => {
         setSelectedAccount(e.target.value);
-        processContributionData(e.target.value);
     }
 
-    useEffect(() => {
-        if (transactions.length || contributionLimits) {
-            processContributionData();
-        }
-    }, [transactions, contributionLimits]);
+
 
     return (
         <>
@@ -105,12 +102,15 @@ const ContributionGraph = (props: CGProps) => {
                 })}
                 </Radio.Group>
             </Col>
+            <Col span={24} style={{ display: "flex", justifyContent: "flex-end" }}>
+                <ChartTimeRange value={chartRange} onChange={setChartRange} label="Contribution history time range" />
+            </Col>
             <Col span={24} className="chart-container">
                 <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                         width={800}
                         height={400}
-                        data={graphContributionData}
+                        data={chartHistoryInRange(graphContributionData, chartRange)}
                         margin={{
                             top: 30,
                             right: 30,

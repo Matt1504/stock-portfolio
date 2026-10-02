@@ -1,8 +1,9 @@
+import { useProfileMutation as useMutation } from "../../profiles/hooks";
 import { PlusOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space } from "antd";
 
-import { useMutation } from "@apollo/client";
+
 
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
@@ -27,7 +28,7 @@ const AccountsAddDropdown = (props: AADProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [createPlatform, { loading: saving }] = useMutation(CREATE_PLATFORM, {
-    update: (cache: any, mutationResult: any) => {
+    update: (cache: any, mutationResult: any, options: any) => {
       if (!mutationResult.data?.createPlatform?.platform) {
         notification.openNotificationWithIcon(
           "error",
@@ -39,9 +40,11 @@ const AccountsAddDropdown = (props: AADProps) => {
       var newPlatform: Platform = mutationResult.data.createPlatform.platform;
       const readData = cache.readQuery({
         query: ALL_ACCOUNT_PLATFORMS,
+        variables: { profileId: options.variables?.profileId },
       });
       if (readData) cache.writeQuery({
         query: ALL_ACCOUNT_PLATFORMS,
+        variables: { profileId: options.variables?.profileId },
         data: {
           ...readData,
           platforms: {

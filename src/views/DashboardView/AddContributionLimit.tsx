@@ -1,16 +1,18 @@
-import { Button, Col, DatePicker, Form, InputNumber, Radio, Row } from "antd";
+import { useProfileMutation as useMutation } from "../../profiles/hooks";
+import { Button, DatePicker, Form, InputNumber, Modal, Radio } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { Dayjs } from "dayjs";
 
-import { useMutation } from "@apollo/client";
+
 
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
 import {
-  ContributionLimitForm,
   ContributionLimt
 } from "../../models/ContributionLimit";
 import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
-import { formatDate } from "../../utils/utils";
 import { CREATE_CONTRIBUTION, GET_CONTRIBUTION_LIMITS } from "./gql";
 
 type ACSProps = {
@@ -22,24 +24,29 @@ const AddContributionLimit = (props: ACSProps) => {
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
 
-  const [createContributionLimit] = useMutation(CREATE_CONTRIBUTION, {
-    update: (cache: any, mutationResult: any) => {
-      if (!mutationResult.data.createContributionLimit) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const [createContributionLimit, { loading: saving }] = useMutation(CREATE_CONTRIBUTION, {
+    update: (cache: any, mutationResult: any, options: any) => {
+      if (!mutationResult.data?.createContributionLimit?.contributionLimit) {
         notification.openNotificationWithIcon(
           "error",
           "Error Adding Contribution Limit",
           "The contribution limit could not be added to the database because it already exists."
         );
+        return;
       }
       var newContributionLimit: ContributionLimt = mutationResult.data.createContributionLimit.contributionLimit;
       const readData = cache.readQuery({
         query: GET_CONTRIBUTION_LIMITS,
+        variables: { profileId: options.variables?.profileId },
       });
-      cache.writeQuery({
+      if (readData) cache.writeQuery({
         query: GET_CONTRIBUTION_LIMITS,
+        variables: { profileId: options.variables?.profileId },
         data: {
-          stocks: { edges: [...readData.contributionLimits.edges, { node: newContributionLimit }] },
-          currencies: readData.currencies,
+          ...readData,
+          contributionLimits: { ...readData.contributionLimits, edges: [...readData.contributionLimits.edges, { node: newContributionLimit }] },
         },
       });
       notification.openNotificationWithIcon(
@@ -48,91 +55,49 @@ const AddContributionLimit = (props: ACSProps) => {
         `Contribution Limit of $${newContributionLimit.amount} for ${newContributionLimit.account?.code} with deadline ${newContributionLimit.yearEnd} successfully added to the database.`
       );
       form.resetFields();
+      setDialogOpen(false);
     },
   });
 
-  const onFinish = async (values: ContributionLimitForm) => {
-    values.yearEnd = formatDate((values.year ?? "").toString());
-    delete values.year;
-    await createContributionLimit({
-      variables: {
-        contribution: values,
-      },
-    });
+  const onFinish = async (values: { amount: number; account: string; year: Dayjs }) => {
+    if (saving) return;
+    try {
+      await createContributionLimit({
+        variables: { contribution: { amount: values.amount, account: values.account, yearEnd: values.year.format("YYYY-MM-DD") } },
+      });
+    } catch {
+      notification.openNotificationWithIcon("error", "Error Adding Contribution Limit", "Could not save the contribution limit. Please try again.");
+    }
+  };
+
+  const handleCancel = () => {
+    if (saving) return;
+    setDialogOpen(false);
+    form.resetFields();
   };
 
   return (
-    <Row>
+    <>
       {notification.contextHolder}
-      <Col span={24}>
-        <Form
-          form={form}
-          name="horizontal_add_contribution_limit"
-          layout="inline"
-          onFinish={onFinish}
-        >
-          <Form.Item
-            name="amount"
-            label="Contribution Limit"
-            style={{ width: 350 }}
-            rules={[
-              {
-                required: true,
-                message: "Please input the amount!",
-              },
-            ]}
-          >
-            <InputNumber
-                step={0.01}
-                placeholder="Amount"
-                keyboard
-                style={{ width: 200 }}
-                min={0}
-                addonBefore="$"
-              />
+      <Button type="primary" icon={<PlusOutlined aria-hidden />} onClick={() => setDialogOpen(true)}>Add Contribution Limit</Button>
+      <Modal title="Add Contribution Limit" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Limit" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
+        <Form form={form} name="add_contribution_limit_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
+          <Form.Item name="amount" label="Contribution Limit" rules={[{ required: true, message: "Please input the amount!" }]}>
+            <InputNumber step={0.01} placeholder="Amount" style={{ width: "100%" }} min={0} addonBefore="$" />
           </Form.Item>
-          <Form.Item
-            name="year"
-            label="Year End Deadline"
-            style={{ width: 350 }}
-            rules={[
-              {
-                required: true,
-                message: "Please input the deadline!",
-              },
-            ]}
-          >
-            <DatePicker />
+          <Form.Item name="year" label="Year End Deadline" rules={[{ required: true, message: "Please input the deadline!" }]}>
+            <DatePicker style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item name="account" rules={[{ required: true }]}>
+          <Form.Item name="account" label="Account Type" rules={[{ required: true, message: "Please select an account type." }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              {accounts?.edges.map((account: GraphQLNode<Account>) => {
-                return (
-                  <Radio key={account.node.id} value={account.node.id}>
-                    {account.node.code}
-                  </Radio>
-                );
-              })}
+              {accounts.edges.map((account: GraphQLNode<Account>) => (
+                <Radio key={account.node.id} value={account.node.id}>{account.node.code}</Radio>
+              ))}
             </Radio.Group>
           </Form.Item>
-          <Form.Item shouldUpdate>
-            {() => (
-              <Button
-                type="primary"
-                htmlType="submit"
-                disabled={
-                  !form.isFieldsTouched(true) ||
-                  !!form.getFieldsError().filter(({ errors }) => errors.length)
-                    .length
-                }
-              >
-                Add Limit
-              </Button>
-            )}
-          </Form.Item>
         </Form>
-      </Col>
-    </Row>
+      </Modal>
+    </>
   );
 };
 

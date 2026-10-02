@@ -1,7 +1,8 @@
+import { useProfileQuery as useQuery } from "../../profiles/hooks";
 import { Card, Col, Row, Statistic } from "antd";
 import { useEffect, useState } from "react";
 
-import { useQuery } from "@apollo/client";
+
 import { Typography } from "@mui/material";
 
 import { Account } from "../../models/Account";
@@ -73,7 +74,7 @@ const ContributionLimits = (props: CLProps) => {
     function computeContributionUsed(accountId: string) {
         const contribution = contributions?.get(accountId) ?? 0;
         const limit = contributionLimits?.get(accountId) ?? 0;
-        return (contribution / limit) * 100; 
+        return limit > 0 ? (contribution / limit) * 100 : 0;
     }
 
     function printContributionUsed(accountId: string) {

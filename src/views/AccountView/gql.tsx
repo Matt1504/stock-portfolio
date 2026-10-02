@@ -1,7 +1,7 @@
 import { gql } from "@apollo/client";
 
 export const ALL_ACCOUNT_PLATFORMS = gql(`
-    query {
+    query($profileId: ID!) {
         accounts {
             edges {
                 node {
@@ -11,7 +11,7 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
                 }
             }
         }
-        platforms {
+        platforms(profileId: $profileId) {
             edges {
                 node {
                     id 
@@ -39,8 +39,8 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
     }`);
 
 export const CREATE_PLATFORM = gql(`
-    mutation createPlatform($platform: PlatformInput!) {
-        createPlatform(platformData: $platform) {
+    mutation createPlatform( $profileId: ID!, $platform: PlatformInput!) {
+        createPlatform(profileId: $profileId, platformData: $platform) {
             platform {
                 id
                 name
@@ -57,15 +57,15 @@ export const CREATE_PLATFORM = gql(`
     }`);
 
 export const TRANSFER_ACCOUNT = gql(`
-    mutation transferPlatform($transferFrom: ID!, $transferTo: ID!) {
-        transferAccount(transFrom: $transferFrom, transTo: $transferTo) {
+    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!) {
+        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo) {
             success
         }
   }`);
 
 export const TRANSACTIONS_BY_ACCOUNT = gql(`
-    query transaction_account($account: ID) {
-        transactions: transactionsByAccount(account: $account) {
+    query transaction_account( $profileId: ID!, $account: ID!) {
+        transactions: transactionsByAccount(profileId: $profileId, account: $account) {
             id
             account {
                 id
@@ -99,8 +99,8 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
     }`);
 
 export const TRANSACTIONS_BY_PLATFORM = gql(`
-    query transactions_platform($platform_one: ID) {
-        transactions: transactionsByPlatform(platform: $platform_one) {
+    query transactions_platform( $profileId: ID!, $platform_one: ID!) {
+        transactions: transactionsByPlatform(profileId: $profileId, platform: $platform_one) {
             id
             account {
                 id

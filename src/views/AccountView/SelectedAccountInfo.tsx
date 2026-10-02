@@ -1,4 +1,10 @@
-import { Alert, Card, Col, Row, Statistic, Tabs } from "antd";
+import ExpandableStatistics from "../../components/ExpandableStatistics";
+import { portfolioStatistics } from "./portfolioStatistics";
+import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../components/ChartTimeRange";
+import { useApolloClient } from "@apollo/client";
+import { coldRefetch } from "../../utils/coldRefetch";
+import { useProfileQuery as useQuery } from "../../profiles/hooks";
+import { Alert, Col, Row, Tabs } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -14,13 +20,13 @@ import {
   YAxis
 } from "recharts";
 
-import { useQuery } from "@apollo/client";
+
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 
 import LoadingProgress from "../../components/LoadingProgress";
 import ReloadButton from "../../components/ReloadButton";
-import StatisticTitle, { accountStatisticDescriptions } from "../../components/StatisticTitle";
+import { accountStatisticDescriptions } from "../../components/StatisticTitle";
 import { RenderActiveShape } from "../../components/PieChartShape";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
@@ -28,9 +34,9 @@ import { Currency } from "../../models/Currency";
 import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Transaction } from "../../models/Transaction";
-import { compareDates, getColourCodeByAccount } from "../../utils/utils";
+import { compareDates, getColourCodeByAccount, shareCountPrecision } from "../../utils/utils";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
-import { calculateStockHoldings, HoldingIssue } from "./holdings";
+import { HoldingIssue } from "./holdings";
 
 type SAProps = {
   name: string | undefined;
@@ -49,7 +55,7 @@ const defaultAccountDetails: HoldingDetail[] = [
     value: 0,
     prefix: undefined,
     colour: "",
-    precision: undefined,
+    precision: 0,
   },
   {
     title: "Unique Share(s) Owned",
@@ -102,6 +108,13 @@ const defaultAccountDetails: HoldingDetail[] = [
   },
 ];
 
+defaultAccountDetails.push(...["Amount Withdrawn", "Net Deposits", "Realized Gain/Loss", "Realized Profit"].map(title => ({ title, value: 0, prefix: "$", colour: "", precision: 2 })));
+const accountCardOrder = [
+  "Total Book Cost", "Net Deposits", "Realized Profit", "Realized Gain/Loss",
+  "Total Share(s) Owned", "Unique Share(s) Owned", "Largest Holding", "Dividends/Interest Earned",
+  "Amount Transferred In", "Amount Transferred Out", "Amount Contributed", "Amount Withdrawn",
+];
+
 const SelectedAccountInfo = (props: SAProps) => {
   const { name, platform, account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
   const query = platform ? TRANSACTIONS_BY_PLATFORM : TRANSACTIONS_BY_ACCOUNT;
@@ -109,11 +122,13 @@ const SelectedAccountInfo = (props: SAProps) => {
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
+  const [chartRange, setChartRange] = useState<ChartRange>("all");
   const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [holdingIssues, setHoldingIssues] = useState<HoldingIssue[]>([]);
 
-  const {loading, data, refetch} = useQuery(query, {
+  const client = useApolloClient();
+  const {loading, data} = useQuery(query, {
     variables: platform ? { platform_one: platform } : { account },
     notifyOnNetworkStatusChange: true,
   });
@@ -138,7 +153,8 @@ const SelectedAccountInfo = (props: SAProps) => {
     var dividends = 0;
     var netDeposit = 0;
 
-    const portfolio = calculateStockHoldings(filteredTransactions);
+    const summary = portfolioStatistics(filteredTransactions);
+    const portfolio = summary.holdings;
     var bookCostHistory = new Map<string, GraphData>();
 
     var transactions = [...filteredTransactions];
@@ -182,8 +198,9 @@ const SelectedAccountInfo = (props: SAProps) => {
             }
             bookCostHistory.set(transDate, transHistory);
             break;
+          case "Withdrawal":
           case "Transfer Out":
-            transferOut += transaction.total ?? 0;
+            if (transaction.activity.name === "Transfer Out") transferOut += transaction.total ?? 0;
             netDeposit -= transaction.total ?? 0;
             if (transHistory) {
               transHistory.value_1 = netDeposit;
@@ -215,7 +232,6 @@ const SelectedAccountInfo = (props: SAProps) => {
           case "Interest":
           case "Dividends":
             dividends += transaction.total ?? 0;
-            netDeposit += transaction.total ?? 0;
             if (transHistory) {
               transHistory.value_1 = netDeposit;
             } else {
@@ -229,8 +245,7 @@ const SelectedAccountInfo = (props: SAProps) => {
             bookCostHistory.set(transDate, transHistory);
             break;
           case "Withholding Tax":
-            dividends -= transaction.total ?? 0;
-            netDeposit -= transaction.total ?? 0;
+            if (transaction.stock) dividends -= transaction.total ?? 0;
             if (transHistory) {
               transHistory.value_1 = netDeposit;
             } else {
@@ -269,6 +284,7 @@ const SelectedAccountInfo = (props: SAProps) => {
     setAccountDetails((prev: HoldingDetail[]) => {
       let update = prev.map((detail) => ({ ...detail }));
       update[0].value = portfolio.totalShares;
+      update[0].precision = shareCountPrecision(portfolio.totalShares);
       update[1].value = portfolio.holdings.length;
       update[2].value = maxHolding
         ? `${maxHolding.stock.ticker} | $${maxHolding.bookCost.toFixed(2)}`
@@ -278,6 +294,12 @@ const SelectedAccountInfo = (props: SAProps) => {
       update[5].value = transferOut;
       update[6].value = portfolio.totalBookCost;
       update[7].value = dividends;
+      update[8].value = summary.withdrawals;
+      update[9].value = summary.netDeposits;
+      update[10].value = portfolio.realizedGain ?? "—";
+      update[10].prefix = typeof portfolio.realizedGain === "number" ? "$" : undefined;
+      update[11].value = summary.realizedProfit ?? "—";
+      update[11].prefix = typeof summary.realizedProfit === "number" ? "$" : undefined;
       return update;
     });
   }, [filteredTransactions]);
@@ -295,7 +317,7 @@ const SelectedAccountInfo = (props: SAProps) => {
           <Typography variant="h6">
             {accountName} {name}
           </Typography>
-          <ReloadButton onReload={() => refetch()} loading={loading} />
+          <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} />
         </Stack>
       </Col>
       <Col span={24}>
@@ -327,19 +349,11 @@ const SelectedAccountInfo = (props: SAProps) => {
           style={{ marginBottom: 16 }}
         />
       </Col>}
-      {accountDetails.map((x: HoldingDetail, index: number) => (
-        <Col xs={24} sm={12} xl={6} key={index}>
-          <Card style={{ height: "100%" }}>
-            <Statistic
-              loading={loading}
-              title={<StatisticTitle title={x.title} description={accountStatisticDescriptions[x.title]} />}
-              value={x.value}
-              prefix={x.prefix}
-              precision={x.precision}
-            />
-          </Card>
-        </Col>
-      ))}
+      <Col span={24}>
+        <ExpandableStatistics id="additional-account-statistics" loading={loading} descriptions={accountStatisticDescriptions} details={[
+          ...accountCardOrder.map(title => accountDetails.find(detail => detail.title === title)!),
+        ]} />
+      </Col>
       {data && !loading ? (
         <>
           <Col span={24}>
@@ -388,12 +402,15 @@ const SelectedAccountInfo = (props: SAProps) => {
               <></>
             )}
           </Col>
+          <Col span={24} style={{ display: "flex", justifyContent: "flex-end" }}>
+            <ChartTimeRange value={chartRange} onChange={setChartRange} label="Book cost and net deposit time range" />
+          </Col>
           <Col span={24} className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 width={800}
                 height={400}
-                data={graphBookCostData}
+                data={chartHistoryInRange(graphBookCostData, chartRange)}
                 margin={{
                   top: 30,
                   right: 30,
@@ -442,6 +459,7 @@ const SelectedAccountInfo = (props: SAProps) => {
               removeColumns={
                 name === "Overview" ? ["account"] : ["account", "platform"]
               }
+              hiddenFilters={["account"]}
               query={query}
             />
           </Col>

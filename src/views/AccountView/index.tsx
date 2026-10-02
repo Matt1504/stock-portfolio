@@ -1,6 +1,7 @@
+import { useProfileQuery as useQuery } from "../../profiles/hooks";
 import { Alert, Divider } from "antd";
 import { useEffect, useMemo } from "react";
-import { useQuery } from "@apollo/client";
+
 import { useSearchParams } from "react-router-dom";
 
 import AccountsAddDropdown from "./AccountsAddDropdown";

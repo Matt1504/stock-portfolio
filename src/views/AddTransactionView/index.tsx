@@ -1,3 +1,4 @@
+import { useProfileQuery as useQuery, useProfileMutation as useMutation } from "../../profiles/hooks";
 import {
   Button,
   Card,
@@ -11,9 +12,9 @@ import {
   Row,
   Select
 } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { useMutation, useQuery } from "@apollo/client";
+
 
 import { NotificationComponent } from "../../components/Notification";
 import { Activity } from "../../models/Activity";
@@ -23,6 +24,7 @@ import { Platform } from "../../models/Platform";
 import { Stock } from "../../models/Stock";
 import { TransactionForm } from "../../models/Transaction";
 import { formatDate, formatDecimalTwoPlaces } from "../../utils/utils";
+import { inactiveTransactionFields, sanitizeTransactionFields } from "./transactionFields";
 import { CREATE_TRANSACTION, GET_PLATFORM_INFO } from "./gql";
 
 const AddTransactionView = () => {
@@ -30,7 +32,6 @@ const AddTransactionView = () => {
   const [form] = Form.useForm();
   const notification = new NotificationComponent();
 
-  const [platformOptions, setPlatformOptions] = useState([]);
   const [stockOptions, setStockOptions] = useState([]);
   const [account, setAccount] = useState("");
   const [currency, setCurrency] = useState("");
@@ -92,12 +93,14 @@ const AddTransactionView = () => {
   const onRadioChange = (e: RadioChangeEvent, updateFunc: Function) =>
     updateFunc(e.target.value);
 
-  const onSelectActivityChange = (value: { value: string; label: string }) => {
-    setActivity(value.label);
+  const onSelectActivityChange = (value: string, option: any) => {
+    setActivity(option.label);
     if (nonStock) {
       setNonStock("");
     }
-    form.setFieldValue("activity", value.value);
+    inactiveTransactionFields(option.label).forEach(field => form.setFieldValue(field, null));
+    if (option.label === "Withholding Tax") form.setFieldValue("stock", null);
+    form.setFieldValue("activity", value);
     form.setFieldValue("description", null);
   };
 
@@ -134,7 +137,8 @@ const AddTransactionView = () => {
 
   const onReset = () => form.resetFields();
 
-  const onFinish = async (values: TransactionForm) => {
+  const onFinish = async (formValues: TransactionForm) => {
+    const values = sanitizeTransactionFields(formValues, activity, nonStock);
     values.transactionDate = formatDate((values.transaction ?? "").toString());
     values.total = formatDecimalTwoPlaces(values.total);
     if (nonStock === 'gic') values.maturityDate = formatDate((values.maturity ?? "").toString());
@@ -164,24 +168,18 @@ const AddTransactionView = () => {
     form.setFieldValue("price", null);
     form.setFieldValue("shares", null);
     form.setFieldValue("fee", null);
-  }, [nonStock]);
+  }, [nonStock, form]);
 
   useEffect(() => {
     form.setFieldValue("platform", null);
-    if (!currency || !account) return;
+  }, [account, currency, form]);
 
-    setPlatformOptions(
-      data.platforms.edges
-        .filter(
-          (x: GraphQLNode<Platform>) =>
-            x.node.currency?.id === currency && x.node.account?.id === account
-        )
-        .map((x: GraphQLNode<Platform>) => ({
-          value: x.node.id,
-          label: x.node.name,
-        }))
-    );
-  }, [account, currency]);
+  const platformOptions = useMemo(() => {
+    if (!currency || !account) return [];
+    return (data?.platforms?.edges ?? [])
+      .filter((x: GraphQLNode<Platform>) => x.node.currency?.id === currency && x.node.account?.id === account)
+      .map((x: GraphQLNode<Platform>) => ({ value: x.node.id, label: x.node.name }));
+  }, [account, currency, data?.platforms?.edges]);
 
   return (
     <Row>
@@ -276,7 +274,6 @@ const AddTransactionView = () => {
             >
               <Select
                 style={{ width: 200 }}
-                labelInValue
                 showSearch
                 filterOption={(input, option: any) =>
                   (option?.label ?? "")
@@ -315,8 +312,10 @@ const AddTransactionView = () => {
             <Form.Item
               name="stock"
               label="Stock"
+              extra={activity === "Withholding Tax" ? "Optional: leave empty for account withholding tax." : undefined}
               hidden={[
                 "Contribution",
+                "Withdrawal",
                 "Transfer In",
                 "Transfer Out",
                 "Adjustment",
@@ -324,7 +323,9 @@ const AddTransactionView = () => {
               rules={[
                 {
                   required: ![
+                    "Withholding Tax",
                     "Contribution",
+                    "Withdrawal",
                     "Transfer In",
                     "Transfer Out",
                     "Adjustment",
@@ -334,6 +335,7 @@ const AddTransactionView = () => {
               ]}
             >
               <Select
+                allowClear
                 showSearch
                 filterOption={(input, option: any) =>
                   (option?.label ?? "")
@@ -383,6 +385,7 @@ const AddTransactionView = () => {
               ]}
             >
               <InputNumber
+                step={0.000001}
                 onChange={(value) => onInputNumberChange(value, null, null)}
                 keyboard
                 min={0}

@@ -1,8 +1,10 @@
-import { Button, DatePicker, InputNumber, Popover, Select, Space, Typography } from "antd";
+import { useProfileMutation as useMutation, useProfileQuery } from "../profiles/hooks";
+import { Alert, Button, DatePicker, InputNumber, Modal, Popover, Select, Space, Typography } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 
-import { DocumentNode, useMutation } from "@apollo/client";
+import { DocumentNode, gql } from "@apollo/client";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import { IconButton } from "@mui/material";
 import { Box } from "@mui/system";
@@ -25,12 +27,32 @@ import { NotificationComponent } from "./Notification";
 import TransactionEditDialog from "./TransactionEditDialog";
 import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences, TransactionFilters } from "./transactionTableState";
 
+export const EDIT_TRANSACTION_PLATFORMS = gql`
+  query EditTransactionPlatforms($profileId: ID!) {
+    platforms(profileId: $profileId) {
+      edges { node { id name account { id code } currency { id code } } }
+    }
+  }
+`;
+
+export const DELETE_TRANSACTION = gql`
+  mutation DeleteTransaction($profileId: ID!, $id: ID!) {
+    deleteTransaction(profileId: $profileId, id: $id) { success }
+  }
+`;
+
+export type TransactionDateRange = { start?: string; end?: string };
+
 type TDGProps = {
   gridData: Transaction[];
   defaultSort: string;
   ascending: boolean;
   removeColumns: string[];
   query: DocumentNode;
+  dateRange?: TransactionDateRange;
+  onDateRangeChange?: (range: TransactionDateRange) => void;
+  loading?: boolean;
+  hiddenFilters?: ("account" | "stock")[];
 };
 
 function CustomToolbar() {
@@ -139,10 +161,37 @@ const defaultColumns: GridColDef[] = [
 ];
 
 const TransactionDataGridContent = (props: TDGProps) => {
-  const { gridData, defaultSort, ascending, removeColumns, query}  = props;
+  const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, hiddenFilters = []}  = props;
   const [selectedItem, setSelectedItem] = useState<Transaction>();
   const [open, setOpen] = useState(false);
   const notification = new NotificationComponent();
+  const [deleteItem, setDeleteItem] = useState<Transaction>();
+  const [deleteError, setDeleteError] = useState(false);
+  const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION, {
+    awaitRefetchQueries: true,
+    update: (cache, result, options) => {
+      if (result.data?.deleteTransaction?.success) {
+        const entityId = cache.identify({ __typename: "TransactionType", id: options.variables?.id });
+        if (entityId) cache.evict({ id: entityId });
+      }
+    },
+  });
+  const handleDelete = async () => {
+    if (!deleteItem || deleting) return;
+    setDeleteError(false);
+    try {
+      const result = await deleteTransaction({ variables: { id: deleteItem.id } });
+      if (!result.data?.deleteTransaction?.success) {
+        setDeleteError(true);
+        return;
+      }
+      setDeleteItem(undefined);
+      notification.openNotificationWithIcon("success", "Transaction Deleted", "The transaction was successfully deleted.");
+    } catch {
+      setDeleteError(true);
+    }
+  };
+  const platformQuery = useProfileQuery(EDIT_TRANSACTION_PLATFORMS, { skip: !open });
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION, {
     update: (cache: any, mutationResult: any) => {
       if (!mutationResult.data.updateTransaction) {
@@ -178,6 +227,8 @@ const TransactionDataGridContent = (props: TDGProps) => {
       variables: {
         trans: {
           id: transaction.id,
+          platform: transaction.platform.id,
+          account: transaction.account.id,
           transactionDate: transaction.transactionDate,
           price: transaction.price,
           shares: transaction.shares,
@@ -212,23 +263,40 @@ const TransactionDataGridContent = (props: TDGProps) => {
     ...(column.field === "account" ? { valueOptions: Array.from(new Set(rows.map(row => row.account.code))) } : {}),
     ...(column.field === "platform" ? { valueOptions: Array.from(new Set(rows.map(row => row.platform.name))) } : {}),
   }));
-  columns.push({ field: "actions", headerName: "Edit", sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
-    renderCell: params => <IconButton aria-label="Edit transaction" onClick={() => handleEditClick(params.row)}><EditIcon /></IconButton> });
+  columns.push({ field: "actions", headerName: "Actions", width: 120, sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
+    renderCell: params => <>
+      <IconButton aria-label="Edit transaction" title="Edit transaction" onClick={() => handleEditClick(params.row)} disabled={deleting}><EditIcon /></IconButton>
+      <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(false); }} disabled={deleting}><DeleteOutlineIcon /></IconButton>
+    </> });
   const [widthField, setWidthField] = useState("transactionDate");
-  const hasFilters = Object.values(filters).some(Boolean);
+  const dates = onDateRangeChange ? dateRange ?? {} : filters;
+  const hasFilters = Object.values(filters).some(Boolean) || !!dates.start || !!dates.end;
+  const changeDates = (range: TransactionDateRange) => {
+    if (onDateRangeChange) { onDateRangeChange(range); setPage(0); }
+    else setFilter(range);
+  };
 
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
       {notification.contextHolder}
-      {selectedItem && <TransactionEditDialog open={open} setOpen={setOpen} handleDialogSave={handleDialogUpdate} onCancel={handleDialogClose} dataItem={selectedItem} />}
+      <Modal title="Delete transaction?" open={!!deleteItem} onOk={handleDelete} onCancel={() => { if (!deleting) setDeleteItem(undefined); }} okText="Delete Transaction" okButtonProps={{ danger: true }} confirmLoading={deleting} cancelButtonProps={{ disabled: deleting }} closable={!deleting} maskClosable={!deleting} keyboard={!deleting}>
+        <Typography.Paragraph>This will permanently delete the transaction and update your portfolio statistics.</Typography.Paragraph>
+        {deleteItem && <Typography.Paragraph>
+          {dayjs(deleteItem.transactionDate).format("YYYY-MM-DD")} · {deleteItem.activity.name}{deleteItem.stock ? ` · ${deleteItem.stock.ticker}` : ""}<br />
+          {deleteItem.account.code} · {deleteItem.platform.name} · {formatNumberAsCurrency(deleteItem.total ?? 0)}
+        </Typography.Paragraph>}
+        {deleteError && <Alert type="error" showIcon message="Could not delete the transaction. Please try again." />}
+      </Modal>
+      {selectedItem && <TransactionEditDialog open={open} setOpen={setOpen} handleDialogSave={handleDialogUpdate} onCancel={handleDialogClose} dataItem={selectedItem} platforms={platformQuery.data?.platforms.edges.map((edge: any) => edge.node)} platformsLoading={platformQuery.loading} platformsError={!!platformQuery.error} />}
       <Space wrap size={[16, 16]} style={{ marginBottom: 24, width: "100%" }}>
         <DatePicker.RangePicker aria-label="Transaction date range" placeholder={["Start date", "End date"]}
-          value={filters.start && filters.end ? [dayjs(filters.start), dayjs(filters.end)] : null}
-          onChange={dates => setFilter({ start: dates?.[0]?.format("YYYY-MM-DD"), end: dates?.[1]?.format("YYYY-MM-DD") })} />
+          allowEmpty={[true, true]}
+          value={dates.start || dates.end ? [dates.start ? dayjs(dates.start) : null, dates.end ? dayjs(dates.end) : null] : null}
+          onChange={value => changeDates({ start: value?.[0]?.format("YYYY-MM-DD"), end: value?.[1]?.format("YYYY-MM-DD") })} />
         <Select aria-label="Filter by activity" placeholder="All activities" allowClear showSearch optionFilterProp="label" style={{ width: 180 }} value={filters.activity} options={activityOptions} onChange={activity => setFilter({ activity })} />
-        <Select aria-label="Filter by account" placeholder="All accounts" allowClear showSearch optionFilterProp="label" style={{ width: 160 }} value={filters.account} options={accountOptions} onChange={account => setFilter({ account })} />
-        <Select aria-label="Filter by stock" placeholder="All stocks" allowClear showSearch optionFilterProp="label" style={{ width: 240 }} value={filters.stock} options={stockOptions} onChange={stock => setFilter({ stock })} />
-        <Button disabled={!hasFilters} onClick={() => { setFilters({}); setPage(0); }}>Clear filters</Button>
+        {!hiddenFilters.includes("account") && <Select aria-label="Filter by account" placeholder="All accounts" allowClear showSearch optionFilterProp="label" style={{ width: 160 }} value={filters.account} options={accountOptions} onChange={account => setFilter({ account })} />}
+        {!hiddenFilters.includes("stock") && <Select aria-label="Filter by stock" placeholder="All stocks" allowClear showSearch optionFilterProp="label" style={{ width: 240 }} value={filters.stock} options={stockOptions} onChange={stock => setFilter({ stock })} />}
+        <Button disabled={!hasFilters} onClick={() => { setFilters({}); if (onDateRangeChange) onDateRangeChange({}); setPage(0); }}>Clear filters</Button>
         <Popover trigger="click" title="Table settings" content={<Space direction="vertical" style={{ width: 250 }}>
           <Typography.Text>Row density</Typography.Text>
           <Select aria-label="Row density" style={{ width: "100%" }} value={preferences.density} options={[{ value: "compact", label: "Compact" }, { value: "standard", label: "Standard" }, { value: "comfortable", label: "Comfortable" }]} onChange={density => setPreferences(value => ({ ...value, density }))} />
@@ -241,6 +309,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
       </Space>
       <DataGrid
         autoHeight
+        loading={loading}
         columns={columns}
         rows={filteredRows}
         sortModel={preferences.sortModel.filter(item => columns.some(column => column.field === item.field))}

@@ -4,6 +4,7 @@ import { GraphQLType } from "./GraphQLType";
 
 export interface Platform extends GraphQLType {
   name?: string;
+  profile?: { id: string; name: string };
   account?: Account;
   currency?: Currency;
 }

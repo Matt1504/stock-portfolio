@@ -1,10 +1,11 @@
+import { shareCountPrecision } from "../../utils/utils";
 import { Transaction } from "../../models/Transaction";
 import { HoldingDetail } from "../../models/Common";
 import { calculateStockHoldings } from "../AccountView/holdings";
 
-export function stockStatistics(transactions: Transaction[], year = new Date().getFullYear()) {
+export function stockStatistics(transactions: Transaction[]) {
   const portfolio = calculateStockHoldings(transactions);
-  let invested = 0, proceeds = 0, dividends = 0, yearDividends = 0, fees = 0;
+  let invested = 0, proceeds = 0, dividends = 0, sharesBought = 0, sharesSold = 0, fees = 0;
   let lastBuy = "";
   transactions.forEach(transaction => {
     const activity = transaction.activity.name;
@@ -13,13 +14,16 @@ export function stockStatistics(transactions: Transaction[], year = new Date().g
     fees += transaction.fee ?? 0;
     if (activity === "Buy") {
       invested += total;
+      sharesBought += transaction.shares ?? 0;
       if (date > lastBuy) lastBuy = date;
     }
-    if (activity === "Sell") proceeds += total;
-    if (["Dividends", "Interest", "Withholding Tax"].includes(activity ?? "")) {
+    if (activity === "Sell") {
+      proceeds += total;
+      sharesSold += transaction.shares ?? 0;
+    }
+    if (["Dividends", "Interest"].includes(activity ?? "") || (activity === "Withholding Tax" && transaction.stock)) {
       const amount = activity === "Withholding Tax" ? -total : total;
       dividends += amount;
-      if (date.startsWith(`${year}-`)) yearDividends += amount;
     }
   });
   const detail = (title: string, value: number | string, money = false): HoldingDetail => ({
@@ -27,14 +31,16 @@ export function stockStatistics(transactions: Transaction[], year = new Date().g
     precision: money && typeof value === "number" ? 2 : undefined, colour: "",
   });
   return { portfolio, details: [
-    detail("Share(s) Owned", portfolio.totalShares),
     detail("Book Cost", portfolio.totalBookCost, true),
     detail("Average Cost per Share", portfolio.totalShares ? portfolio.totalBookCost / portfolio.totalShares : "—", true),
+    detail("Realized Profit/Loss", portfolio.realizedGain === undefined ? "—" : portfolio.realizedGain + dividends, true),
     detail("Realized Gain/Loss", portfolio.realizedGain ?? "—", true),
+    { ...detail("Share(s) Owned", portfolio.totalShares), precision: shareCountPrecision(portfolio.totalShares) },
+    { ...detail("Total Shares Bought", sharesBought), precision: shareCountPrecision(sharesBought) },
+    { ...detail("Total Shares Sold", sharesSold), precision: shareCountPrecision(sharesSold) },
     detail("Dividends/Interest Earned", dividends, true),
     detail("Total Invested", invested, true),
     detail("Sale Proceeds", proceeds, true),
-    detail(`Dividends/Interest (${year})`, yearDividends, true),
     detail("Total Fees Paid", fees, true),
     detail("Last Buy Date", lastBuy || "—"),
   ] };

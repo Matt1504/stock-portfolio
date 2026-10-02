@@ -1,4 +1,4 @@
-import { DatePicker, Modal } from "antd";
+import { Alert, DatePicker, Modal, Select } from "antd";
 import dayjs from "dayjs";
 import React, { ChangeEventHandler, useEffect, useState } from "react";
 
@@ -10,6 +10,7 @@ import {
   Typography
 } from "@mui/material";
 
+import { Platform } from "../models/Platform";
 import { Transaction } from "../models/Transaction";
 
 type DialogProps = {
@@ -18,6 +19,9 @@ type DialogProps = {
     handleDialogSave: Function,
     onCancel: any,
     dataItem: Transaction | undefined,
+    platforms?: Platform[],
+    platformsLoading?: boolean,
+    platformsError?: boolean,
 }
 
 type NumTextFieldProps = {
@@ -25,7 +29,7 @@ type NumTextFieldProps = {
     adornment: string,
     value: number | undefined,
     field: string,
-    step: number,
+    step: number | "any",
     onChange: ChangeEventHandler<HTMLInputElement>
 }
 
@@ -58,12 +62,22 @@ const DialogText = (props: DialogTextProps) => (
 )
 
 const TransactionEditDialog = (props: DialogProps) => {
-    const {open, onCancel, handleDialogSave, dataItem} = props;
+    const {open, onCancel, handleDialogSave, dataItem, platforms = [], platformsLoading = false, platformsError = false} = props;
     const [transaction, setTransaction] = useState<Transaction | undefined>(dataItem);
 
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(false);
     const handleSave = async () => {
-        if (!transaction) return;
-        await handleDialogSave(transaction);
+        if (!transaction || saving) return;
+        setSaving(true);
+        setSaveError(false);
+        try {
+            await handleDialogSave(transaction);
+        } catch {
+            setSaveError(true);
+        } finally {
+            setSaving(false);
+        }
     }
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,23 +93,72 @@ const TransactionEditDialog = (props: DialogProps) => {
     }
 
     useEffect(() => {
+        setSaveError(false);
         setTransaction(dataItem ? { ...dataItem, fee: dataItem.fee ?? 0 } : undefined);
     }, [dataItem, open]);
 
     if (!transaction) return null;
+    const currencyPlatforms = platforms.filter(platform =>
+        platform.currency?.id === dataItem?.platform.currency?.id
+    );
+    const accountOptions = Array.from(new Map([
+        [transaction.account.id, transaction.account],
+        ...currencyPlatforms.filter(platform => platform.account?.id).map(platform => [platform.account!.id, platform.account!] as const),
+    ]).values());
+    const eligiblePlatforms = currencyPlatforms.filter(platform => platform.account?.id === transaction.account.id);
     const isTrade = ["Buy", "Sell"].includes(transaction.activity.name ?? "");
-    const totalOnly = ["Dividends", "Withholding Tax", "Contribution"].includes(transaction.activity.name ?? "");
+    const totalOnly = ["Dividends", "Withholding Tax", "Contribution", "Withdrawal"].includes(transaction.activity.name ?? "");
 
     return (
         <Modal
         title="Edit Transaction"
         open={open}
         onOk={handleSave}
-        onCancel={onCancel}
+        onCancel={saving ? undefined : onCancel}
+        confirmLoading={saving}
+        cancelButtonProps={{ disabled: saving }}
+        closable={!saving}
+        maskClosable={!saving}
+        keyboard={!saving}
       >
         {transaction.stock && <DialogText gutterBottom={false} text={`${transaction.stock?.name} (${transaction.stock?.ticker})`}/>}
         <DialogText gutterBottom={false} text={`${transaction.activity.name}`} />
         <DialogText gutterBottom text={`${transaction.account.code} (${transaction.platform.currency?.code}) | ${transaction.platform.name}`} />
+        {saveError && <Alert type="error" showIcon message="Could not save the transaction. Please try again." />}
+        <div style={{ margin: "24px 0 12px" }}>
+          <label htmlFor="transaction-edit-account" style={{ display: "block", marginBottom: 8 }}>Account Type</label>
+          <Select
+            id="transaction-edit-account"
+            style={{ width: "100%" }}
+            value={transaction.account.id}
+            loading={platformsLoading}
+            disabled={saving || platformsLoading || platformsError}
+            options={accountOptions.map(account => ({ value: account.id, label: account.code }))}
+            onChange={id => {
+              const platform = currencyPlatforms.find(platform => platform.account?.id === id);
+              if (platform?.account) setTransaction(prev => prev ? { ...prev, account: platform.account!, platform } : prev);
+            }}
+          />
+        </div>
+        <div style={{ margin: "24px 0 12px" }}>
+          <label htmlFor="transaction-edit-platform" style={{ display: "block", marginBottom: 8 }}>Platform</label>
+          <Select
+            id="transaction-edit-platform"
+            style={{ width: "100%" }}
+            value={transaction.platform.id}
+            loading={platformsLoading}
+            disabled={saving || platformsLoading || platformsError}
+            options={[
+              ...(!eligiblePlatforms.some(platform => platform.id === dataItem?.platform.id) && dataItem && transaction.account.id === dataItem.account.id ? [dataItem.platform] : []),
+              ...eligiblePlatforms,
+            ].map(platform => ({ value: platform.id, label: platform.name }))}
+            onChange={id => {
+              const platform = eligiblePlatforms.find(platform => platform.id === id);
+              if (platform) setTransaction(prev => prev ? { ...prev, platform } : prev);
+            }}
+          />
+          {platformsError && <Alert type="error" showIcon message="Unable to load platforms. Close and reopen the dialog to try again." style={{ marginTop: 8 }} />}
+        </div>
         <div style={{ margin: "24px 0 12px" }}>
           <label htmlFor="transaction-edit-date" style={{ display: "block", marginBottom: 8 }}>Transaction Date</label>
           <DatePicker
@@ -109,7 +172,7 @@ const TransactionEditDialog = (props: DialogProps) => {
         </div>
         {!totalOnly && <>
         <NumberTextField label="Price" adornment="$" field="price" step={0.01} value={transaction.price} onChange={handleInputChange}/>
-        <NumberTextField label="Shares" adornment="" field="shares" step={1} value={transaction.shares} onChange={handleInputChange}/>
+        <NumberTextField label="Shares" adornment="" field="shares" step="any" value={transaction.shares} onChange={handleInputChange}/>
         <NumberTextField label="Fee" adornment="$" field="fee" step={0.01} value={transaction.fee} onChange={handleInputChange}/>
         </>}
         {isTrade && <DialogText gutterBottom text={`Total: $${(transaction.total ?? 0).toFixed(2)}`} />}

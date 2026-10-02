@@ -32,7 +32,6 @@ function getItem(
 
 const items: MenuItem[] = [
   getItem("Dashboard", "/home", <AreaChartOutlined />),
-  // getItem("Stock Finder", "/stocks", <SearchOutlined />),
   getItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
   getItem("Add Transaction", "/add", <PlusOutlined />),
@@ -46,13 +45,14 @@ type MProps = {
 const MenuComponent = (props: MProps) => {
   const { collapsed, setCollapsed } = props;
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
   function handleMenuClick(path: string) {
     if (path === null || path === "") {
       return;
     }
-    return navigate(path);
+    const profile = new URLSearchParams(search).get("profile");
+    return navigate({ pathname: path, search: profile ? new URLSearchParams({ profile }).toString() : "" });
   }
 
   return (

@@ -6,6 +6,7 @@ export interface Activity extends GraphQLType {
 
 export enum ActivityEnum {
   CONTRIBUTION = "Contribution",
+  WITHDRAWAL = "Withdrawal",
   TRANSFERIN = "Transfer In",
   TRANSFEROUT = "Transfer Out",
   BUY = "Buy",

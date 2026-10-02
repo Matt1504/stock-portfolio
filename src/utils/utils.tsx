@@ -83,3 +83,7 @@ export function formatNumberAsCurrency(num: number | undefined, includeDollarSig
   }
   return (includeDollarSign ? "$" : "") + num.toFixed(2);
 }
+
+export function shareCountPrecision(value: number): number {
+  return Number.isInteger(Number(value.toFixed(4))) ? 0 : 4;
+}

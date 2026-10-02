@@ -1,7 +1,7 @@
 import { gql } from "@apollo/client";
 
 export const GET_PLATFORM_INFO = gql(`
-  query {
+  query($profileId: ID!) {
     accounts {
       edges {
         node {
@@ -26,7 +26,7 @@ export const GET_PLATFORM_INFO = gql(`
             }
         }
     }
-    platforms {
+    platforms(profileId: $profileId) {
       edges {
         node {
           id
@@ -55,8 +55,8 @@ export const GET_PLATFORM_INFO = gql(`
   }`);
 
 export const CREATE_TRANSACTION = gql(`
-  mutation createTransaction($trans: TransactionInput!) {
-    createTransaction(transData: $trans) {
+  mutation createTransaction( $profileId: ID!, $trans: TransactionInput!) {
+    createTransaction(profileId: $profileId, transData: $trans) {
         transaction { 
           id
         }

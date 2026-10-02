@@ -1,5 +1,6 @@
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import dayjs from "dayjs";
 import { DocumentNode, print } from "graphql";
 
 import ReloadButton from "../components/ReloadButton";
@@ -11,6 +12,7 @@ import SelectedStockInfo from "./MyStocksView/SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./MyStocksView/gql";
 
 // Keep real Apollo hooks and cache behavior; replace only unrelated rendering.
+jest.mock("./DashboardView/PortfolioOverview", () => () => null);
 jest.mock("../components/TransactionDataGrid", () => ({
   TransactionDataGrid: ({ gridData }: { gridData: unknown }) => (
     <div data-testid="transactions">{JSON.stringify(gridData)}</div>
@@ -71,12 +73,12 @@ function metadata(amount: number) {
 }
 
 function createClient(responses: Map<string, object>) {
-  const requests: { query: string; variables: Record<string, unknown> }[] = [];
+  const requests: { query: string; variables: Record<string, unknown>; context: Record<string, any> }[] = [];
   const client = new ApolloClient({
     cache: new InMemoryCache({ addTypename: false }),
     link: new ApolloLink((operation) => new Observable((observer) => {
       const query = print(operation.query);
-      requests.push({ query, variables: operation.variables });
+      requests.push({ query, variables: operation.variables, context: operation.getContext() });
       const timeout = setTimeout(() => {
         const data = responses.get(query);
         if (!data) {
@@ -98,12 +100,12 @@ function seed(client: ApolloClient<object>, query: DocumentNode, data: object, v
 
 test("dashboard reload requests all three datasets even when Apollo already has them cached", async () => {
   const responses = new Map<string, object>([
-    [print(DASHBOARD_TRANSACTIONS), { accounts, transactionsFromLastMonth: [{ ...transaction, total: 20 }] }],
+    [print(DASHBOARD_TRANSACTIONS), { accounts, recentTransactions: [{ ...transaction, total: 20 }] }],
     [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
     [print(TRANSACTIONS_BY_ACTIVITY), { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 250 }] }],
   ]);
   const { client, requests } = createClient(responses);
-  seed(client, DASHBOARD_TRANSACTIONS, { accounts, transactionsFromLastMonth: [transaction] });
+  seed(client, DASHBOARD_TRANSACTIONS, { accounts, recentTransactions: [transaction] }, { startDate: dayjs().subtract(29, "day").format("YYYY-MM-DD"), endDate: dayjs().format("YYYY-MM-DD") });
   seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
   seed(client, TRANSACTIONS_BY_ACTIVITY, { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] }, { activity: "activity-contribution" });
 
@@ -116,6 +118,7 @@ test("dashboard reload requests all three datasets even when Apollo already has 
   expect(reload).toBeDisabled();
   await screen.findByText("$250.00 / $2000.00");
   await waitFor(() => expect(reload).toBeEnabled());
+  expect(requests.every(request => request.context.headers["X-Cache-Bypass"] === "true")).toBe(true);
   expect(requests.map((request) => request.query).sort()).toEqual(Array.from(responses.keys()).sort());
   expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20');
 
@@ -127,12 +130,12 @@ test("dashboard reload requests all three datasets even when Apollo already has 
 test("dashboard recalculates contribution limits when contributions are unchanged", async () => {
   const contributions = { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] };
   const responses = new Map<string, object>([
-    [print(DASHBOARD_TRANSACTIONS), { accounts, transactionsFromLastMonth: [transaction] }],
+    [print(DASHBOARD_TRANSACTIONS), { accounts, recentTransactions: [transaction] }],
     [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
     [print(TRANSACTIONS_BY_ACTIVITY), contributions],
   ]);
   const { client } = createClient(responses);
-  seed(client, DASHBOARD_TRANSACTIONS, responses.get(print(DASHBOARD_TRANSACTIONS))!);
+  seed(client, DASHBOARD_TRANSACTIONS, responses.get(print(DASHBOARD_TRANSACTIONS))!, { startDate: dayjs().subtract(29, "day").format("YYYY-MM-DD"), endDate: dayjs().format("YYYY-MM-DD") });
   seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
   seed(client, TRANSACTIONS_BY_ACTIVITY, contributions, { activity: "activity-contribution" });
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
@@ -159,6 +162,8 @@ test.each([
   fireEvent.click(reload);
   await waitFor(() => expect(requests).toHaveLength(1));
   expect(requests[0].query).toBe(print(query));
+  expect(requests[0].context.headers["X-Cache-Bypass"]).toBe("true");
+  expect(requests[0].context.fetchOptions.cache).toBe("no-store");
   expect(requests[0].variables).toEqual(expect.objectContaining(variables));
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20'));
 });
@@ -172,6 +177,8 @@ test("stock reload continues to request the API even with cached transactions", 
   expect(requests).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Reload data" }));
   await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0].context.headers["X-Cache-Bypass"]).toBe("true");
+  expect(requests[0].context.fetchOptions.cache).toBe("no-store");
   expect(requests[0].variables).toEqual({ stock: "stock-1" });
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20'));
 });

@@ -2,8 +2,11 @@ import {
   BrowserRouter as Router,
   Navigate,
   Route,
-  Routes
+  Routes,
+  useLocation
 } from "react-router-dom";
+
+import ProfileProvider from "./profiles/ProfileContext";
 
 import AppTheme from "./theme/AppTheme";
 
@@ -15,11 +18,16 @@ import MyStocksView from "./views/MyStocksView";
 
 // import StocksView from "./views/StocksView";
 
+const HomeRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: "/home", search }} replace />;
+};
+
 const App = () => {
   return (
-    <AppTheme><Router>
+    <AppTheme><Router><ProfileProvider>
       <Routes>
-        <Route path="/" element={<Navigate to="/home" />} />
+        <Route path="/" element={<HomeRedirect />} />
         <Route
           path="/home"
           element={
@@ -54,7 +62,7 @@ const App = () => {
           }
         />
       </Routes>
-    </Router></AppTheme>
+    </ProfileProvider></Router></AppTheme>
   );
 };
 
