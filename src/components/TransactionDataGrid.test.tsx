@@ -14,12 +14,20 @@ beforeEach(() => {
 function show(hiddenFilters?: ("account" | "stock")[]) {
   return render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><TransactionDataGrid gridData={rows} hiddenFilters={hiddenFilters} defaultSort="transactionDate" ascending={false} removeColumns={[]} query={query} /></ApolloProvider>);
 }
+test("table groups amounts and fractional shares without changing numeric data", () => {
+  const transactions = [{ ...rows[0], total: 12345.6, shares: 1234.56789, fee: 0 }];
+  render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><TransactionDataGrid gridData={transactions} defaultSort="transactionDate" ascending={false} removeColumns={["transactionDate", "activity", "account", "platform", "stock", "price"]} query={query} /></ApolloProvider>);
+  expect(screen.getByText("12,345.60")).toBeInTheDocument();
+  expect(screen.getByText("1,234.5679")).toBeInTheDocument();
+  expect(transactions[0].total).toBe(12345.6);
+  expect(transactions[0].shares).toBe(1234.56789);
+});
 test("activity filter changes rows and clearing restores them", async () => {
   show();
   expect(screen.getByText("2 of 2 transactions")).toBeInTheDocument();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Filter by activity" }));
   fireEvent.click(screen.getAllByTitle("Buy").find(element => element.classList.contains("ant-select-item-option"))!);
-  await waitFor(() => expect(screen.getByText("1 of 2 transactions")).toBeInTheDocument());
+  expect(await screen.findByText("1 of 2 transactions")).toBeInTheDocument();
   expect(screen.getAllByRole("row")).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
   expect(screen.getByText("2 of 2 transactions")).toBeInTheDocument();
@@ -52,4 +60,11 @@ test.each(["account", "stock"] as const)("hides the redundant %s filter while re
   expect(screen.queryByRole("combobox", { name: `Filter by ${hidden}` })).not.toBeInTheDocument();
   expect(screen.getByRole("combobox", { name: "Filter by activity" })).toBeInTheDocument();
   expect(screen.getByRole("combobox", { name: `Filter by ${hidden === "account" ? "stock" : "account"}` })).toBeInTheDocument();
+});
+
+test("read-only prices display two decimals without reducing stored precision", () => {
+  const transactions = [{ ...rows[0], price: 10.123 }];
+  render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><TransactionDataGrid gridData={transactions} defaultSort="transactionDate" ascending={false} removeColumns={["transactionDate", "activity", "account", "platform", "stock"]} query={query} /></ApolloProvider>);
+  expect(screen.getByText("10.12")).toBeInTheDocument();
+  expect(transactions[0].price).toBe(10.123);
 });

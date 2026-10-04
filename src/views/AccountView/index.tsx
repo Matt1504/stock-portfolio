@@ -64,6 +64,7 @@ const AccountView = () => {
       {selectedAccount && selectedCurrency && (
         <SelectedAccountInfo
           platform={selectedPlatform?.id}
+          platformGroup={selectedAccount.platforms}
           name={selectedAccount.name}
           account={selectedAccount.account.id}
           accountName={selectedAccount.account.code}

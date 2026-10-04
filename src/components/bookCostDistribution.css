@@ -1,0 +1,6 @@
+.book-cost-distribution { height: auto; }
+.book-cost-distribution-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.book-cost-distribution-header h3 { margin: 0; color: var(--text); font-size: 18px; font-weight: 600; }
+.book-cost-distribution-header .anticon { margin-right: 4px; }
+.book-cost-bars-scroll { max-height: 480px; overflow-y: auto; }
+.book-cost-distribution .recharts-surface { display: block; }

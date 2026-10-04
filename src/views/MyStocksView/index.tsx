@@ -11,6 +11,7 @@ import SelectedStockInfo from "./SelectedStockInfo";
 import StocksAddDropdown from "./StocksAddDropdown";
 
 type StockData = {
+  assets: { edges: GraphQLNode<{ id: string; name: string }>[] };
   stocks: { edges: GraphQLNode<Stock>[] };
   currencies: { edges: GraphQLNode<Currency>[] };
 };
@@ -44,7 +45,7 @@ const MyStocksView = () => {
       <Divider />
       {error && <Alert type="error" showIcon message="Unable to load stocks. Please reload the page to try again." />}
       {data && stockId && !selectedStock && <Alert type="warning" showIcon message="This stock could not be found. Select a stock above." />}
-      {selectedStock && <SelectedStockInfo key={selectedStock.id} stock={selectedStock.id} name={selectedStock.name} currency={selectedStock.currency?.code} />}
+      {selectedStock && <SelectedStockInfo key={selectedStock.id} stock={selectedStock.id} name={selectedStock.name} currency={selectedStock.currency?.code} assetType={selectedStock.asset?.name} />}
     </>
   );
 };

@@ -1,4 +1,5 @@
-import ExpandableStatistics from "../../components/ExpandableStatistics";
+import FlippableStatistics, { accountCardPairs } from "../../components/FlippableStatistics";
+import { calculateCashBalance } from "./cashBalance";
 import { portfolioStatistics } from "./portfolioStatistics";
 import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../components/ChartTimeRange";
 import { useApolloClient } from "@apollo/client";
@@ -8,12 +9,9 @@ import { Alert, Col, Row, Tabs } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
-  Cell,
   Legend,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -27,20 +25,22 @@ import { Stack } from "@mui/system";
 import LoadingProgress from "../../components/LoadingProgress";
 import ReloadButton from "../../components/ReloadButton";
 import { accountStatisticDescriptions } from "../../components/StatisticTitle";
-import { RenderActiveShape } from "../../components/PieChartShape";
+import BookCostDistribution from "../../components/BookCostDistribution";
 import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { HoldingDetail } from "../../models/Common";
 import { Currency } from "../../models/Currency";
 import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
+import { Platform } from "../../models/Platform";
 import { Transaction } from "../../models/Transaction";
-import { compareDates, getColourCodeByAccount, shareCountPrecision } from "../../utils/utils";
+import { compareDates, shareCountPrecision, formatNumber } from "../../utils/utils";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
 import { HoldingIssue } from "./holdings";
 
 type SAProps = {
   name: string | undefined;
   platform: string | undefined;
+  platformGroup?: Platform[];
   account: string | undefined;
   accountName: string | undefined;
   currencies: GraphQLNode<Currency>[];
@@ -108,38 +108,43 @@ const defaultAccountDetails: HoldingDetail[] = [
   },
 ];
 
-defaultAccountDetails.push(...["Amount Withdrawn", "Net Deposits", "Realized Gain/Loss", "Realized Profit"].map(title => ({ title, value: 0, prefix: "$", colour: "", precision: 2 })));
-const accountCardOrder = [
-  "Total Book Cost", "Net Deposits", "Realized Profit", "Realized Gain/Loss",
-  "Total Share(s) Owned", "Unique Share(s) Owned", "Largest Holding", "Dividends/Interest Earned",
-  "Amount Transferred In", "Amount Transferred Out", "Amount Contributed", "Amount Withdrawn",
-];
+defaultAccountDetails.push(...["Amount Withdrawn", "Net Deposits", "Realized Gain/Loss", "Realized Profit", "Fees Paid"].map(title => ({ title, value: 0, prefix: "$", colour: "", precision: 2 })));
+
+defaultAccountDetails.push({ title: "Smallest Holding", value: "—", prefix: undefined, colour: "", precision: undefined });
+
+defaultAccountDetails.push({ title: "Cash Balance", value: 0, prefix: "$", colour: "", precision: 2 });
 
 const SelectedAccountInfo = (props: SAProps) => {
-  const { name, platform, account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
+  const { name, platform, platformGroup = [], account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
   const query = platform ? TRANSACTIONS_BY_PLATFORM : TRANSACTIONS_BY_ACCOUNT;
   const [accountDetails, setAccountDetails] = useState(() => defaultAccountDetails.map((detail) => ({ ...detail })));
   const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
     []
   );
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [chartRange, setChartRange] = useState<ChartRange>("all");
   const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
   const [holdingIssues, setHoldingIssues] = useState<HoldingIssue[]>([]);
 
   const client = useApolloClient();
-  const {loading, data} = useQuery(query, {
-    variables: platform ? { platform_one: platform } : { account },
+  // Keep both currency queries mounted with stable variables. A tab change only
+  // selects a result; it cannot cancel the other currency's in-flight request.
+  const firstPlatform = platformGroup[0]?.id ?? platform;
+  const secondPlatform = platformGroup[1]?.id;
+  const first = useQuery(query, {
+    variables: platform ? { platform_one: firstPlatform } : { account },
     notifyOnNetworkStatusChange: true,
   });
+  const second = useQuery(TRANSACTIONS_BY_PLATFORM, {
+    variables: { platform_one: secondPlatform },
+    skip: !platform || !secondPlatform,
+    notifyOnNetworkStatusChange: true,
+  });
+  const { loading, data } = platform && platform === secondPlatform ? second : first;
 
   const filteredTransactions = useMemo(() => data?.transactions.filter(
     (transaction: Transaction) => transaction.platform.currency?.id === currency.id
   ), [data, currency.id]);
-
-  const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
-  };
 
   useEffect(() => {
     if (!filteredTransactions) {
@@ -217,6 +222,8 @@ const SelectedAccountInfo = (props: SAProps) => {
           case "Buy":
           case "Sell":
           case "Stock Split":
+          case "GIC Maturity":
+            if (transaction.activity.name === "GIC Maturity") dividends += transaction.interestEarned ?? 0;
             if (transHistory) {
               transHistory.value = bookCost;
             } else {
@@ -261,10 +268,7 @@ const SelectedAccountInfo = (props: SAProps) => {
         }
       });
 
-    const maxHolding = portfolio.holdings.reduce<typeof portfolio.holdings[number] | undefined>(
-      (largest, holding) => !largest || holding.bookCost > largest.bookCost ? holding : largest,
-      undefined
-    );
+    const maxHolding = summary.largestHolding;
 
     setPieGraphHoldingData(
       portfolio.holdings.filter((holding) => holding.bookCost > 0).map((holding) => {
@@ -272,22 +276,21 @@ const SelectedAccountInfo = (props: SAProps) => {
           `${holding.stock.ticker}`,
           holding.bookCost,
           undefined,
-          holding.shares.toString()
+          holding.shares > 0 ? holding.shares.toString() : undefined
         );
       })
     );
 
     setGraphBookCostData(Array.from(bookCostHistory.values()));
     setHoldingIssues(portfolio.issues);
-    setActiveIndex(0);
 
     setAccountDetails((prev: HoldingDetail[]) => {
       let update = prev.map((detail) => ({ ...detail }));
       update[0].value = portfolio.totalShares;
       update[0].precision = shareCountPrecision(portfolio.totalShares);
-      update[1].value = portfolio.holdings.length;
+      update[1].value = portfolio.holdings.filter(holding => holding.shares > 0).length;
       update[2].value = maxHolding
-        ? `${maxHolding.stock.ticker} | $${maxHolding.bookCost.toFixed(2)}`
+        ? `${maxHolding.stock.ticker} | $${formatNumber(maxHolding.bookCost, 2, 2)}`
         : "-";
       update[3].value = contributions;
       update[4].value = transferIn;
@@ -300,6 +303,9 @@ const SelectedAccountInfo = (props: SAProps) => {
       update[10].prefix = typeof portfolio.realizedGain === "number" ? "$" : undefined;
       update[11].value = summary.realizedProfit ?? "—";
       update[11].prefix = typeof summary.realizedProfit === "number" ? "$" : undefined;
+      update[12].value = summary.feesPaid;
+      update[13].value = summary.smallestHolding ? `${summary.smallestHolding.stock.ticker} | $${formatNumber(summary.smallestHolding.bookCost, 2, 2)}` : "—";
+      update[14].value = calculateCashBalance(filteredTransactions);
       return update;
     });
   }, [filteredTransactions]);
@@ -317,7 +323,7 @@ const SelectedAccountInfo = (props: SAProps) => {
           <Typography variant="h6">
             {accountName} {name}
           </Typography>
-          <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} />
+          <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} disabled={bulkEditing} />
         </Stack>
       </Col>
       <Col span={24}>
@@ -350,57 +356,12 @@ const SelectedAccountInfo = (props: SAProps) => {
         />
       </Col>}
       <Col span={24}>
-        <ExpandableStatistics id="additional-account-statistics" loading={loading} descriptions={accountStatisticDescriptions} details={[
-          ...accountCardOrder.map(title => accountDetails.find(detail => detail.title === title)!),
-        ]} />
+        <FlippableStatistics key={`${account}:${platform ?? ""}:${currency.id}`} pairs={accountCardPairs} loading={loading} descriptions={accountStatisticDescriptions} details={accountDetails} />
       </Col>
       {data && !loading ? (
         <>
           <Col span={24}>
-            {pieGraphHoldingData.length ? (
-              <Col span={24} className="pie-chart-container">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart width={450} height={450}>
-                    <text
-                      x="50%"
-                      y={20}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                    >
-                      <tspan fontWeight="600" fontSize="18">
-                        Stock Holdings Distribution
-                      </tspan>
-                    </text>
-                    <Pie
-                      activeIndex={activeIndex}
-                      activeShape={RenderActiveShape}
-                      data={pieGraphHoldingData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={100}
-                      outerRadius={140}
-                      fill="#8884d8"
-                      dataKey="value"
-                      name="Book Cost"
-                      onMouseEnter={onPieEnter}
-                    >
-                      {pieGraphHoldingData.map(
-                        (entry: GraphData, index: number) => {
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={getColourCodeByAccount(entry.name ?? "")}
-                            />
-                          );
-                        }
-                      )}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </Col>
-            ) : (
-              <></>
-            )}
+            <BookCostDistribution data={pieGraphHoldingData} />
           </Col>
           <Col span={24} style={{ display: "flex", justifyContent: "flex-end" }}>
             <ChartTimeRange value={chartRange} onChange={setChartRange} label="Book cost and net deposit time range" />
@@ -431,10 +392,10 @@ const SelectedAccountInfo = (props: SAProps) => {
                 </text>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis />
+                <YAxis tickFormatter={value => formatNumber(Number(value), 2)} />
                 <Legend verticalAlign="bottom" height={36} />
                 <Tooltip
-                  formatter={(value: any, name: any) => `$${value.toFixed(2)}`}
+                  formatter={(value: any) => `$${formatNumber(Number(value), 2, 2)}`}
                 />
                 <Line
                   type="monotone"
@@ -451,9 +412,17 @@ const SelectedAccountInfo = (props: SAProps) => {
               </LineChart>
             </ResponsiveContainer>
           </Col>
+
+        </>
+      ) : (
+        <LoadingProgress />
+      )}
           <Col span={24}>
             <TransactionDataGrid
-              gridData={filteredTransactions}
+              onBulkEditChange={setBulkEditing}
+              key={`${account}:${platform ?? ""}:${currency.id}`}
+              loading={loading}
+              gridData={!loading ? filteredTransactions ?? [] : []}
               defaultSort="transactionDate"
               ascending={false}
               removeColumns={
@@ -463,10 +432,6 @@ const SelectedAccountInfo = (props: SAProps) => {
               query={query}
             />
           </Col>
-        </>
-      ) : (
-        <LoadingProgress />
-      )}
     </Row>
   );
 };

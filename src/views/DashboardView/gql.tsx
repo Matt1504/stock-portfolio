@@ -8,6 +8,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
               id 
               name
               code
+              hasContributionLimit
           }
       }
     }
@@ -33,6 +34,12 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           ticker
       }
       transactionDate
+      spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+      gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+      stock { asset { id name } }
       price
       shares
       fee
@@ -66,8 +73,13 @@ export const DASHBOARD_TRANSACTIONS = gql(`
               ticker
               name
           }
-          description
           transactionDate
+          spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+          gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+          stock { asset { id name } }
           price
           shares
           fee
@@ -123,10 +135,12 @@ export const PORTFOLIO_OVERVIEW = gql`
     currencies { edges { node { id code } } }
     platforms(profileId: $profileId) { edges { node { id currency { id code } } } }
     history: transactionsByDateRange(profileId: $profileId) {
-      id transactionDate price shares fee total
+      id transactionDate price shares fee total spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned
+      priceCurrency { id code } totalCurrency { id code } exchangeRate
       activity { name }
       account { id code }
-      stock { id name ticker }
+      stock { id name ticker asset { id name } }
       platform { id name currency { id code } }
     }
   }

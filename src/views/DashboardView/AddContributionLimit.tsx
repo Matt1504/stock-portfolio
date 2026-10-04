@@ -6,6 +6,7 @@ import { Dayjs } from "dayjs";
 
 
 
+import { transactionErrorMessage } from "../../utils/transactionFeedback";
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
 import {
@@ -21,6 +22,7 @@ type ACSProps = {
 
 const AddContributionLimit = (props: ACSProps) => {
   const { accounts } = props;
+  const eligibleAccounts = accounts.edges.filter(account => account.node.hasContributionLimit !== false);
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
 
@@ -65,8 +67,8 @@ const AddContributionLimit = (props: ACSProps) => {
       await createContributionLimit({
         variables: { contribution: { amount: values.amount, account: values.account, yearEnd: values.year.format("YYYY-MM-DD") } },
       });
-    } catch {
-      notification.openNotificationWithIcon("error", "Error Adding Contribution Limit", "Could not save the contribution limit. Please try again.");
+    } catch (error) {
+      notification.openNotificationWithIcon("error", "Error Adding Contribution Limit", transactionErrorMessage(error));
     }
   };
 
@@ -75,6 +77,8 @@ const AddContributionLimit = (props: ACSProps) => {
     setDialogOpen(false);
     form.resetFields();
   };
+
+  if (!eligibleAccounts.length) return null;
 
   return (
     <>
@@ -90,7 +94,7 @@ const AddContributionLimit = (props: ACSProps) => {
           </Form.Item>
           <Form.Item name="account" label="Account Type" rules={[{ required: true, message: "Please select an account type." }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              {accounts.edges.map((account: GraphQLNode<Account>) => (
+              {eligibleAccounts.map((account: GraphQLNode<Account>) => (
                 <Radio key={account.node.id} value={account.node.id}>{account.node.code}</Radio>
               ))}
             </Radio.Group>

@@ -87,8 +87,13 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
                 ticker
                 name
             }
-            description
             transactionDate
+            spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+            gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+            stock { asset { id name } }
             price
             shares
             fee
@@ -123,7 +128,12 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
                 name
             }
             transactionDate
-            description
+            spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+            gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+            stock { asset { id name } }
             price
             shares
             fee

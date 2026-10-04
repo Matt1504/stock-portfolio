@@ -1,7 +1,7 @@
 import { useProfileMutation as useMutation } from "../../profiles/hooks";
 import { PlusOutlined } from "@ant-design/icons";
 import { useState } from "react";
-import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space } from "antd";
+import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space, Tooltip } from "antd";
 
 
 
@@ -19,10 +19,13 @@ type AADProps = {
   options: AccountOption[];
   selectedAccountId?: string;
   onAccountChange: (id: string) => void;
+  compact?: boolean;
+  initialValues?: { currency?: string; account?: string };
+  onCreated?: (record: Platform) => Promise<void> | void;
 };
 
 const AccountsAddDropdown = (props: AADProps) => {
-  const { data, loading, options, selectedAccountId, onAccountChange } = props;
+  const { data, loading, options, selectedAccountId, onAccountChange, compact = false, initialValues, onCreated } = props;
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -67,7 +70,14 @@ const AccountsAddDropdown = (props: AADProps) => {
   const onFinish = async (values: { name: string; account: string; currency: string }) => {
     if (saving) return;
     try {
-      await createPlatform({ variables: { platform: { ...values, name: values.name?.trim() } } });
+      const result = await createPlatform({ variables: { platform: { ...values, name: values.name?.trim() } } });
+      if (result.data?.createPlatform?.platform) {
+        try {
+          await onCreated?.(result.data.createPlatform.platform);
+        } catch {
+          notification.openNotificationWithIcon("error", "Refresh Failed", "The platform was saved, but the transaction options could not be refreshed. Please reload the page.");
+        }
+      }
     } catch {
       notification.openNotificationWithIcon("error", "Error Adding Platform", "Could not save the platform. Please try again.");
     }
@@ -77,6 +87,28 @@ const AccountsAddDropdown = (props: AADProps) => {
     setDialogOpen(false);
     form.resetFields();
   };
+
+  const addButton = <Tooltip title="Add Platform"><Button aria-label="Add Platform" type={compact ? "default" : "primary"} size={compact ? "small" : "middle"} icon={<PlusOutlined aria-hidden />} disabled={loading || !data} onClick={() => { form.setFieldsValue(initialValues ?? {}); setDialogOpen(true); }}>{compact ? null : "Add Platform"}</Button></Tooltip>;
+  const dialog = (
+      <Modal title="Add Platform" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Platform" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
+        <Form form={form} name="add_platform_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
+          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: "Please enter a name." }]}>
+            <Input placeholder="Platform name, e.g. Wealthsimple" autoFocus />
+          </Form.Item>
+          <Form.Item name="account" label="Account" rules={[{ required: true, message: "Please select an account." }]}>
+            <Radio.Group optionType="button" buttonStyle="solid">
+              {data?.accounts.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
+            </Radio.Group>
+          </Form.Item>
+          <Form.Item name="currency" label="Currency" rules={[{ required: true, message: "Please select a currency." }]}>
+            <Radio.Group optionType="button" buttonStyle="solid">
+              {data?.currencies.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
+            </Radio.Group>
+          </Form.Item>
+        </Form>
+      </Modal>
+  );
+  if (compact) return <>{notification.contextHolder}{addButton}{dialog}</>;
 
   return (
     <Row gutter={[16, 16]} align="middle">
@@ -114,26 +146,10 @@ const AccountsAddDropdown = (props: AADProps) => {
       <Col xs={24} md={8} style={{ display: "flex", justifyContent: "flex-end" }}>
         <Space wrap>
           <TransferAccountModal accounts={data?.accounts.edges as GraphQLNode<Account>[]} platforms={data?.platforms.edges as GraphQLNode<Platform>[]} notification={notification} />
-          <Button type="primary" icon={<PlusOutlined aria-hidden />} disabled={loading || !data} onClick={() => setDialogOpen(true)}>Add Platform</Button>
+          {addButton}
         </Space>
       </Col>
-      <Modal title="Add Platform" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Platform" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
-        <Form form={form} name="add_platform_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: "Please enter a name." }]}>
-            <Input placeholder="Platform name, e.g. Wealthsimple" autoFocus />
-          </Form.Item>
-          <Form.Item name="account" label="Account" rules={[{ required: true, message: "Please select an account." }]}>
-            <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.accounts.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
-            </Radio.Group>
-          </Form.Item>
-          <Form.Item name="currency" label="Currency" rules={[{ required: true, message: "Please select a currency." }]}>
-            <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.currencies.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
-            </Radio.Group>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {dialog}
     </Row>
   );
 };

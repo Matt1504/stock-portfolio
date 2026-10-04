@@ -3,7 +3,7 @@ import StatisticTitle, { accountStatisticDescriptions, stockStatisticDescription
 import { stockStatistics } from "../views/MyStocksView/statistics";
 
 test("every account and stock statistic has a calculation description", () => {
-  expect(Object.keys(accountStatisticDescriptions)).toHaveLength(12);
+  expect(Object.keys(accountStatisticDescriptions)).toHaveLength(15);
   for (const description of Object.values(accountStatisticDescriptions)) expect(description.length).toBeGreaterThan(30);
   for (const detail of stockStatistics([]).details) expect(stockStatisticDescription(detail.title)?.length).toBeGreaterThan(30);
 });

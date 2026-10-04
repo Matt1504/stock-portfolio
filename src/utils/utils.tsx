@@ -77,11 +77,20 @@ export function formatDecimalTwoPlaces(num: number) {
   return Math.round(num*100)/100;
 }
 
+/** Format display values only; keep the original numbers for sorting and calculations. */
+export function formatNumber(value: number, maximumFractionDigits = 4, minimumFractionDigits = 0): string {
+  return new Intl.NumberFormat("en-CA", {
+    useGrouping: true,
+    maximumFractionDigits,
+    minimumFractionDigits,
+  }).format(value);
+}
+
 export function formatNumberAsCurrency(num: number | undefined, includeDollarSign: boolean = true) {
   if (!num) {
     return "-";
   }
-  return (includeDollarSign ? "$" : "") + num.toFixed(2);
+  return (includeDollarSign ? "$" : "") + formatNumber(num, 2, 2);
 }
 
 export function shareCountPrecision(value: number): number {

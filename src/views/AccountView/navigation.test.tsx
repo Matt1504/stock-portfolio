@@ -43,9 +43,9 @@ const transactions = [brokerCad, brokerUsd].map((platform, index) => ({
   account: rrsp,
   platform,
   activity: { name: "Buy" },
-  stock: { id: "stock-1", ticker: "EX", name: "Example" },
+  stock: { currency: null, id: "stock-1", ticker: "EX", name: "Example", asset: { id: "asset", name: "Stock" } },
   description: "Purchase",
-  transactionDate: "2026-09-20",
+  spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
   price: 10,
   shares: index + 2,
   fee: 0,
@@ -110,15 +110,16 @@ async function chooseAccount(label: string) {
 
 test("a cold deep link loads the requested broker and currency, including after a remount", async () => {
   const url = "/myaccounts?account=ws-rrsp-cad&currency=usd-id";
-  const first = renderPage(url);
+  const view = renderPage(url);
   await screen.findByRole("heading", { name: "RRSP Wealthsimple" });
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("transaction-USD"));
   expect(screen.getByRole("tab", { name: "USD" })).toHaveAttribute("aria-selected", "true");
   expect(screen.getByTestId("transactions")).not.toHaveTextContent("transaction-CAD");
-  expect(first.requests.filter((request) => request.query === print(TRANSACTIONS_BY_PLATFORM))).toEqual([
+  expect(view.requests.filter((request) => request.query === print(TRANSACTIONS_BY_PLATFORM))).toEqual([
+    { query: print(TRANSACTIONS_BY_PLATFORM), variables: { platform_one: "ws-rrsp-cad" } },
     { query: print(TRANSACTIONS_BY_PLATFORM), variables: { platform_one: "ws-rrsp-usd" } },
   ]);
-  first.unmount();
+  view.unmount();
   renderPage(url);
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("transaction-USD"));
   expect(screen.getByRole("tab", { name: "USD" })).toHaveAttribute("aria-selected", "true");
@@ -151,7 +152,8 @@ test("the selector writes real IDs and back navigation restores the prior accoun
   await screen.findByRole("heading", { name: "TFSA Overview" });
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("[]"));
   expect(params().get("account")).toBe("tfsa-id");
-  await waitFor(() => expect(screen.getByText("Total Share(s) Owned").closest(".ant-statistic")).toHaveTextContent("0"));
+  fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
+  await waitFor(() => expect(screen.getByRole("group", { name: "Total Share(s) Owned" })).toHaveTextContent("0"));
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   await screen.findByRole("heading", { name: "RRSP Wealthsimple" });
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("transaction-CAD"));

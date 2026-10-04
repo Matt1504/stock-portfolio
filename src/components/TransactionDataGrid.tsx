@@ -1,3 +1,4 @@
+import BulkTransactionEditor from "./BulkTransactionEditor";
 import { useProfileMutation as useMutation, useProfileQuery } from "../profiles/hooks";
 import { Alert, Button, DatePicker, InputNumber, Modal, Popover, Select, Space, Typography } from "antd";
 import dayjs from "dayjs";
@@ -18,11 +19,13 @@ import {
   GridValueGetterParams
 } from "@mui/x-data-grid";
 
+import { redundantTransactionColumns } from "./transactionColumns";
 import { Transaction } from "../models/Transaction";
-import { convertStringToDate, formatNumberAsCurrency } from "../utils/utils";
+import { convertStringToDate, formatNumber, formatNumberAsCurrency } from "../utils/utils";
 import {
   UPDATE_TRANSACTION
 } from "../views/MyStocksView/gql";
+import { notifyTransactionSaved, transactionErrorMessage } from "../utils/transactionFeedback";
 import { NotificationComponent } from "./Notification";
 import TransactionEditDialog from "./TransactionEditDialog";
 import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences, TransactionFilters } from "./transactionTableState";
@@ -52,6 +55,7 @@ type TDGProps = {
   dateRange?: TransactionDateRange;
   onDateRangeChange?: (range: TransactionDateRange) => void;
   loading?: boolean;
+  onBulkEditChange?: (active: boolean) => void;
   hiddenFilters?: ("account" | "stock")[];
 };
 
@@ -119,7 +123,7 @@ const defaultColumns: GridColDef[] = [
     type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
-      params.value ?? "-",
+      params.value == null ? "-" : formatNumber(params.value),
   },
   {
     field: "fee",
@@ -127,7 +131,20 @@ const defaultColumns: GridColDef[] = [
     type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
-      params.value ?? "-",
+      params.value === 0 ? "" : params.value == null ? "-" : formatNumber(params.value),
+  },
+  {
+    field: "priceCurrency", headerName: "Price Currency", width: 130,
+    valueGetter: (params: GridValueGetterParams) => params.row.priceCurrency?.code ?? params.row.platform.currency?.code ?? "-",
+  },
+  {
+    field: "totalCurrency", headerName: "Total Currency", width: 130,
+    valueGetter: (params: GridValueGetterParams) => params.row.totalCurrency?.code ?? params.row.platform.currency?.code ?? "-",
+  },
+  {
+    field: "exchangeRate", headerName: "FX Rate", width: 120, type: "number",
+    valueGetter: (params: GridValueGetterParams) => params.row.exchangeRate ?? 1,
+    valueFormatter: (params: GridValueFormatterParams<number>) => formatNumber(params.value, 8),
   },
   {
     field: "rate",
@@ -135,7 +152,7 @@ const defaultColumns: GridColDef[] = [
     type: "number",
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) => 
-      params.value ?? "-",
+      params.value == null ? "-" : formatNumber(params.value),
   },
   {
     field: "maturityDate",
@@ -152,21 +169,16 @@ const defaultColumns: GridColDef[] = [
     width: 100,
     valueFormatter: (params: GridValueFormatterParams<number>) =>
       formatNumberAsCurrency(params.value, false),
-  },
-  {
-    field: "description",
-    width: 200,
-    headerName: "Description",
   }
 ];
 
 const TransactionDataGridContent = (props: TDGProps) => {
-  const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, hiddenFilters = []}  = props;
+  const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, onBulkEditChange, hiddenFilters = []}  = props;
   const [selectedItem, setSelectedItem] = useState<Transaction>();
   const [open, setOpen] = useState(false);
   const notification = new NotificationComponent();
   const [deleteItem, setDeleteItem] = useState<Transaction>();
-  const [deleteError, setDeleteError] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>();
   const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION, {
     awaitRefetchQueries: true,
     update: (cache, result, options) => {
@@ -178,17 +190,17 @@ const TransactionDataGridContent = (props: TDGProps) => {
   });
   const handleDelete = async () => {
     if (!deleteItem || deleting) return;
-    setDeleteError(false);
+    setDeleteError(undefined);
     try {
       const result = await deleteTransaction({ variables: { id: deleteItem.id } });
       if (!result.data?.deleteTransaction?.success) {
-        setDeleteError(true);
+        setDeleteError("Could not delete the transaction. Please try again.");
         return;
       }
       setDeleteItem(undefined);
       notification.openNotificationWithIcon("success", "Transaction Deleted", "The transaction was successfully deleted.");
-    } catch {
-      setDeleteError(true);
+    } catch (error) {
+      setDeleteError((error as { graphQLErrors?: unknown[] }).graphQLErrors?.length ? transactionErrorMessage(error) : "Could not delete the transaction. Please try again.");
     }
   };
   const platformQuery = useProfileQuery(EDIT_TRANSACTION_PLATFORMS, { skip: !open });
@@ -201,11 +213,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
           "There was an error updating the transaction. Please check the logs."
         );
       } else {
-        notification.openNotificationWithIcon(
-          "success",
-          "Transaction Updated",
-          "The transaction was successfully updated."
-        );
+        notifyTransactionSaved(notification, "Transaction Updated", "The transaction was successfully updated.", mutationResult.data.updateTransaction.warnings);
         // Apollo updates each normalized transaction from the mutation result.
         // Avoid writing a filtered table back into an unfiltered query cache.
       }
@@ -231,9 +239,15 @@ const TransactionDataGridContent = (props: TDGProps) => {
           account: transaction.account.id,
           transactionDate: transaction.transactionDate,
           price: transaction.price,
+          priceCurrency: transaction.priceCurrency?.id,
+          totalCurrency: transaction.totalCurrency?.id,
+          exchangeRate: transaction.exchangeRate,
           shares: transaction.shares,
           fee: transaction.fee,
           total: transaction.total,
+          ...(transaction.activity.name === "Stock Spinoff" ? { spinoffSource: transaction.spinoffSource?.id, allocatedBookCost: transaction.allocatedBookCost } : {}),
+          ...(transaction.stock?.asset?.name === "GIC" && transaction.activity.name === "Buy" ? { rate: transaction.rate, maturityDate: transaction.maturityDate, interestCalculation: transaction.interestCalculation ?? "simple" } : {}),
+          ...(transaction.activity.name === "GIC Maturity" ? { gicPurchase: transaction.gicPurchase?.id } : {}),
         },
       }
     });
@@ -245,6 +259,12 @@ const TransactionDataGridContent = (props: TDGProps) => {
   const preferenceKey = `stock-portfolio-table-v1:${viewName}:${[...removeColumns].sort().join(",")}`;
   const defaults: TablePreferences = { sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }], pageSize: 10, visibility: {}, widths: {}, density: "standard" };
   const [preferences, setPreferences] = useState(() => readTablePreferences(preferenceKey, defaults));
+  const [bulkHiddenColumns, setBulkHiddenColumns] = useState<string[]>([]);
+  const [bulkRows, setBulkRows] = useState<Transaction[] | null>(null);
+  useEffect(() => {
+    onBulkEditChange?.(bulkRows !== null);
+    return () => onBulkEditChange?.(false);
+  }, [bulkRows, onBulkEditChange]);
   const [filters, setFilters] = useState<TransactionFilters>({});
   const [page, setPage] = useState(0);
   useEffect(() => { saveTablePreferences(preferenceKey, preferences); }, [preferenceKey, preferences]);
@@ -257,24 +277,33 @@ const TransactionDataGridContent = (props: TDGProps) => {
   const activityOptions = options(row => row.activity.name, row => row.activity.name);
   const accountOptions = options(row => row.account.id ?? row.account.code, row => row.account.code);
   const stockOptions = options(row => row.stock ? row.stock.id ?? row.stock.ticker : "__no_stock__", row => row.stock ? `${row.stock.name} (${row.stock.ticker})` : "No stock / cash transaction");
-  const columns: GridColDef[] = defaultColumns.filter(column => !removeColumns.includes(column.field)).map(column => ({
+  const redundantColumns = useMemo(() => redundantTransactionColumns(filteredRows), [filteredRows]);
+  const columns: GridColDef[] = defaultColumns.filter(column => !removeColumns.includes(column.field) && !redundantColumns.has(column.field)).map(column => ({
     ...column, width: preferences.widths[column.field] ?? column.width,
     ...(column.field === "activity" ? { valueOptions: activityOptions.map(option => option.value) } : {}),
     ...(column.field === "account" ? { valueOptions: Array.from(new Set(rows.map(row => row.account.code))) } : {}),
     ...(column.field === "platform" ? { valueOptions: Array.from(new Set(rows.map(row => row.platform.name))) } : {}),
   }));
+  if (rows.some(row => row.activity.name === "Stock Spinoff")) columns.push(
+    { field: "spinoffReceived", headerName: "Stock Received", width: 160, valueGetter: params => params.row.activity.name === "Stock Spinoff" ? params.row.stock?.ticker : "—" },
+    { field: "spinoffSource", headerName: "Original Stock", width: 180, valueGetter: params => params.row.spinoffSource?.ticker ?? "—" },
+    { field: "allocatedBookCost", headerName: "Allocated Book Cost", width: 180, valueGetter: params => params.row.allocatedBookCost, valueFormatter: params => params.value == null ? "—" : formatNumberAsCurrency(params.value) },
+  );
   columns.push({ field: "actions", headerName: "Actions", width: 120, sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
     renderCell: params => <>
       <IconButton aria-label="Edit transaction" title="Edit transaction" onClick={() => handleEditClick(params.row)} disabled={deleting}><EditIcon /></IconButton>
-      <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(false); }} disabled={deleting}><DeleteOutlineIcon /></IconButton>
+      <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(undefined); }} disabled={deleting}><DeleteOutlineIcon /></IconButton>
     </> });
   const [widthField, setWidthField] = useState("transactionDate");
+  const resizeField = columns.some(column => column.field === widthField) ? widthField : "transactionDate";
   const dates = onDateRangeChange ? dateRange ?? {} : filters;
   const hasFilters = Object.values(filters).some(Boolean) || !!dates.start || !!dates.end;
   const changeDates = (range: TransactionDateRange) => {
     if (onDateRangeChange) { onDateRangeChange(range); setPage(0); }
     else setFilter(range);
   };
+
+  if (bulkRows) return <Box sx={{ marginTop: 3, width: "100%" }}>{notification.contextHolder}<BulkTransactionEditor hiddenColumns={bulkHiddenColumns} rows={bulkRows} defaultSort={defaultSort} ascending={ascending} onComplete={(saved, warnings) => notification.openNotificationWithIcon(warnings.length ? "warning" : "success", "Transactions Updated", `${saved} transaction(s) saved.${warnings.length ? ` ${warnings.join(" ")}` : ""}`, warnings.length ? 8 : 2)} onCancel={() => setBulkRows(null)} /></Box>;
 
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
@@ -285,10 +314,14 @@ const TransactionDataGridContent = (props: TDGProps) => {
           {dayjs(deleteItem.transactionDate).format("YYYY-MM-DD")} · {deleteItem.activity.name}{deleteItem.stock ? ` · ${deleteItem.stock.ticker}` : ""}<br />
           {deleteItem.account.code} · {deleteItem.platform.name} · {formatNumberAsCurrency(deleteItem.total ?? 0)}
         </Typography.Paragraph>}
-        {deleteError && <Alert type="error" showIcon message="Could not delete the transaction. Please try again." />}
+        {deleteError && <Alert type="error" showIcon message={deleteError} />}
       </Modal>
       {selectedItem && <TransactionEditDialog open={open} setOpen={setOpen} handleDialogSave={handleDialogUpdate} onCancel={handleDialogClose} dataItem={selectedItem} platforms={platformQuery.data?.platforms.edges.map((edge: any) => edge.node)} platformsLoading={platformQuery.loading} platformsError={!!platformQuery.error} />}
       <Space wrap size={[16, 16]} style={{ marginBottom: 24, width: "100%" }}>
+        <Button onClick={() => {
+          setBulkHiddenColumns([...removeColumns, ...Array.from(redundantColumns), ...Object.keys(preferences.visibility).filter(field => preferences.visibility[field] === false)]);
+          setBulkRows(filteredRows.slice());
+        }} disabled={loading || deleting || !filteredRows.length}>Bulk Edit</Button>
         <DatePicker.RangePicker aria-label="Transaction date range" placeholder={["Start date", "End date"]}
           allowEmpty={[true, true]}
           value={dates.start || dates.end ? [dates.start ? dayjs(dates.start) : null, dates.end ? dayjs(dates.end) : null] : null}
@@ -301,8 +334,8 @@ const TransactionDataGridContent = (props: TDGProps) => {
           <Typography.Text>Row density</Typography.Text>
           <Select aria-label="Row density" style={{ width: "100%" }} value={preferences.density} options={[{ value: "compact", label: "Compact" }, { value: "standard", label: "Standard" }, { value: "comfortable", label: "Comfortable" }]} onChange={density => setPreferences(value => ({ ...value, density }))} />
           <Typography.Text>Column width</Typography.Text>
-          <Select aria-label="Column to resize" style={{ width: "100%" }} value={widthField} options={columns.filter(column => column.field !== "actions").map(column => ({ value: column.field, label: column.headerName }))} onChange={setWidthField} />
-          <InputNumber aria-label="Column width in pixels" min={50} max={2000} step={10} value={preferences.widths[widthField] ?? columns.find(column => column.field === widthField)?.width ?? 100} addonAfter="px" onChange={width => { if (width) setPreferences(value => ({ ...value, widths: { ...value.widths, [widthField]: width } })); }} />
+          <Select aria-label="Column to resize" style={{ width: "100%" }} value={resizeField} options={columns.filter(column => column.field !== "actions").map(column => ({ value: column.field, label: column.headerName }))} onChange={setWidthField} />
+          <InputNumber aria-label="Column width in pixels" min={50} max={2000} step={10} value={preferences.widths[resizeField] ?? columns.find(column => column.field === resizeField)?.width ?? 100} addonAfter="px" onChange={width => { if (width) setPreferences(value => ({ ...value, widths: { ...value.widths, [resizeField]: width } })); }} />
           <Button onClick={() => { setPreferences(defaults); setPage(0); }}>Reset table preferences</Button>
         </Space>}><Button>Table settings</Button></Popover>
         <Typography.Text type="secondary" aria-live="polite">{filteredRows.length} of {rows.length} transactions</Typography.Text>

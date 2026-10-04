@@ -17,7 +17,7 @@ import { GraphData } from "../../models/GraphData";
 import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Transaction } from "../../models/Transaction";
-import { compareDates } from "../../utils/utils";
+import { compareDates, formatNumber } from "../../utils/utils";
 
 type CGProps = {
     accounts: Array<GraphQLNode<Account>>,
@@ -120,8 +120,8 @@ const ContributionGraph = (props: CGProps) => {
                         >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip formatter={(value: any, name: any) => `$${value.toFixed(2)}`}/>
+                            <YAxis tickFormatter={value => formatNumber(Number(value), 2)} />
+                            <Tooltip formatter={(value: any) => `$${formatNumber(Number(value), 2, 2)}`}/>
                             <Line
                                 type="monotone"
                                 dataKey="value"

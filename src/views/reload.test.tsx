@@ -41,7 +41,7 @@ beforeEach(() => {
   });
 });
 
-const account = { id: "account-1", name: "Tax-Free Savings", code: "TFSA" };
+const account = { __typename: "AccountType", hasContributionLimit: true, id: "account-1", name: "Tax-Free Savings", code: "TFSA" };
 const accounts = { edges: [{ node: account }] };
 const currencies = [
   { __typename: "CurrencyEdge", node: { __typename: "CurrencyType", id: "currency-cad", code: "CAD" } },
@@ -52,8 +52,8 @@ const transaction = {
   account,
   platform: { id: "platform-cad", name: "Broker", currency: { id: "currency-cad", code: "CAD" } },
   activity: { name: "Buy" },
-  stock: { id: "stock-1", name: "Example", ticker: "EX" },
-  transactionDate: "2026-09-20",
+  stock: { currency: null, id: "stock-1", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } },
+  spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
   description: "Purchase",
   price: 10,
   shares: 1,
@@ -71,6 +71,48 @@ function metadata(amount: number) {
     },
   };
 }
+
+test("both broker currencies load concurrently and switching pending tabs preserves requests", async () => {
+  const requests: { platform: string; observer: any; context: any }[] = [];
+  const cancelled = jest.fn();
+  const client = new ApolloClient({
+    cache: new InMemoryCache({ addTypename: false }),
+    link: new ApolloLink(operation => new Observable(observer => {
+      requests.push({ platform: operation.variables.platform_one, observer, context: operation.getContext() });
+      return cancelled;
+    })),
+  });
+  const platforms = currencies.map(({ node }) => ({ __typename: "PlatformType", id: node.code === "CAD" ? "platform-cad" : "platform-usd", name: "Broker", currency: node, account }));
+  const viewFor = (index: number) => <ApolloProvider client={client}><SelectedAccountInfo name="Broker" platform={platforms[index].id} platformGroup={platforms} account={account.id} accountName="TFSA" currencies={currencies} currency={currencies[index].node} availableCurrencyIds={currencies.map(({ node }) => node.id)} onCurrencyChange={() => {}} /></ApolloProvider>;
+  const view = render(viewFor(0));
+  await waitFor(() => expect(requests).toHaveLength(2));
+  expect(requests.map(request => request.platform).sort()).toEqual(["platform-cad", "platform-usd"]);
+  view.rerender(viewFor(1));
+  expect(requests).toHaveLength(2);
+  expect(cancelled).not.toHaveBeenCalled();
+  await act(async () => {
+    for (const request of requests) {
+      const platform = platforms.find(platform => platform.id === request.platform)!;
+      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: request.platform === "platform-usd" ? 25 : 10 }] } });
+      request.observer.complete();
+    }
+  });
+  expect(await screen.findByTestId("transactions")).toHaveTextContent('"total":25');
+  view.rerender(viewFor(0));
+  await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":10'));
+  expect(requests).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Reload data" }));
+  await waitFor(() => expect(requests).toHaveLength(4));
+  expect(requests.slice(2).map(request => request.platform).sort()).toEqual(["platform-cad", "platform-usd"]);
+  expect(requests.slice(2).every(request => request.context.headers["X-Cache-Bypass"] === "true")).toBe(true);
+  await act(async () => {
+    for (const request of requests.slice(2)) {
+      const platform = platforms.find(platform => platform.id === request.platform)!;
+      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: 30 }] } });
+      request.observer.complete();
+    }
+  });
+});
 
 function createClient(responses: Map<string, object>) {
   const requests: { query: string; variables: Record<string, unknown>; context: Record<string, any> }[] = [];
@@ -110,13 +152,13 @@ test("dashboard reload requests all three datasets even when Apollo already has 
   seed(client, TRANSACTIONS_BY_ACTIVITY, { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] }, { activity: "activity-contribution" });
 
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
-  await screen.findByText("$100.00 / $1000.00");
+  await screen.findByText("$100.00 / $1,000.00");
   expect(requests).toHaveLength(0);
 
   const reload = screen.getByRole("button", { name: "Reload data" });
   fireEvent.click(reload);
   expect(reload).toBeDisabled();
-  await screen.findByText("$250.00 / $2000.00");
+  await screen.findByText("$250.00 / $2,000.00");
   await waitFor(() => expect(reload).toBeEnabled());
   expect(requests.every(request => request.context.headers["X-Cache-Bypass"] === "true")).toBe(true);
   expect(requests.map((request) => request.query).sort()).toEqual(Array.from(responses.keys()).sort());
@@ -139,9 +181,9 @@ test("dashboard recalculates contribution limits when contributions are unchange
   seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
   seed(client, TRANSACTIONS_BY_ACTIVITY, contributions, { activity: "activity-contribution" });
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
-  await screen.findByText("$100.00 / $1000.00");
+  await screen.findByText("$100.00 / $1,000.00");
   fireEvent.click(screen.getByRole("button", { name: "Reload data" }));
-  await screen.findByText("$100.00 / $2000.00");
+  await screen.findByText("$100.00 / $2,000.00");
 });
 
 test.each([

@@ -16,6 +16,7 @@ import ContributionLimits from "./ContributionLimits";
 import { DASHBOARD_TRANSACTIONS, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW } from "./gql";
 
 const DashboardView = () => {
+  const [bulkEditing, setBulkEditing] = useState(false);
   const client = useApolloClient();
   const [dateRange, setDateRange] = useState<TransactionDateRange>(() => ({
     start: dayjs().subtract(29, "day").format("YYYY-MM-DD"),
@@ -36,7 +37,7 @@ const DashboardView = () => {
             justifyContent="flex-end"
             alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: "wrap", rowGap: 2 }}>
             {accounts && <AddContributionLimit accounts={accounts}/>}
-            <ReloadButton onReload={handleReload} loading={loading} />
+            <ReloadButton onReload={handleReload} loading={loading} disabled={bulkEditing} />
           </Stack>
           <PortfolioOverview />
           {accounts ? <ContributionLimits accounts={accounts} /> : loading && <LoadingProgress />}
@@ -46,6 +47,7 @@ const DashboardView = () => {
             </Typography>
             {error && <Alert type="error" showIcon message="Unable to load transactions for this date range. Try reloading or changing the dates." style={{ marginTop: 16 }} />}
             <TransactionDataGrid
+              onBulkEditChange={setBulkEditing}
               gridData={!loading && !error ? data?.recentTransactions ?? [] : []}
               dateRange={dateRange}
               onDateRangeChange={setDateRange}

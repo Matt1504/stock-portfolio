@@ -1,6 +1,6 @@
 import { PlusOutlined } from "@ant-design/icons";
 import { useState } from "react";
-import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space } from "antd";
+import { Button, Col, Form, Input, Modal, Radio, Row, Select, Space, Tooltip } from "antd";
 
 import { useMutation } from "@apollo/client";
 
@@ -11,14 +11,17 @@ import { Stock } from "../../models/Stock";
 import { ALL_STOCKS_CURRENCY, CREATE_STOCK } from "./gql";
 
 type SADProps = {
-  data: { stocks: { edges: GraphQLNode<Stock>[] }; currencies: { edges: GraphQLNode<Currency>[] } } | undefined;
+  data: { stocks: { edges: GraphQLNode<Stock>[] }; currencies: { edges: GraphQLNode<Currency>[] }; assets?: { edges: GraphQLNode<{ id: string; name: string }>[] } } | undefined;
   loading: boolean;
   selectedStockId: string | undefined;
   onStockChange: (id: string) => void;
+  compact?: boolean;
+  initialValues?: { currency?: string; account?: string };
+  onCreated?: (record: Stock) => Promise<void> | void;
 };
 
 const StocksAddDropdown = (props: SADProps) => {
-  const { data, loading, selectedStockId, onStockChange } = props;
+  const { data, loading, selectedStockId, onStockChange, compact = false, initialValues, onCreated } = props;
   const notification = new NotificationComponent();
   const [form] = Form.useForm();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +45,7 @@ const StocksAddDropdown = (props: SADProps) => {
         data: {
           stocks: { edges: [...readData.stocks.edges, { node: newStock }] },
           currencies: readData.currencies,
+          assets: readData.assets,
         },
       });
       notification.openNotificationWithIcon(
@@ -54,10 +58,17 @@ const StocksAddDropdown = (props: SADProps) => {
     },
   });
 
-  const onFinish = async (values: Stock) => {
+  const onFinish = async (values: { name: string; ticker: string; currency: string; assetId: string }) => {
     if (saving) return;
     try {
-      await createStock({ variables: { stock: { ...values, ticker: values.ticker?.trim().toUpperCase(), name: values.name?.trim() } } });
+      const result = await createStock({ variables: { stock: { ...values, ticker: values.ticker?.trim().toUpperCase(), name: values.name?.trim() } } });
+      if (result.data?.createStock?.stock) {
+        try {
+          await onCreated?.(result.data.createStock.stock);
+        } catch {
+          notification.openNotificationWithIcon("error", "Refresh Failed", "The stock was saved, but the transaction options could not be refreshed. Please reload the page.");
+        }
+      }
     } catch {
       notification.openNotificationWithIcon("error", "Error Adding Stock", "Could not save the stock. Please try again.");
     }
@@ -67,6 +78,29 @@ const StocksAddDropdown = (props: SADProps) => {
     setDialogOpen(false);
     form.resetFields();
   };
+
+  const addButton = <Tooltip title="Add Stock"><Button aria-label="Add Stock" type={compact ? "default" : "primary"} size={compact ? "small" : "middle"} icon={<PlusOutlined aria-hidden />} disabled={loading || !data} onClick={() => { form.setFieldsValue({ ...initialValues, assetId: data?.assets?.edges.find(({ node }) => node.name === "Stock")?.node.id }); setDialogOpen(true); }}>{compact ? null : "Add Stock"}</Button></Tooltip>;
+  const dialog = (
+      <Modal title="Add Stock" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Stock" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
+        <Form form={form} name="add_stock_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
+          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: "Please enter a name." }]}>
+            <Input placeholder="Stock name" autoFocus />
+          </Form.Item>
+          <Form.Item name="ticker" label="Ticker" rules={[{ required: true, whitespace: true, message: "Please enter a ticker." }]}>
+            <Input placeholder="e.g. AAPL" />
+          </Form.Item>
+          <Form.Item name="assetId" label="Asset Type" rules={[{ required: true, message: "Please select an asset type." }]}>
+            <Select options={data?.assets?.edges.map(({ node }) => ({ value: node.id, label: node.name }))} />
+          </Form.Item>
+          <Form.Item name="currency" label="Currency" rules={[{ required: true, message: "Please select a currency." }]}>
+            <Radio.Group optionType="button" buttonStyle="solid">
+              {data?.currencies.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
+            </Radio.Group>
+          </Form.Item>
+        </Form>
+      </Modal>
+  );
+  if (compact) return <>{notification.contextHolder}{addButton}{dialog}</>;
 
   return (
     <Row gutter={[16, 16]} align="middle">
@@ -104,24 +138,10 @@ const StocksAddDropdown = (props: SADProps) => {
       </Col>
       <Col xs={24} md={8} style={{ display: "flex", justifyContent: "flex-end" }}>
         <Space wrap>
-          <Button type="primary" icon={<PlusOutlined aria-hidden />} disabled={loading || !data} onClick={() => setDialogOpen(true)}>Add Stock</Button>
+          {addButton}
         </Space>
       </Col>
-      <Modal title="Add Stock" open={dialogOpen} onCancel={handleCancel} onOk={() => form.submit()} okText="Add Stock" confirmLoading={saving} cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving}>
-        <Form form={form} name="add_stock_dialog" layout="vertical" onFinish={onFinish} disabled={saving}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true, message: "Please enter a name." }]}>
-            <Input placeholder="Stock name" autoFocus />
-          </Form.Item>
-          <Form.Item name="ticker" label="Ticker" rules={[{ required: true, whitespace: true, message: "Please enter a ticker." }]}>
-            <Input placeholder="e.g. AAPL" />
-          </Form.Item>
-          <Form.Item name="currency" label="Currency" rules={[{ required: true, message: "Please select a currency." }]}>
-            <Radio.Group optionType="button" buttonStyle="solid">
-              {data?.currencies.edges.map(({ node }) => <Radio key={node.id} value={node.id}>{node.code}</Radio>)}
-            </Radio.Group>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {dialog}
     </Row>
   );
 };

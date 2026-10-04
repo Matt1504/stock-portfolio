@@ -11,7 +11,7 @@ import { ContributionLimt } from "../../models/ContributionLimit";
 import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Transaction } from "../../models/Transaction";
-import { formatNumberAsCurrency } from "../../utils/utils";
+import { formatNumberAsCurrency, formatNumber } from "../../utils/utils";
 import ContributionGraph from "./ContributionGraph";
 import { GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
 
@@ -21,6 +21,7 @@ type CLProps = {
 
 const ContributionLimits = (props: CLProps) => {
     const {accounts} = props;
+    const eligibleAccounts = accounts.edges.filter(account => account.node.hasContributionLimit !== false);
     const [contributionLimits, setContributionLimits] = useState<Map<string, number>>(new Map<string, number>());
     const [contributions, setContributions] = useState<Map<string, number>>(new Map<string, number>());
     const {data, loading: limitsLoading} = useQuery(GET_CONTRIBUTION_LIMITS, {
@@ -77,37 +78,39 @@ const ContributionLimits = (props: CLProps) => {
         return limit > 0 ? (contribution / limit) * 100 : 0;
     }
 
-    function printContributionUsed(accountId: string) {
+    function printContributionUsed(accountId: string, hasLimit: boolean) {
         const contribution = contributions?.get(accountId) ?? 0;
         const limit = contributionLimits?.get(accountId) ?? 0;
-        return `${formatNumberAsCurrency(contribution)} / ${formatNumberAsCurrency(limit)}`;
+        return hasLimit ? `${formatNumberAsCurrency(contribution)} / ${formatNumberAsCurrency(limit)}` : `$${formatNumber(contribution, 2, 2)} / -`;
     }
+
+    if (!accounts.edges.length) return null;
 
     return (
         <Row gutter={[24, 24]}>
             <Col span={24}>
                 <Typography variant="h6">
-                Contribution Limits
+                Contributions
                 </Typography>
             </Col>
             {accounts.edges.map((account: GraphQLNode<Account>) => {
                 return (
                     <Col xs={24} md={12} xl={8} key={account.node.id}>
-                        <Card>
+                        <Card role="group" aria-label={`${account.node.code} contributions`}>
                             <Statistic 
                                 loading={isLoading}
                                 title={account.node.name}
-                                value={computeContributionUsed(account.node.id ?? "")}
-                                suffix="%"
-                                precision={2}
+                                value={account.node.hasContributionLimit === false ? "-" : computeContributionUsed(account.node.id ?? "")}
+                                suffix={account.node.hasContributionLimit === false ? undefined : "%"}
+                                precision={account.node.hasContributionLimit === false ? undefined : 2}
                             />
-                            {!isLoading && <Typography display="block" variant="overline" sx={{ mt: 2, lineHeight: 1.6 }}>{printContributionUsed(account.node.id ?? "")}</Typography>}
+                            {!isLoading && <Typography display="block" variant="overline" sx={{ mt: 2, lineHeight: 1.6 }}>{printContributionUsed(account.node.id ?? "", account.node.hasContributionLimit !== false)}</Typography>}
                         </Card>
                     </Col>
                 )
             })}
             <Col span={24}>
-                {data && accounts.edges.length > 0 && <ContributionGraph accounts={accounts.edges} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
+                {data && eligibleAccounts.length > 0 && <ContributionGraph accounts={eligibleAccounts} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
             </Col>
         </Row>
     );

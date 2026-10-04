@@ -7,9 +7,11 @@ export const GET_PLATFORM_INFO = gql(`
         node {
           id
           name
+          code
         }
       }
     }
+    assets { edges { node { id name } } }
     currencies {
         edges {
             node {
@@ -46,6 +48,7 @@ export const GET_PLATFORM_INFO = gql(`
                 id
                 name
                 ticker
+                asset { id name }
                 currency {
                   id
                 }
@@ -57,8 +60,16 @@ export const GET_PLATFORM_INFO = gql(`
 export const CREATE_TRANSACTION = gql(`
   mutation createTransaction( $profileId: ID!, $trans: TransactionInput!) {
     createTransaction(profileId: $profileId, transData: $trans) {
+        warnings { code message }
         transaction { 
           id
         }
     }
   }`);
+export const OUTSTANDING_GIC_PURCHASES = gql(`
+  query OutstandingGicPurchases($profileId: ID!, $platform: ID!, $stock: ID) {
+    outstandingGicPurchases(profileId: $profileId, platform: $platform, stock: $stock) {
+      id total transactionDate maturityDate rate interestCalculation expectedMaturityTotal
+    }
+  }
+`);

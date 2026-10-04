@@ -7,6 +7,9 @@ export interface Activity extends GraphQLType {
 export enum ActivityEnum {
   CONTRIBUTION = "Contribution",
   WITHDRAWAL = "Withdrawal",
+  SERVICEFEE = "Service Fee",
+  SECFEE = "SEC Fee",
+  ETFREBATE = "ETF Rebate",
   TRANSFERIN = "Transfer In",
   TRANSFEROUT = "Transfer Out",
   BUY = "Buy",
@@ -14,6 +17,8 @@ export enum ActivityEnum {
   DIVIDENDS = "Dividends",
   WITHHOLDINGTAX = "Withholding Tax",
   ADJUSTMENT = "Adjustment",
+  STOCKSPINOFF = "Stock Spinoff",
   STOCKSPLIT = "Stock Split",
+  GICMATURITY = "GIC Maturity",
   INTEREST = "Interest",
 }

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { GraphData } from "../models/GraphData";
-import ChartTimeRange, { ChartRange, chartHistoryInRange } from "./ChartTimeRange";
+import ChartTimeRange, { ChartRange, chartHistoryInRange, availableBarRanges, barHistoryInRange } from "./ChartTimeRange";
 
 const now = dayjs("2026-10-01");
 const points = [
@@ -47,4 +47,19 @@ test("all four horizon controls change the visible history", () => {
   }
   fireEvent.click(screen.getByRole("radio", { name: "All time" }));
   expect(screen.getByRole("status")).toHaveTextContent("2023-01-01");
+});
+
+
+test("bar ranges retain only real activities without carried balances or synthetic dates", () => {
+  expect(barHistoryInRange(points, "3m", now)).toEqual([points[3]]);
+  expect(barHistoryInRange(points, "all", now)).toEqual(points);
+  expect(barHistoryInRange(points.slice(0, 1), "1y", now)).toEqual([]);
+});
+
+test("only useful, nonduplicate horizons are offered for ongoing histories", () => {
+  expect(availableBarRanges(points.slice(0, 4), now)).toEqual(["3m", "1y", "2y", "all"]);
+  expect(availableBarRanges([points[0], points[3]], now)).toEqual(["3m", "all"]);
+  expect(availableBarRanges([points[3]], now)).toEqual(["all"]);
+  expect(availableBarRanges([new GraphData("2024-01-01", 5, undefined, undefined), new GraphData("2024-05-01", 6, undefined, undefined)], now)).toEqual(["all"]);
+  expect(availableBarRanges([], now)).toEqual(["all"]);
 });

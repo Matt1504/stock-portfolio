@@ -22,7 +22,7 @@ const fixture = ["1", "2"].map(id => ({
 }));
 function Table() {
   const { data } = useQuery(query, { variables: { profileId: "profile" } });
-  return <TransactionDataGrid gridData={(data?.transactionsByAccount ?? []) as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total", "description"]} query={query} />;
+  return <TransactionDataGrid gridData={(data?.transactionsByAccount ?? []) as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["priceCurrency", "totalCurrency", "exchangeRate", "activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total", "description"]} query={query} />;
 }
 function show(outcome: "success" | "failure" | "network" = "success") {
   let records = [...fixture];

@@ -13,7 +13,7 @@ export type HoldingIssue = {
   missingShares: number;
 };
 
-export function calculateStockHoldings(transactions: Transaction[]) {
+export function calculateStockHoldings(transactions: Transaction[], selectedStockId?: string) {
   const positions = new Map<string, StockHolding & { platform: string; accountCode?: string }>();
   const bookCostAfterTransaction = new Map<string, number>();
   let runningBookCost = 0;
@@ -26,7 +26,50 @@ export function calculateStockHoldings(transactions: Transaction[]) {
       const activity = transaction.activity.name;
       const quantity = transaction.shares ?? 0;
       const stock = transaction.stock;
-      if (stock?.id && ["Buy", "Sell", "Stock Split", "Transfer In", "Transfer Out"].includes(activity ?? "") && quantity !== 0) {
+      if (activity === "Stock Spinoff" && stock?.id && transaction.spinoffSource?.id) {
+        const allocation = transaction.allocatedBookCost ?? 0;
+        if (!selectedStockId || selectedStockId === stock.id) {
+          const key = JSON.stringify([transaction.platform.id, stock.id]);
+          const position = positions.get(key) ?? { stock, shares: 0, bookCost: 0, platform: transaction.platform.name ?? "", accountCode: transaction.account.code };
+          position.shares += quantity;
+          position.bookCost += allocation;
+          runningBookCost += allocation;
+          positions.set(key, position);
+        }
+        if (!selectedStockId || selectedStockId === transaction.spinoffSource.id) {
+          const key = JSON.stringify([transaction.platform.id, transaction.spinoffSource.id]);
+          const source = positions.get(key);
+          if (source) {
+            const moved = Math.min(source.bookCost, allocation);
+            source.bookCost -= moved;
+            runningBookCost -= moved;
+          }
+        }
+      } else if (selectedStockId && stock?.id !== selectedStockId) {
+        // Related corporate actions are returned for both stocks; cash trades
+        // still belong only to the selected stock.
+      } else if (stock?.id && stock.asset?.name === "GIC" && ["Buy", "GIC Maturity"].includes(activity ?? "")) {
+        const key = JSON.stringify([transaction.platform.id, stock.id]);
+        const position = positions.get(key) ?? { stock, shares: 0, bookCost: 0, platform: transaction.platform.name ?? "", accountCode: transaction.account.code };
+        const previousCost = position.bookCost;
+        position.bookCost = Math.max(0, position.bookCost + (activity === "Buy" ? transaction.total ?? 0 : -(transaction.principalReturned ?? 0)));
+        runningBookCost += position.bookCost - previousCost;
+        positions.set(key, position);
+      } else if (stock?.id && ["Index Fund", "Mutual Fund"].includes(stock.asset?.name ?? "") && quantity === 0 && ["Buy", "Sell"].includes(activity ?? "")) {
+        const key = JSON.stringify([transaction.platform.id, stock.id]);
+        const position = positions.get(key) ?? { stock, shares: 0, bookCost: 0, platform: transaction.platform.name ?? "", accountCode: transaction.account.code };
+        if (activity === "Buy") {
+          // Amount-only funds use recorded purchase totals, just as on My Stocks.
+          const cost = transaction.total ?? 0;
+          position.bookCost += cost;
+          runningBookCost += cost;
+          positions.set(key, position);
+        } else {
+          // TODO: Record disposal cost for amount-only funds. Sale proceeds alone
+          // cannot identify the principal removed or the realized gain.
+          hasIncompleteSales = true;
+        }
+      } else if (stock?.id && ["Buy", "Sell", "Stock Split", "Transfer In", "Transfer Out"].includes(activity ?? "") && quantity !== 0) {
         // Keep each broker's cost basis separate, then aggregate current
         // positions by stock ID. GraphQL object identity is not a stock ID.
         const key = JSON.stringify([transaction.platform.id, stock.id]);
@@ -69,7 +112,7 @@ export function calculateStockHoldings(transactions: Transaction[]) {
   positions.forEach((position) => {
     if (position.shares < 0) {
       issues.push({ stock: position.stock, platform: position.platform, missingShares: -position.shares });
-    } else if (position.shares > 0) {
+    } else if (position.shares > 0 || position.bookCost > 0) {
       const holding = holdingsByStock.get(position.stock.id!);
       if (holding) {
         holding.shares += position.shares;
@@ -85,7 +128,7 @@ export function calculateStockHoldings(transactions: Transaction[]) {
     holdings,
     issues,
     realizedGain: hasIncompleteSales ? undefined : realizedGain,
-    positions: Array.from(positions.values()).filter(position => position.shares > 0),
+    positions: Array.from(positions.values()).filter(position => position.shares > 0 || position.bookCost > 0),
     totalShares: holdings.reduce((sum, holding) => sum + holding.shares, 0),
     totalBookCost: holdings.reduce((sum, holding) => sum + holding.bookCost, 0),
     bookCostAfterTransaction,

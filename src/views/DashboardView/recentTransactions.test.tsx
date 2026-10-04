@@ -20,7 +20,7 @@ function setup() {
     const recent = { id: "recent", transactionDate: dayjs().format("YYYY-MM-DD"), description: "Recent fixture" };
     const old = { id: "old", transactionDate: "2024-01-01", description: "Older fixture" };
     const rows = [recent, old].filter(row => (!operation.variables.startDate || row.transactionDate >= operation.variables.startDate) && (!operation.variables.endDate || row.transactionDate <= operation.variables.endDate))
-      .map(row => ({ ...row, __typename: "TransactionType", account: { id: "a", code: "TFSA" }, platform: { id: "p", name: "Broker", currency: { id: "cad", code: "CAD" } }, activity: { name: "Contribution" }, stock: null, price: null, shares: null, fee: 0, rate: null, maturityDate: null, total: 100 }));
+      .map(row => ({ ...row, __typename: "TransactionType", account: { id: "a", code: "TFSA" }, platform: { id: "p", name: "Broker", currency: { id: "cad", code: "CAD" } }, activity: { name: "Contribution" }, stock: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, price: null, shares: null, fee: 0, rate: null, maturityDate: null, total: 100 }));
     Promise.resolve().then(() => { observer.next({ data: { accounts: { edges: [] }, recentTransactions: rows } }); observer.complete(); });
   })) });
   render(<ApolloProvider client={client}><ProfileContext.Provider value={{ profile, profiles: [profile], loading: false, selectProfile: () => {}, refetch: async () => {} }}><DashboardView /></ProfileContext.Provider></ApolloProvider>);

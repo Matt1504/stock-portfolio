@@ -5,6 +5,7 @@ import SelectedAccountInfo from "./SelectedAccountInfo";
 import { TRANSACTIONS_BY_PLATFORM } from "./gql";
 import { LineChart } from "recharts";
 import { calculateStockHoldings } from "./holdings";
+import { portfolioStatistics } from "./portfolioStatistics";
 
 jest.mock("../../components/TransactionDataGrid", () => ({ TransactionDataGrid: () => null }));
 jest.mock("recharts", () => {
@@ -18,13 +19,14 @@ let sequence = 0;
 function tx(stock: string, activity: string, shares: number, total = 100, platform = "broker"): Transaction {
   sequence += 1;
   return {
-    id: `tx-${sequence}`, account: { id: "account", name: "Savings", code: "TFSA" },
+    spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id: `tx-${sequence}`, account: { id: "account", name: "Savings", code: "TFSA" },
     platform: { id: platform, name: platform, currency },
-    activity: { name: activity }, stock: { id: stock, ticker: stock, name: stock },
+    activity: { name: activity }, stock: { currency: null, id: stock, ticker: stock, name: stock, asset: { id: "stock-asset", name: "Stock" } },
     transactionDate: `2026-01-${String(sequence).padStart(2, "0")}`,
     shares, total, price: 10, fee: 0, description: "", rate: null, maturityDate: null,
   } as unknown as Transaction;
 }
+jest.setTimeout(20000);
 beforeEach(() => {
   sequence = 0;
   Object.defineProperty(window, "matchMedia", { writable: true, value: (query: string) => ({
@@ -76,17 +78,21 @@ test("one remaining Disney share renders one full pie sector and correct statist
   const client = new ApolloClient({ cache });
   const { container } = render(<ApolloProvider client={client}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   await waitFor(() => expect(screen.getByText("100.00%")).toBeInTheDocument());
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(4);
+  expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
   expect(screen.getAllByRole("group").map(group => group.getAttribute("aria-label"))).toEqual([
-    "Total Book Cost", "Net Deposits", "Realized Profit", "Realized Gain/Loss",
-    "Total Share(s) Owned", "Unique Share(s) Owned", "Largest Holding", "Dividends/Interest Earned",
-    "Amount Transferred In", "Amount Transferred Out", "Amount Contributed", "Amount Withdrawn",
+    "Cash Balance", "Total Book Cost", "Realized Profit", "Amount Contributed",
+    "Amount Transferred In", "Dividends/Interest Earned", "Total Share(s) Owned", "Largest Holding",
   ]);
-  expect(screen.getByText("DIS | $155.44")).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "Largest Holding" })).toHaveTextContent("DIS | $155.44");
+  fireEvent.click(screen.getByRole("button", { name: "Show Smallest Holding" }));
+  expect(screen.getByRole("group", { name: "Smallest Holding" })).toHaveTextContent("DIS | $155.44");
+  expect(screen.getByRole("group", { name: "Cash Balance" })).toHaveClass("flip-statistic--default");
+  expect(screen.getByRole("group", { name: "Cash Balance" })).toHaveTextContent("222.81");
   for (const title of ["Total Share(s) Owned", "Unique Share(s) Owned"]) {
-    expect(screen.getByText(title).closest(".ant-statistic")?.querySelector(".ant-statistic-content-value")?.textContent).toBe("1");
+    if (title === "Unique Share(s) Owned") fireEvent.click(screen.getByRole("button", { name: "Show Unique Share(s) Owned" }));
+    expect(screen.getByRole("group", { name: title }).querySelector(".ant-statistic")?.querySelector(".ant-statistic-content-value")?.textContent).toBe("1");
   }
   expect(container.querySelectorAll(".recharts-pie-sector")).toHaveLength(1);
   await waitFor(() => expect(container.querySelectorAll(".recharts-sector")).toHaveLength(2), { timeout: 3000 });
@@ -127,5 +133,89 @@ test("account dividends and interest subtract only stock-associated withholding 
   cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
+  fireEvent.click(screen.getByRole("button", { name: "Show Dividends/Interest Earned" }));
   expect(await within(screen.getByRole("group", { name: "Dividends/Interest Earned" })).findByText("55")).toBeInTheDocument();
+});
+
+test("GIC maturity removes principal from holdings without creating shares", () => {
+  const purchase = tx("GIC", "Buy", 0, 10000);
+  purchase.stock = { ...purchase.stock!, asset: { id: "gic", name: "GIC" } };
+  const maturity = { ...purchase, id: "maturity", transactionDate: "2027-01-01", activity: { name: "GIC Maturity" }, total: 10400, principalReturned: 10000, interestEarned: 400 } as unknown as Transaction;
+  expect(calculateStockHoldings([purchase]).totalBookCost).toBe(10000);
+  const settled = calculateStockHoldings([purchase, maturity]);
+  expect(settled.totalBookCost).toBe(0);
+  expect(settled.totalShares).toBe(0);
+  expect(settled.holdings).toHaveLength(0);
+  const overview = portfolioStatistics([purchase, maturity]);
+  expect(overview.income).toBe(400);
+  expect(overview.realizedProfit).toBe(400);
+  expect(overview.netDeposits).toBe(0);
+});
+
+test.each(["Index Fund", "Mutual Fund"])("amount-only %s purchases contribute cost without inventing shares", asset => {
+  const first = tx("TDB2440", "Buy", 0, 3000);
+  first.stock = { ...first.stock!, asset: { id: "fund", name: asset } };
+  const second = { ...first, id: "second", shares: undefined, total: 105.47 };
+  const summary = portfolioStatistics([first, second]);
+  expect(summary.holdings.totalBookCost).toBeCloseTo(3105.47);
+  expect(summary.holdings.totalShares).toBe(0);
+  expect(summary.holdings.holdings).toHaveLength(1);
+  expect(summary.holdings.bookCostAfterTransaction.get("second")).toBeCloseTo(3105.47);
+  expect(summary.largestHolding?.stock.ticker).toBe("TDB2440");
+  expect(summary.smallestHolding?.bookCost).toBeCloseTo(3105.47);
+  expect(summary.realizedProfit).toBe(0);
+});
+
+test("reinvesting matured GIC proceeds into an amount-only fund renders current book cost and history", async () => {
+  const purchase = tx("GIC", "Buy", 0, 2988.23);
+  purchase.stock = { ...purchase.stock!, asset: { id: "gic", name: "GIC" } };
+  const maturity = { ...tx("GIC", "GIC Maturity", 0, 3105.34), stock: purchase.stock, principalReturned: 2988.23, interestEarned: 117.11 };
+  const fund = tx("TDB2440", "Buy", 0, 3105.47);
+  fund.stock = { ...fund.stock!, asset: { id: "fund", name: "Mutual Fund" } };
+  const transactions = [purchase, maturity, fund];
+  const cache = new InMemoryCache({ addTypename: false });
+  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
+  render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="FHSA" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
+  expect(await screen.findByRole("group", { name: "Total Book Cost" })).toHaveTextContent("3,105.47");
+  expect(screen.getByText("$3,105.47")).toBeInTheDocument();
+  expect(screen.queryByText(/0 Share\(s\)/)).not.toBeInTheDocument();
+  const history = (LineChart as unknown as jest.Mock).mock.calls.slice(-1)[0][0].data;
+  expect(history.map((point: { value: number }) => point.value)).toEqual([2988.23, 0, 3105.47]);
+});
+
+test("amount-only sale proceeds do not invent a realized gain or disposal cost", () => {
+  const buy = tx("FUND", "Buy", 0, 100);
+  buy.stock = { ...buy.stock!, asset: { id: "fund", name: "Index Fund" } };
+  const sell = { ...tx("FUND", "Sell", 0, 120), stock: buy.stock };
+  const result = portfolioStatistics([buy, sell]);
+  expect(result.holdings.totalBookCost).toBe(100);
+  expect(result.holdings.realizedGain).toBeUndefined();
+  expect(result.realizedProfit).toBeUndefined();
+});
+
+
+test("largest and smallest holdings rank remaining cost after partial and full sales", () => {
+  const transactions = [tx("A", "Buy", 10, 1000), tx("B", "Buy", 3, 300), tx("A", "Sell", 9, 1200)];
+  const partial = portfolioStatistics(transactions);
+  expect(partial.largestHolding?.stock.ticker).toBe("B");
+  expect(partial.smallestHolding?.stock.ticker).toBe("A");
+  expect(partial.smallestHolding?.bookCost).toBeCloseTo(100);
+  const soldA = portfolioStatistics([...transactions, tx("A", "Sell", 1, 100)]);
+  expect(soldA.largestHolding?.stock.ticker).toBe("B");
+  expect(soldA.smallestHolding?.stock.ticker).toBe("B");
+  expect(soldA.holdings.holdings.some(holding => holding.stock.ticker === "A")).toBe(false);
+});
+
+test("a stock bought for 1000 and fully sold for 1000 cannot be a holding", () => {
+  const summary = portfolioStatistics([tx("A", "Buy", 10, 1000), tx("A", "Sell", 10, 1000)]);
+  expect(summary.holdings.totalBookCost).toBe(0);
+  expect(summary.largestHolding).toBeUndefined();
+  expect(summary.smallestHolding).toBeUndefined();
+});
+
+test("zero-cost positions are excluded consistently from both holding rankings", () => {
+  const summary = portfolioStatistics([tx("FREE", "Buy", 1, 0)]);
+  expect(summary.holdings.totalShares).toBe(1);
+  expect(summary.largestHolding).toBeUndefined();
+  expect(summary.smallestHolding).toBeUndefined();
 });

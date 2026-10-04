@@ -13,12 +13,12 @@ export class NotificationComponent {
         this.contextHolder = contextHolder;
     }
 
-    openNotificationWithIcon (type: NotificationType, message: string, description: string) {
+    openNotificationWithIcon (type: NotificationType, message: string, description: string, duration = 2) {
         this.api[type]({
           message,
           description,
           placement: "bottomLeft",
-          duration: 2,
+          duration,
         });
     }
 }

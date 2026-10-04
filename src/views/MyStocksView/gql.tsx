@@ -8,6 +8,7 @@ export const ALL_STOCKS_CURRENCY = gql(`
                     id
                     name
                     ticker
+                    asset { id name }
                     currency {
                         id
                         code
@@ -15,6 +16,7 @@ export const ALL_STOCKS_CURRENCY = gql(`
                 }
             }
         }
+        assets { edges { node { id name } } }
         currencies {
             edges {
                 node {
@@ -57,6 +59,7 @@ export const CREATE_STOCK = gql(`
                 id
                 name
                 ticker
+                asset { id name }
                 currency {
                     id
                     code
@@ -90,6 +93,12 @@ export const TRANSACTIONS_BY_STOCK = gql(`
                 ticker
             }
             transactionDate
+            spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+            gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+            stock { asset { id name } }
             price
             shares
             fee
@@ -102,11 +111,18 @@ export const TRANSACTIONS_BY_STOCK = gql(`
 export const UPDATE_TRANSACTION = gql(`
     mutation UpdateTransaction( $profileId: ID!, $trans:TransactionInput!){
         updateTransaction(profileId: $profileId, transData:$trans) {
+            warnings { code message }
             trans {
                 id
                 account { id code }
                 platform { id name account { id code } currency { id code } }
                 transactionDate
+                spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+            principalReturned interestEarned interestCalculation
+          priceCurrency { id code } totalCurrency { id code } exchangeRate
+                gicPurchase { id total transactionDate maturityDate }
+          stock { currency { id code } }
+                stock { asset { id name } }
                 price
                 shares
                 fee

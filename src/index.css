@@ -111,7 +111,36 @@ code {
 /* Give sections and form labels room without changing their content. */
 .portfolio-details > .ant-col > .chart-container,
 .portfolio-details > .chart-container { margin-top: 0; }
-.portfolio-transaction-form { max-width: 720px; }
+/* Form width follows the content area, including when the sidebar collapses. */
+.transaction-entry { container-type: inline-size; }
+.portfolio-transaction-form {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 32px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.portfolio-transaction-form > .ant-form-item { min-width: 0; }
+.portfolio-transaction-form > .ant-alert,
+.portfolio-transaction-form > .transaction-form-actions { grid-column: 1 / -1; }
+.portfolio-transaction-form .ant-select,
+.portfolio-transaction-form .ant-picker,
+.portfolio-transaction-form .ant-input-number,
+.portfolio-transaction-form .ant-input-number-group-wrapper { width: 100%; }
+.transaction-field-with-action { display: flex; align-items: center; gap: 8px; }
+.transaction-field-with-action > .ant-select { flex: 1; min-width: 0; }
+.transaction-field-with-action > .ant-btn { flex-shrink: 0; }
+.portfolio-content .portfolio-transaction-form > .transaction-form-actions { margin: 4px 0 0; }
+@container (min-width: 720px) {
+  .portfolio-transaction-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 479px) {
+  .portfolio-transaction-form { padding: 16px; }
+}
 .portfolio-content .ant-form-vertical .ant-form-item-label,
 .ant-modal .ant-form-vertical .ant-form-item-label { padding-bottom: 10px; }
 .portfolio-content .ant-form-item { margin-bottom: 28px; }

@@ -1,3 +1,4 @@
+import { formatNumber } from "../utils/utils";
 import { Sector } from "recharts";
 
 type PieShapeProps = {
@@ -73,7 +74,7 @@ export const RenderActiveShape = (props: PieShapeProps) => {
           y={ey}
           textAnchor={textAnchor}
           fill="#333"
-        >{`$${value.toFixed(2)} or ${payload.label} Share(s)`}</text>
+        >{`$${formatNumber(value, 2, 2)}${payload.label == null ? "" : ` or ${formatNumber(Number(payload.label))} Share(s)`}`}</text>
         <text
           x={ex + (cos >= 0 ? 1 : -1) * 12}
           y={ey}
