@@ -1,0 +1,11 @@
+.git
+.DS_Store
+node_modules
+build
+coverage
+tmp
+output
+.env*
+*.pdf
+*.PDF
+*.log

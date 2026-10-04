@@ -1,5 +1,11 @@
 # Stock Portfolio Client 
 
+## Docker stack
+
+The sibling `stock-portfolio-stack` project runs this frontend, the Python API and Redis with one Compose configuration. Production builds use the committed npm lockfile and serve React through Nginx; `/graphql` is proxied to the backend and direct React routes fall back to `index.html`. The development image uses the React dev server with a backend proxy and source hot reload. See the stack README for setup and `docker compose up --build -d --wait`.
+
+The Docker build sets `REACT_APP_GRAPHQL_URL=/graphql`; local non-Docker launches retain their existing API URL default. `node_modules`, `.env` files, build output and statement PDFs are excluded from Docker build contexts.
+
 ## Overview
 This project is the code that runs the front end client application for our Stock Portfolio application. It is written in TypeScript using ReactJS and Ant Design library. The client uses Apollo Client to send GraphQL API requests to our backend web server.
 
