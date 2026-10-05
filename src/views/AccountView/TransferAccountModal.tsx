@@ -97,6 +97,20 @@ const TransferAccountModal = (props: TAMProps) => {
     setTransferTo(undefined);
   }, [isModalOpen]);
 
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (!transferFrom && platforms.length === 1) {
+      setTransferFrom(platforms[0]);
+      return;
+    }
+    const destinations = transferFrom ? platforms.filter(platform =>
+      platform.node.id !== transferFrom.node.id &&
+      platform.node.account?.id === transferFrom.node.account?.id &&
+      platform.node.currency?.id === transferFrom.node.currency?.id
+    ) : [];
+    if (!transferTo && destinations.length === 1) setTransferTo(destinations[0]);
+  }, [isModalOpen, platforms, transferFrom, transferTo]);
+
   return (
     <>
       <Button type="primary" onClick={showModal}>

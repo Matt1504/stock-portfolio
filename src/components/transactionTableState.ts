@@ -1,6 +1,9 @@
 import { GridColumnVisibilityModel, GridDensity, GridSortModel } from "@mui/x-data-grid";
 import { Transaction } from "../models/Transaction";
 
+export const transactionPageSizes = [25, 50, 100];
+export type TransactionPagination = { page: number; pageSize: number };
+
 export type TablePreferences = {
   sortModel: GridSortModel;
   pageSize: number;
@@ -24,7 +27,7 @@ export function readTablePreferences(key: string, defaults: TablePreferences): T
     if (!saved || typeof saved !== "object") return defaults;
     return {
       sortModel: Array.isArray(saved.sortModel) && saved.sortModel.every((item: any) => typeof item?.field === "string" && ["asc", "desc"].includes(item.sort)) ? saved.sortModel : defaults.sortModel,
-      pageSize: [10, 25, 50].includes(saved.pageSize) ? saved.pageSize : defaults.pageSize,
+      pageSize: transactionPageSizes.includes(saved.pageSize) ? saved.pageSize : defaults.pageSize,
       density: ["compact", "standard", "comfortable"].includes(saved.density) ? saved.density : defaults.density,
       visibility: saved.visibility && typeof saved.visibility === "object" ? Object.fromEntries(Object.entries(saved.visibility).filter(([, value]) => typeof value === "boolean")) as GridColumnVisibilityModel : {},
       widths: saved.widths && typeof saved.widths === "object" ? Object.fromEntries(Object.entries(saved.widths).filter(([, value]) => typeof value === "number" && value >= 50 && value <= 2000)) as Record<string, number> : {},

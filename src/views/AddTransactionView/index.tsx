@@ -156,7 +156,12 @@ const AddTransactionView = () => {
     form.setFieldValue("total", formatDecimalTwoPlaces(total));
   };
 
-  const onReset = () => form.resetFields();
+  const onReset = () => {
+    form.resetFields();
+    setAccount("");
+    setCurrency("");
+    setActivity("");
+  };
 
   const onFinish = async (formValues: TransactionForm) => {
     const values = sanitizeTransactionFields(formValues, activity, nonStock);
@@ -202,12 +207,21 @@ const AddTransactionView = () => {
     .filter(({ node }: GraphQLNode<Stock>) => (activity !== "GIC Maturity" || node.asset?.name === "GIC") && (activity !== "Stock Spinoff" || node.asset?.name === "Stock"))
     .map(({ node }: GraphQLNode<Stock>) => ({ value: node.id, label: `${node.name} (${node.ticker})` })), [activity, data?.stocks?.edges]);
 
-  const platformOptions = useMemo(() => {
+  const platformOptions = useMemo<{ value: string | undefined; label: string | undefined }[]>(() => {
     if (!currency || !account) return [];
     return (data?.platforms?.edges ?? [])
       .filter((x: GraphQLNode<Platform>) => x.node.currency?.id === currency && x.node.account?.id === account)
       .map((x: GraphQLNode<Platform>) => ({ value: x.node.id, label: x.node.name }));
   }, [account, currency, data?.platforms?.edges]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (platformOptions.length === 1 && selectedPlatformId !== platformOptions[0].value) {
+      form.setFieldValue("platform", platformOptions[0].value);
+    } else if (selectedPlatformId && !platformOptions.some(option => option.value === selectedPlatformId)) {
+      form.setFieldValue("platform", null);
+    }
+  }, [loading, platformOptions, selectedPlatformId, form]);
 
   return (
     <Row>

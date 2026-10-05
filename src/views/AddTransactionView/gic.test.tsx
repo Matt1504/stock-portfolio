@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 async function select(label: string, option: string) {
   fireEvent.mouseDown(screen.getByRole("combobox", { name: label }));
-  fireEvent.click(await screen.findByTitle(option));
+  fireEvent.click((await screen.findAllByTitle(option)).find(element => element.classList.contains("ant-select-item-option"))!);
 }
 const purchase = { id: "purchase", total: 10000, transactionDate: "2025-10-01", maturityDate: "2026-10-01", rate: 4, interestCalculation: "simple", expectedMaturityTotal: 10400 };
 function show(purchases = [purchase]) {

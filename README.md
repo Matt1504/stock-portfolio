@@ -241,3 +241,9 @@ Largest and Smallest Holding use the same set of current holdings with positive 
 ### SEC Fee
 
 SEC Fee is an account-level expense available only for USD trading accounts. Enter its positive amount in Total without selecting a stock. It reduces Cash Balance and Realized Profit and increases Fees Paid, like Service Fee. It does not change stock holdings, book cost, Realized Gain/Loss, net deposits, or Dividends/Interest Earned. The backend validates the currency and account-only restriction for creation, individual edits, and bulk edits. Fresh setup includes the activity. Existing databases can add it idempotently from the backend directory with `python3 src/add_sec_fee_activity.py --apply`; restart the API afterward.
+
+### Performance diagnostics
+
+Add `performance=1` to a My Accounts or My Stocks URL to log network, calculation, and render-to-layout timings in the browser console. This is opt-in and logs only timing labels/counts, without portfolio data or GraphQL variables. Remove the parameter to turn it off. Render-to-layout timings exclude browser paint.
+
+For a local benchmark of existing statistics helpers, run `node scripts/benchmark-statistics.cjs /tmp/transaction-responses.json` with the response snapshot produced by the backend benchmark. Keep snapshots outside version control because they contain portfolio data.

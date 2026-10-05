@@ -8,6 +8,7 @@ import { transactionErrorMessage } from "../utils/transactionFeedback";
 import { cashActivities, inactiveTransactionFields } from "../views/AddTransactionView/transactionFields";
 import { OUTSTANDING_GIC_PURCHASES } from "../views/AddTransactionView/gql";
 import { changedDraft, transactionDraft, TransactionDraft, updateDraft } from "./bulkTransactionDrafts";
+import { transactionPageSizes, TransactionPagination } from "./transactionTableState";
 
 export const BULK_EDIT_OPTIONS = gql`
   query BulkEditOptions($profileId: ID!) {
@@ -33,7 +34,9 @@ function GicPurchaseSelect({ draft, original, onChange, disabled }: { draft: Tra
   return <Select aria-label={`Original GIC Purchase ${draft.id}`} allowClear loading={loading} disabled={disabled || !!error} style={{ width: 220 }} value={draft.gicPurchase} options={purchases.map(row => ({ value: row.id, label: `${row.transactionDate} · $${row.total}` }))} onChange={value => onChange(value ?? null)} />;
 }
 
-export default function BulkTransactionEditor({ rows, onCancel, onComplete, defaultSort, ascending, hiddenColumns = [] }: { rows: Transaction[]; onCancel: () => void; onComplete?: (saved: number, warnings: string[]) => void; defaultSort: string; ascending: boolean; hiddenColumns?: string[] }) {
+export default function BulkTransactionEditor({ rows, onCancel, onComplete, defaultSort, ascending, hiddenColumns = [], paginationModel, onPaginationModelChange }: { rows: Transaction[]; onCancel: () => void; onComplete?: (saved: number, warnings: string[]) => void; defaultSort: string; ascending: boolean; hiddenColumns?: string[]; paginationModel?: TransactionPagination; onPaginationModelChange?: (model: TransactionPagination) => void }) {
+  const [localPagination, setLocalPagination] = useState<TransactionPagination>({ page: 0, pageSize: 25 });
+  const pagination = paginationModel ?? localPagination;
   // Keep the snapshot stable while Apollo refreshes successfully saved rows.
   const [originals, setOriginals] = useState<Record<string, TransactionDraft>>(() => Object.fromEntries(rows.map(row => [row.id, transactionDraft(row)])));
   const [drafts, setDrafts] = useState<TransactionDraft[]>(() => rows.map(transactionDraft).sort((a, b) => String(a[defaultSort] ?? "").localeCompare(String(b[defaultSort] ?? ""), undefined, { numeric: true }) * (ascending ? 1 : -1)));
@@ -144,6 +147,10 @@ export default function BulkTransactionEditor({ rows, onCancel, onComplete, defa
       const stock = draft && stockFor(draft);
       return <Alert key={id} type="error" showIcon message={`${draft?.transactionDate} · ${draft?.activityName}${stock ? ` · ${stock.ticker}` : ""}`} description={error} />;
     })}
-    <Table rowKey="id" dataSource={drafts} columns={visibleColumns} loading={optionsQuery.loading} scroll={{ x: "max-content" }} pagination={{ defaultPageSize: 10, showSizeChanger: true, pageSizeOptions: [10, 25, 50] }} size="small" />
+    <Table rowKey="id" dataSource={drafts} columns={visibleColumns} loading={optionsQuery.loading} scroll={{ x: "max-content" }} pagination={{ current: pagination.page + 1, pageSize: pagination.pageSize, showSizeChanger: true, pageSizeOptions: transactionPageSizes, onChange: (current, pageSize) => {
+      const model = { page: current - 1, pageSize };
+      setLocalPagination(model);
+      onPaginationModelChange?.(model);
+    } }} size="small" />
   </Space>;
 }

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
+import { startCalculationTiming, useRenderTiming } from "../../utils/performanceDiagnostics";
 import { Alert, Col, Row, Tag, Tabs } from "antd";
 import { useContext, useEffect, useMemo, useState } from "react";
 import {
@@ -76,9 +77,11 @@ const SelectedStockInfo = (props: SSProps) => {
   const amountCurrencies = Array.from(new Set<string>((data?.transactions ?? []).map((transaction: Transaction) => transaction.totalCurrency?.code ?? transaction.platform.currency?.code).filter(Boolean))).sort();
   const selectedAmountCurrency = amountCurrency && amountCurrencies.includes(amountCurrency) ? amountCurrency : amountCurrencies[0];
   const currencyTransactions = useMemo(() => data?.transactions?.filter((transaction: Transaction) => (transaction.totalCurrency?.code ?? transaction.platform.currency?.code) === selectedAmountCurrency), [data?.transactions, selectedAmountCurrency]);
+  useRenderTiming("stock details");
 
   useEffect(() => {
     if (currencyTransactions) {
+      const finishTiming = startCalculationTiming("stock history and statistics", currencyTransactions.length);
       var buyGraphData = new Map<string, GraphData>();
       var divGraphData = new Map<string, GraphData>();
       const sellShares = new Map<string, number>();
@@ -173,6 +176,7 @@ const SelectedStockInfo = (props: SSProps) => {
       setPieGraphPlatData(summary.portfolio.positions.filter(position => position.bookCost > 0).map(position =>
         new GraphData(`${position.platform} (${position.accountCode ?? ""})`, position.bookCost, undefined, isGic ? undefined : position.shares.toString())
       ));
+      finishTiming();
     }
   }, [currencyTransactions, assetType, isFund, isGic, stock]);
 

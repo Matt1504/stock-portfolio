@@ -7,6 +7,7 @@ import { ApolloClient,
 
 import './index.css';
 import App from './App';
+import { performanceDiagnosticsLink } from './utils/performanceDiagnostics';
 
 async function bootStrap() {
   const link = createHttpLink({
@@ -15,7 +16,7 @@ async function bootStrap() {
 
   const client = new ApolloClient({
     cache: new InMemoryCache(),
-    link,
+    link: performanceDiagnosticsLink.concat(link),
   });
 
   const root = ReactDOM.createRoot(

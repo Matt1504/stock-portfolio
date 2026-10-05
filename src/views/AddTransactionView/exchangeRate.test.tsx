@@ -13,8 +13,44 @@ beforeEach(() => {
 });
 async function select(label: string, option: string) {
   fireEvent.mouseDown(screen.getByRole("combobox", { name: label }));
-  fireEvent.click(await screen.findByTitle(option));
+  const matches = await screen.findAllByTitle(option);
+  fireEvent.click(matches.find(element => element.classList.contains("ant-select-item-option"))!);
 }
+
+test("platform selection follows the sole eligible account/currency option without guessing among multiple platforms", async () => {
+  const fhsa = { id: "fhsa", name: "FHSA", code: "FHSA" };
+  const metadata = {
+    accounts: edges([account, fhsa]), currencies: edges([cad, usd]), assets: edges([]), stocks: edges([]), activities: edges([]),
+    platforms: edges([
+      { id: "cad-one", name: "CAD One", account, currency: cad },
+      { id: "cad-two", name: "CAD Two", account, currency: cad },
+      { id: "usd-one", name: "USD Only", account, currency: usd },
+      { id: "fhsa-one", name: "FHSA Only", account: fhsa, currency: cad },
+    ]),
+  };
+  const client = new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link: new ApolloLink(() => new Observable(observer => {
+    observer.next({ data: metadata }); observer.complete();
+  })) });
+  render(<ApolloProvider client={client}><AddTransactionView /></ApolloProvider>);
+  fireEvent.click(await screen.findByRole("radio", { name: "NRSA" }));
+  fireEvent.click(screen.getByRole("radio", { name: "USD" }));
+  const platform = () => screen.getByRole("combobox", { name: "Platform" }).closest(".ant-select");
+  await waitFor(() => expect(platform()).toHaveTextContent("USD Only"));
+  fireEvent.click(screen.getByRole("radio", { name: "CAD" }));
+  await waitFor(() => expect(platform()).not.toHaveTextContent("USD Only"));
+  expect(platform()).not.toHaveTextContent("CAD One");
+  await select("Platform", "CAD Two");
+  expect(platform()).toHaveTextContent("CAD Two");
+  fireEvent.click(screen.getByRole("radio", { name: "FHSA" }));
+  await waitFor(() => expect(platform()).toHaveTextContent("FHSA Only"));
+  fireEvent.click(screen.getByRole("radio", { name: "USD" }));
+  await waitFor(() => expect(platform()).not.toHaveTextContent("FHSA Only"));
+  fireEvent.click(screen.getByRole("radio", { name: "CAD" }));
+  await waitFor(() => expect(platform()).toHaveTextContent("FHSA Only"));
+  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+  await waitFor(() => expect(platform()).not.toHaveTextContent("FHSA Only"));
+  expect(screen.getByRole("radio", { name: "CAD" })).not.toBeChecked();
+});
 test.each(["Stock", "Index Fund"])("%s records a USD price in a CAD platform, recalculates FX and preserves the actual charge", async assetType => {
   const saved = jest.fn();
   const asset = { id: "asset", name: assetType };

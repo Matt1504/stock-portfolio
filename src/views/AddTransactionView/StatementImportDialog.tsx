@@ -2,7 +2,7 @@ import { formatNumber } from "../../utils/utils";
 import { UploadOutlined } from "@ant-design/icons";
 import { gql, useLazyQuery } from "@apollo/client";
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
-import { useContext, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ProfileContext } from "../../profiles/ProfileContext";
 import { useProfileMutation } from "../../profiles/hooks";
 import { GraphQLNode } from "../../models/GraphQLNode";
@@ -51,6 +51,18 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
   });
   const busy = previewLoading || importLoading || refreshing || readingFile;
   const invalidate = () => { setHasPreviewed(false); setPagination(previous => ({ ...previous, current: 1 })); setPreview(undefined); setReport(undefined); setError(undefined); };
+  const eligiblePlatforms = platforms.filter(p => p.account?.id === account);
+  const solePlatformId = eligiblePlatforms.length === 1 ? eligiblePlatforms[0].id : undefined;
+  useEffect(() => {
+    if (!busy && solePlatformId && platform !== solePlatformId) {
+      setPlatform(solePlatformId);
+      setHasPreviewed(false);
+      setPagination(previous => ({ ...previous, current: 1 }));
+      setPreview(undefined);
+      setReport(undefined);
+      setError(undefined);
+    }
+  }, [busy, solePlatformId, platform]);
   const readCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = ""; // Release the input's file reference; allow reselecting it.

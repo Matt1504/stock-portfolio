@@ -1,6 +1,6 @@
 import { Transaction } from "../models/Transaction";
 import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences } from "./transactionTableState";
-const defaults: TablePreferences = { sortModel: [{ field: "transactionDate", sort: "desc" }], pageSize: 10, visibility: {}, widths: {}, density: "standard" };
+const defaults: TablePreferences = { sortModel: [{ field: "transactionDate", sort: "desc" }], pageSize: 25, visibility: {}, widths: {}, density: "standard" };
 const rows = [
   { id: "1", transactionDate: "2026-01-01", activity: { name: "Buy" }, account: { id: "a", code: "TFSA" }, stock: { id: "s" } },
   { id: "2", transactionDate: "2026-01-31", activity: { name: "Sell" }, account: { id: "a", code: "TFSA" }, stock: { id: "s" } },
@@ -25,4 +25,12 @@ test("invalid saved preferences fall back safely", () => {
   expect(readTablePreferences("test", defaults)).toEqual(defaults);
   localStorage.setItem("test", JSON.stringify({ pageSize: 999, density: "bad", sortModel: [{ field: "stock", sort: "bad" }], visibility: { total: false, fee: "invalid" }, widths: { stock: -1, total: 120 } }));
   expect(readTablePreferences("test", defaults)).toEqual({ ...defaults, visibility: { total: false }, widths: { total: 120 } });
+});
+
+
+test("100 rows persists and the retired 10-row preference becomes 25", () => {
+  saveTablePreferences("test", { ...defaults, pageSize: 100 });
+  expect(readTablePreferences("test", defaults).pageSize).toBe(100);
+  saveTablePreferences("test", { ...defaults, pageSize: 10 });
+  expect(readTablePreferences("test", defaults).pageSize).toBe(25);
 });

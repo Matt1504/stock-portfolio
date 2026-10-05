@@ -105,12 +105,12 @@ test("partial success keeps only rejected rows pending for the next submission",
 });
 
 test("pagination preserves drafts when returning to a previous page", async () => {
-  show(false, Array.from({ length: 12 }, (_, index) => ({ ...rows[0], id: String(index + 1) })));
+  show(false, Array.from({ length: 27 }, (_, index) => ({ ...rows[0], id: String(index + 1) })));
   const first = await screen.findByRole("spinbutton", { name: "Total 1" });
   await waitFor(() => expect(first).toBeEnabled());
   fireEvent.change(first, { target: { value: "30" } });
   fireEvent.click(screen.getByRole("button", { name: "right" }));
-  expect(await screen.findByRole("spinbutton", { name: "Total 11" })).toBeInTheDocument();
+  expect(await screen.findByRole("spinbutton", { name: "Total 26" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "left" }));
   expect(await screen.findByRole("spinbutton", { name: "Total 1" })).toHaveValue("30");
   expect(screen.getByRole("button", { name: /Submit \(1\)/ })).toBeEnabled();
@@ -124,7 +124,7 @@ function WatchedTable() {
   return <><ReloadButton onReload={async () => {}} disabled={editing} /><TransactionDataGrid onBulkEditChange={setEditing} gridData={data?.transactionsByAccount ?? []} loading={loading} defaultSort="transactionDate" ascending removeColumns={["account", "platform"]} query={watchedTransactions} /></>;
 }
 test.each(["failure", "success", "warning"])("%s submission refreshes data and retains drafts only for failures", async outcome => {
-  localStorage.setItem("stock-portfolio-table-v1:TransactionsForBulk:account,platform", JSON.stringify({ sortModel: [{ field: "transactionDate", sort: "asc" }], pageSize: 10, visibility: { price: false }, widths: {}, density: "standard" }));
+  localStorage.setItem("stock-portfolio-table-v1:TransactionsForBulk:account,platform", JSON.stringify({ sortModel: [{ field: "transactionDate", sort: "asc" }], pageSize: 25, visibility: { price: false }, widths: {}, density: "standard" }));
   let queryCount = 0;
   const link = new ApolloLink(operation => new Observable(observer => {
     const timer = setTimeout(() => {
@@ -166,4 +166,30 @@ test("bulk editing hides excluded columns and leaves Total unpinned", async () =
   expect(screen.getByRole("columnheader", { name: "Total", exact: true })).not.toHaveClass("ant-table-cell-fix-right");
   fireEvent.change(screen.getByRole("spinbutton", { name: "Total 1" }), { target: { value: "30" } });
   expect(screen.getByRole("button", { name: "Submit (1)" })).toBeEnabled();
+});
+
+
+test("bulk edit keeps the current page and saved page size on entry and exit", async () => {
+  const tableRows = Array.from({ length: 65 }, (_, index) => ({ ...rows[0], id: String(index + 1) }));
+  localStorage.setItem("stock-portfolio-table-v1:TransactionsForBulk:account,platform", JSON.stringify({ sortModel: [{ field: "transactionDate", sort: "asc" }], pageSize: 50, visibility: {}, widths: {}, density: "standard" }));
+  const link = new ApolloLink(operation => new Observable(observer => {
+    observer.next({ data: operation.operationName === "TransactionsForBulk" ? { transactionsByAccount: tableRows } : options });
+    observer.complete();
+  }));
+  render(<ApolloProvider client={new ApolloClient({ link, cache: new InMemoryCache({ addTypename: false }) })}><WatchedTable /></ApolloProvider>);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Bulk Edit" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Go to next page" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Go to next page" }));
+  await waitFor(() => expect(document.querySelector(".MuiTablePagination-displayedRows")?.textContent).toBe("51–65 of 65"));
+  fireEvent.click(screen.getByRole("button", { name: "Bulk Edit" }));
+  expect(await screen.findByRole("spinbutton", { name: "Total 51" })).toBeInTheDocument();
+  expect(screen.queryByRole("spinbutton", { name: "Total 1" })).not.toBeInTheDocument();
+  expect(screen.getByText("50 / page")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(document.querySelector(".MuiTablePagination-displayedRows")?.textContent).toBe("51–65 of 65"));
+  fireEvent.click(screen.getByRole("button", { name: "Bulk Edit" }));
+  fireEvent.click(screen.getByRole("button", { name: "left" }));
+  expect(await screen.findByRole("spinbutton", { name: "Total 1" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(await screen.findByText("1–50 of 65")).toBeInTheDocument();
 });

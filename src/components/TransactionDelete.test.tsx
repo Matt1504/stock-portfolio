@@ -21,26 +21,36 @@ const fixture = ["1", "2"].map(id => ({
   platform: { id: "broker", name: "Broker" }, stock: { id: "stock", name: "Example", ticker: "EX" },
 }));
 function Table() {
-  const { data } = useQuery(query, { variables: { profileId: "profile" } });
-  return <TransactionDataGrid gridData={(data?.transactionsByAccount ?? []) as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["priceCurrency", "totalCurrency", "exchangeRate", "activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total", "description"]} query={query} />;
+  const { data, loading } = useQuery(query, { variables: { profileId: "profile" }, notifyOnNetworkStatusChange: true });
+  return <TransactionDataGrid loading={loading} gridData={(data?.transactionsByAccount ?? []) as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["priceCurrency", "totalCurrency", "exchangeRate", "activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total", "description"]} query={query} />;
 }
-function show(outcome: "success" | "failure" | "network" = "success") {
+function show(outcome: "success" | "failure" | "network" = "success", holdRefetch = false) {
   let records = [...fixture];
   const deletes: Record<string, unknown>[] = [];
   let queryCount = 0;
+  const pendingRefetches: (() => void)[] = [];
   const link = new ApolloLink(operation => new Observable(observer => {
-    const timer = setTimeout(() => {
+    const isDelete = operation.operationName === "DeleteTransaction";
+    if (!isDelete) queryCount++;
+    const respond = () => {
       if (operation.operationName === "DeleteTransaction") {
         deletes.push(operation.variables);
         if (outcome === "network") { observer.error(new Error("Offline")); return; }
         if (outcome === "success") records = records.filter(row => row.id !== operation.variables.id);
         observer.next({ data: { deleteTransaction: { success: outcome === "success" } } });
       } else {
-        queryCount++;
         observer.next({ data: { transactionsByAccount: records } });
       }
       observer.complete();
-    }, 10);
+    };
+    if (!isDelete && queryCount > 1 && holdRefetch) {
+      pendingRefetches.push(respond);
+      return () => {
+        const index = pendingRefetches.indexOf(respond);
+        if (index >= 0) pendingRefetches.splice(index, 1);
+      };
+    }
+    const timer = setTimeout(respond, 10);
     return () => clearTimeout(timer);
   }));
   render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link })}>
@@ -48,7 +58,7 @@ function show(outcome: "success" | "failure" | "network" = "success") {
       <Table />
     </ProfileContext.Provider>
   </ApolloProvider>);
-  return { deletes, queryCount: () => queryCount };
+  return { deletes, queryCount: () => queryCount, releaseRefetch: () => pendingRefetches.splice(0).forEach(respond => respond()) };
 }
 beforeEach(() => localStorage.clear());
 
@@ -69,6 +79,21 @@ test("deleting requires confirmation, includes the profile, and refreshes the ta
   expect(transport.deletes).toEqual([{ id: "1", profileId: "profile" }]);
   expect(transport.queryCount()).toBeGreaterThan(1);
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+});
+
+test("confirmation closes after deletion while the table refresh is still pending", async () => {
+  const transport = show("success", true);
+  await screen.findByText("2 of 2 transactions");
+  fireEvent.click((await screen.findAllByRole("button", { name: "Delete transaction" }))[0]);
+  const dialog = within(await screen.findByRole("dialog"));
+  fireEvent.click(dialog.getByRole("button", { name: "Delete Transaction" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(transport.deletes).toEqual([{ id: "1", profileId: "profile" }]);
+  expect(transport.queryCount()).toBeGreaterThan(1);
+  expect(screen.getByRole("button", { name: "Bulk Edit" })).toBeDisabled();
+  transport.releaseRefetch();
+  await screen.findByText("1 of 1 transactions");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Bulk Edit" })).toBeEnabled());
 });
 
 test.each(["failure", "network"] as const)("%s leaves the record visible and shows a retry error", async outcome => {

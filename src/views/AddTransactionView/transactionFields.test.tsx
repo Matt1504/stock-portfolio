@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 async function select(label: string, option: string) {
   fireEvent.mouseDown(screen.getByRole("combobox", { name: label }));
-  fireEvent.click((await screen.findAllByTitle(option)).find(element => !element.closest(".ant-select-dropdown-hidden"))!);
+  fireEvent.click((await screen.findAllByTitle(option)).find(element => element.classList.contains("ant-select-item-option") && !element.closest(".ant-select-dropdown-hidden"))!);
 }
 
 test.each(["Contribution", "Service Fee", "ETF Rebate"])("switching a populated Buy to %s clears the stock and excludes hidden fields when saved", async (activity) => {

@@ -26,6 +26,14 @@ function show(preview = goodPreview, complete = true, failPreview = false, initi
   render(<ApolloProvider client={client}><ProfileContext.Provider value={{ profile: { id: "owner", name: "Owner" }, profiles: [], selectProfile: jest.fn(), loading: false, refetch: jest.fn() }}><StatementImportDialog data={metadata} initialPlatform={initialPlatform} onClose={jest.fn()} onImported={refresh} /></ProfileContext.Provider></ApolloProvider>);
   return { queries, mutations, refresh };
 }
+test("selecting an import account automatically selects its sole CAD platform", async () => {
+  const { queries } = show(goodPreview, true, false, "");
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Import account" }));
+  fireEvent.click(await screen.findByTitle("NRSA"));
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Import platform" }).closest(".ant-select")).toHaveTextContent("Wealthsimple"));
+  expect(queries).not.toHaveBeenCalled();
+});
+
 test("preview is read-only and import forwards profile/platform/hash then refreshes data", async () => {
   const { queries, mutations, refresh } = show();
   expect(screen.getByRole("combobox", { name: "Import account" }).closest(".ant-select")).toHaveTextContent("NRSA");

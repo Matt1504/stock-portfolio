@@ -28,7 +28,7 @@ import {
 import { notifyTransactionSaved, transactionErrorMessage } from "../utils/transactionFeedback";
 import { NotificationComponent } from "./Notification";
 import TransactionEditDialog from "./TransactionEditDialog";
-import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences, TransactionFilters } from "./transactionTableState";
+import { filterTransactions, readTablePreferences, saveTablePreferences, TablePreferences, TransactionFilters, transactionPageSizes, TransactionPagination } from "./transactionTableState";
 
 export const EDIT_TRANSACTION_PLATFORMS = gql`
   query EditTransactionPlatforms($profileId: ID!) {
@@ -180,7 +180,9 @@ const TransactionDataGridContent = (props: TDGProps) => {
   const [deleteItem, setDeleteItem] = useState<Transaction>();
   const [deleteError, setDeleteError] = useState<string>();
   const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION, {
-    awaitRefetchQueries: true,
+    // Close confirmation after the mutation succeeds; page queries show their
+    // own loading state while the portfolio refresh continues.
+    awaitRefetchQueries: false,
     update: (cache, result, options) => {
       if (result.data?.deleteTransaction?.success) {
         const entityId = cache.identify({ __typename: "TransactionType", id: options.variables?.id });
@@ -257,7 +259,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
   const operation = query.definitions.find(definition => definition.kind === "OperationDefinition");
   const viewName = operation?.kind === "OperationDefinition" ? operation.name?.value ?? "transactions" : "transactions";
   const preferenceKey = `stock-portfolio-table-v1:${viewName}:${[...removeColumns].sort().join(",")}`;
-  const defaults: TablePreferences = { sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }], pageSize: 10, visibility: {}, widths: {}, density: "standard" };
+  const defaults: TablePreferences = { sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }], pageSize: 25, visibility: {}, widths: {}, density: "standard" };
   const [preferences, setPreferences] = useState(() => readTablePreferences(preferenceKey, defaults));
   const [bulkHiddenColumns, setBulkHiddenColumns] = useState<string[]>([]);
   const [bulkRows, setBulkRows] = useState<Transaction[] | null>(null);
@@ -270,6 +272,11 @@ const TransactionDataGridContent = (props: TDGProps) => {
   useEffect(() => { saveTablePreferences(preferenceKey, preferences); }, [preferenceKey, preferences]);
   const rows = gridData ?? emptyRows;
   const filteredRows = useMemo(() => filterTransactions(rows, filters), [rows, filters]);
+  const paginationModel = { page: Math.min(page, Math.max(0, Math.ceil((bulkRows ?? filteredRows).length / preferences.pageSize) - 1)), pageSize: preferences.pageSize };
+  const changePagination = (model: TransactionPagination) => {
+    setPage(model.page);
+    setPreferences(value => ({ ...value, pageSize: model.pageSize }));
+  };
   const setFilter = (update: Partial<TransactionFilters>) => { setFilters(value => ({ ...value, ...update })); setPage(0); };
   const options = (getValue: (row: Transaction) => string | undefined, getLabel: (row: Transaction) => string | undefined) =>
     Array.from(new Map(rows.map(row => [getValue(row), { value: getValue(row), label: getLabel(row) }])).values())
@@ -303,7 +310,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
     else setFilter(range);
   };
 
-  if (bulkRows) return <Box sx={{ marginTop: 3, width: "100%" }}>{notification.contextHolder}<BulkTransactionEditor hiddenColumns={bulkHiddenColumns} rows={bulkRows} defaultSort={defaultSort} ascending={ascending} onComplete={(saved, warnings) => notification.openNotificationWithIcon(warnings.length ? "warning" : "success", "Transactions Updated", `${saved} transaction(s) saved.${warnings.length ? ` ${warnings.join(" ")}` : ""}`, warnings.length ? 8 : 2)} onCancel={() => setBulkRows(null)} /></Box>;
+  if (bulkRows) return <Box sx={{ marginTop: 3, width: "100%" }}>{notification.contextHolder}<BulkTransactionEditor paginationModel={paginationModel} onPaginationModelChange={changePagination} hiddenColumns={bulkHiddenColumns} rows={bulkRows} defaultSort={defaultSort} ascending={ascending} onComplete={(saved, warnings) => notification.openNotificationWithIcon(warnings.length ? "warning" : "success", "Transactions Updated", `${saved} transaction(s) saved.${warnings.length ? ` ${warnings.join(" ")}` : ""}`, warnings.length ? 8 : 2)} onCancel={() => setBulkRows(null)} /></Box>;
 
   return (
     <Box sx={{ marginTop: 3, width: "100%" }}>
@@ -347,12 +354,12 @@ const TransactionDataGridContent = (props: TDGProps) => {
         rows={filteredRows}
         sortModel={preferences.sortModel.filter(item => columns.some(column => column.field === item.field))}
         onSortModelChange={sortModel => setPreferences(value => ({ ...value, sortModel }))}
-        paginationModel={{ page: Math.min(page, Math.max(0, Math.ceil(filteredRows.length / preferences.pageSize) - 1)), pageSize: preferences.pageSize }}
-        onPaginationModelChange={model => { setPage(model.page); setPreferences(value => ({ ...value, pageSize: model.pageSize })); }}
+        paginationModel={paginationModel}
+        onPaginationModelChange={changePagination}
         columnVisibilityModel={preferences.visibility}
         onColumnVisibilityModelChange={visibility => setPreferences(value => ({ ...value, visibility }))}
         density={preferences.density}
-        pageSizeOptions={[10, 25, 50]}
+        pageSizeOptions={transactionPageSizes}
         slots={{
           toolbar: CustomToolbar,
           noRowsOverlay: () => <Box sx={{ p: 3, textAlign: "center" }}>{hasFilters ? "No transactions match these filters. Try changing or clearing them." : "No transactions to display."}</Box>,

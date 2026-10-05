@@ -1,6 +1,7 @@
 import FlippableStatistics, { accountCardPairs } from "../../components/FlippableStatistics";
 import { calculateCashBalance } from "./cashBalance";
 import { portfolioStatistics } from "./portfolioStatistics";
+import { startCalculationTiming, useRenderTiming } from "../../utils/performanceDiagnostics";
 import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../components/ChartTimeRange";
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
@@ -145,11 +146,13 @@ const SelectedAccountInfo = (props: SAProps) => {
   const filteredTransactions = useMemo(() => data?.transactions.filter(
     (transaction: Transaction) => transaction.platform.currency?.id === currency.id
   ), [data, currency.id]);
+  useRenderTiming("account details");
 
   useEffect(() => {
     if (!filteredTransactions) {
       return;
     }
+    const finishTiming = startCalculationTiming("account history and statistics", filteredTransactions.length);
 
     var contributions = 0;
     var transferIn = 0;
@@ -285,6 +288,7 @@ const SelectedAccountInfo = (props: SAProps) => {
     setHoldingIssues(portfolio.issues);
 
     setAccountDetails((prev: HoldingDetail[]) => {
+      const finishCardsTiming = startCalculationTiming("account card values", filteredTransactions.length);
       let update = prev.map((detail) => ({ ...detail }));
       update[0].value = portfolio.totalShares;
       update[0].precision = shareCountPrecision(portfolio.totalShares);
@@ -306,8 +310,10 @@ const SelectedAccountInfo = (props: SAProps) => {
       update[12].value = summary.feesPaid;
       update[13].value = summary.smallestHolding ? `${summary.smallestHolding.stock.ticker} | $${formatNumber(summary.smallestHolding.bookCost, 2, 2)}` : "—";
       update[14].value = calculateCashBalance(filteredTransactions);
+      finishCardsTiming();
       return update;
     });
+    finishTiming();
   }, [filteredTransactions]);
 
   return (
