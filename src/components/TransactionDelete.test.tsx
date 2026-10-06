@@ -7,7 +7,7 @@ import { TransactionDataGrid } from "./TransactionDataGrid";
 const query = gql`
   query DeleteTable($profileId: ID!) {
     transactionsByAccount(profileId: $profileId, account: "account") {
-      id transactionDate total
+      id transactionDate total transferBatch
       activity { name }
       account { id code }
       platform { id name }
@@ -24,8 +24,8 @@ function Table() {
   const { data, loading } = useQuery(query, { variables: { profileId: "profile" }, notifyOnNetworkStatusChange: true });
   return <TransactionDataGrid loading={loading} gridData={(data?.transactionsByAccount ?? []) as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["priceCurrency", "totalCurrency", "exchangeRate", "activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total", "description"]} query={query} />;
 }
-function show(outcome: "success" | "failure" | "network" = "success", holdRefetch = false) {
-  let records = [...fixture];
+function show(outcome: "success" | "failure" | "network" = "success", holdRefetch = false, linked = false) {
+  let records = fixture.map((row, index) => ({ ...row, transferBatch: linked && index === 0 ? "transfer-batch" : null }));
   const deletes: Record<string, unknown>[] = [];
   let queryCount = 0;
   const pendingRefetches: (() => void)[] = [];
@@ -104,4 +104,34 @@ test.each(["failure", "network"] as const)("%s leaves the record visible and sho
   fireEvent.click(dialog.getByRole("button", { name: "Delete Transaction" }));
   expect(await dialog.findByText("Could not delete the transaction. Please try again.")).toBeInTheDocument();
   expect(screen.getByText("2 of 2 transactions")).toBeInTheDocument();
+});
+
+test("search results render dates, retain edit/delete controls, and load the next batch on scroll", async () => {
+  Object.defineProperty(window, "matchMedia", { writable: true, value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }) });
+  const loadMore = jest.fn();
+  const client = new ApolloClient({ cache: new InMemoryCache(), link: ApolloLink.empty() });
+  render(<ApolloProvider client={client}><TransactionDataGrid searchMode hasMore onLoadMore={loadMore} gridData={fixture as unknown as Transaction[]} defaultSort="transactionDate" ascending={false} removeColumns={["priceCurrency", "totalCurrency", "exchangeRate", "activity", "account", "platform", "stock", "price", "shares", "fee", "rate", "maturityDate", "total"]} query={query} /></ApolloProvider>);
+  expect(await screen.findByText('2 transactions loaded · more results available')).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Delete transaction' })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: 'Edit transaction' })).toHaveLength(2);
+  expect(screen.getAllByText('10/1/2026')).toHaveLength(2);
+  expect(document.querySelector('.ant-table-body')).toBeNull();
+  expect(screen.getByRole('columnheader', { name: /Transaction Date/ })).toHaveAttribute('aria-sort', 'descending');
+  fireEvent.click(screen.getByRole('columnheader', { name: /Transaction Date/ }));
+  fireEvent.click(screen.getByRole('columnheader', { name: /Transaction Date/ }));
+  expect(screen.getByRole('columnheader', { name: /Transaction Date/ })).toHaveAttribute('aria-sort', 'ascending');
+  fireEvent.scroll(window);
+  expect(loadMore).toHaveBeenCalledTimes(1);
+});
+
+
+test("linked account-transfer rows cannot be edited or deleted individually", async () => {
+  show("success", false, true);
+  await screen.findByText("2 of 2 transactions");
+  const edits = await screen.findAllByRole("button", { name: "Edit transaction" });
+  const deletes = screen.getAllByRole("button", { name: "Delete transaction" });
+  expect(edits[0]).toBeDisabled();
+  expect(deletes[0]).toBeDisabled();
+  expect(edits[1]).toBeEnabled();
+  expect(deletes[1]).toBeEnabled();
 });

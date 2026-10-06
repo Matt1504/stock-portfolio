@@ -24,7 +24,7 @@ export function calculateCashBalance(transactions: Transaction[]): number {
       case "Transfer In":
       case "Transfer Out":
         // An in-kind share transfer carries cost basis, not spendable cash.
-        if (!transaction.shares) balance += transaction.activity.name === "Transfer In" ? total : -total;
+        if (!transaction.stock && !transaction.shares) balance += transaction.activity.name === "Transfer In" ? total : -total;
         break;
     }
     // Share trade totals already include fees. GIC fees are separate from

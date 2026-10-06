@@ -115,7 +115,7 @@ const TransactionEditDialog = (props: DialogProps) => {
         [transaction.account.id, transaction.account],
         ...allPlatforms.filter(platform => platform.account?.id).map(platform => [platform.account!.id, platform.account!] as const),
     ]).values());
-    const accountPlatforms = allPlatforms.filter(platform => platform.account?.id === transaction.account.id);
+    const accountPlatforms = allPlatforms.filter(platform => platform.account?.id === transaction.account.id && (!platform.closedAt || String(transaction.transactionDate).slice(0, 10) <= platform.closedAt));
     const currencyOptions = Array.from(new Map([transaction.platform.currency, ...accountPlatforms.map(platform => platform.currency)].filter(Boolean).map(currency => [currency!.id ?? currency!.code, currency!])).values());
     const eligiblePlatforms = accountPlatforms.filter(platform => (platform.currency?.id ?? platform.currency?.code) === (transaction.platform.currency?.id ?? transaction.platform.currency?.code));
     const isGic = transaction.stock?.asset?.name === "GIC" || transaction.activity.name === "GIC Maturity";

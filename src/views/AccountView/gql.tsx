@@ -16,6 +16,7 @@ export const ALL_ACCOUNT_PLATFORMS = gql(`
                 node {
                     id 
                     name
+                    closedAt
                     account {
                         id
                         code
@@ -44,6 +45,7 @@ export const CREATE_PLATFORM = gql(`
             platform {
                 id
                 name
+                closedAt
                 account {
                     id 
                     code
@@ -57,8 +59,8 @@ export const CREATE_PLATFORM = gql(`
     }`);
 
 export const TRANSFER_ACCOUNT = gql(`
-    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!) {
-        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo) {
+    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!) {
+        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount) {
             success
         }
   }`);
@@ -87,7 +89,7 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
                 ticker
                 name
             }
-            transactionDate
+            transactionDate transferBatch
             spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -127,7 +129,7 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
                 ticker
                 name
             }
-            transactionDate
+            transactionDate transferBatch
             spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -142,3 +144,11 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
             total
         }
     }`);
+
+export const PREVIEW_ACCOUNT_TRANSFER = gql`
+ query previewAccountTransfer($profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!) {
+   previewAccountTransfer(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount) {
+     cash currency assets { stockId ticker shares bookCost }
+   }
+ }
+`;

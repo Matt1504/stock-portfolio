@@ -6,6 +6,19 @@ import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import AccountView from "./index";
 import { ALL_ACCOUNT_PLATFORMS, TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
 
+const mockCardFrames: { currency: string | null; cash: number | string; loading: boolean }[] = [];
+jest.mock("../../components/FlippableStatistics", () => {
+  const actual = jest.requireActual("../../components/FlippableStatistics");
+  return { ...actual, __esModule: true, default: (props: any) => {
+    const location = jest.requireActual("react-router-dom").useLocation();
+    // Record every render, including a stale frame that an eventual DOM
+    // assertion would miss after React flushes passive effects.
+    mockCardFrames.push({ currency: new URLSearchParams(location.search).get("currency"), cash: props.details.find((detail: any) => detail.title === "Cash Balance").value, loading: props.loading });
+    const Component = actual.default;
+    return <Component {...props} />;
+  } };
+});
+
 jest.mock("../../components/TransactionDataGrid", () => ({
   TransactionDataGrid: ({ gridData }: { gridData: unknown }) => (
     <div data-testid="transactions">{JSON.stringify(gridData)}</div>
@@ -29,8 +42,8 @@ const rrsp = { id: "rrsp-id", name: "Retirement", code: "RRSP" };
 const tfsa = { id: "tfsa-id", name: "Tax-Free Savings", code: "TFSA" };
 const usd = { id: "usd-id", name: "United States Dollar", code: "USD" };
 const cad = { id: "cad-id", name: "Canadian Dollar", code: "CAD" };
-const brokerUsd = { id: "ws-rrsp-usd", name: "Wealthsimple", account: rrsp, currency: usd };
-const brokerCad = { id: "ws-rrsp-cad", name: "Wealthsimple", account: rrsp, currency: cad };
+const brokerUsd = { id: "ws-rrsp-usd", name: "Wealthsimple", closedAt: null, account: rrsp, currency: usd };
+const brokerCad = { id: "ws-rrsp-cad", name: "Wealthsimple", closedAt: null, account: rrsp, currency: cad };
 const singleCurrencyBroker = { id: "tfsa-usd", name: "Other Broker", account: tfsa, currency: usd };
 const metadata = {
   accounts: { edges: [{ node: rrsp }, { node: tfsa }] },
@@ -45,7 +58,7 @@ const transactions = [brokerCad, brokerUsd].map((platform, index) => ({
   activity: { name: "Buy" },
   stock: { currency: null, id: "stock-1", ticker: "EX", name: "Example", asset: { id: "asset", name: "Stock" } },
   description: "Purchase",
-  spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
+  transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
   price: 10,
   shares: index + 2,
   fee: 0,
@@ -204,4 +217,18 @@ test("the bare accounts URL loads the selector without selecting or querying an 
   expect(screen.queryByTestId("transactions")).not.toBeInTheDocument();
   expect(screen.getByTestId("url")).toHaveTextContent(/^\/myaccounts$/);
   expect(requests).toHaveLength(1);
+});
+
+
+test("cached currency switching never renders the previous currency's card values", async () => {
+  renderPage("/myaccounts?account=ws-rrsp-cad&currency=cad-id");
+  await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("transaction-CAD"));
+  fireEvent.click(screen.getByRole("tab", { name: "USD" }));
+  await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent("transaction-USD"));
+  fireEvent.click(screen.getByRole("tab", { name: "CAD" }));
+  mockCardFrames.length = 0;
+  fireEvent.click(screen.getByRole("tab", { name: "USD" }));
+  const frames = mockCardFrames.filter(frame => frame.currency === "usd-id" && !frame.loading);
+  expect(frames.length).toBeGreaterThan(0);
+  expect(frames.every(frame => frame.cash === -220)).toBe(true);
 });

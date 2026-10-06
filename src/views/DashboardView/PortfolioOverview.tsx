@@ -1,3 +1,5 @@
+import BookCostDistribution from "../../components/BookCostDistribution";
+import { GraphData } from "../../models/GraphData";
 import { Alert, Tabs } from "antd";
 import { Typography } from "@mui/material";
 import { useContext, useState } from "react";
@@ -20,6 +22,12 @@ export default function PortfolioOverview() {
   const transactions: Transaction[] = (data?.history ?? []).filter((transaction: Transaction) => transaction.platform.currency?.code === selectedCurrency);
   const summary = portfolioStatistics(transactions);
   const detail = (title: string, value: number | string, money = true, precision = 2): HoldingDetail => ({ title, value, prefix: money && typeof value === "number" ? "$" : undefined, precision: typeof value === "number" ? precision : undefined, colour: "" });
+  const accountCosts = new Map<string, number>();
+  summary.holdings.positions.forEach(position => {
+    const account = position.accountCode ?? "Unknown";
+    accountCosts.set(account, (accountCosts.get(account) ?? 0) + position.bookCost);
+  });
+  const distribution = Array.from(accountCosts, ([code, cost]) => new GraphData(code, cost, undefined, undefined));
   const largest = summary.largestHolding;
   const details = [
     detail("Total Book Cost", summary.holdings.totalBookCost),
@@ -42,5 +50,6 @@ export default function PortfolioOverview() {
     <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>All-time totals for this profile, shown in the selected currency.</Typography>
     <Tabs activeKey={selectedCurrency} onChange={setCurrency} items={codes.map(code => ({ key: code, label: code }))} />
     {error ? <Alert type="error" showIcon message="Unable to load portfolio statistics. Try refreshing." /> : <FlippableStatistics key={`${profile?.id ?? "home"}:${selectedCurrency}`} details={details} descriptions={homeStatisticDescriptions} loading={loading} />}
+    {!loading && !error && <div style={{ marginTop: 24 }}><BookCostDistribution key={selectedCurrency} data={distribution} /></div>}
   </section>;
 }

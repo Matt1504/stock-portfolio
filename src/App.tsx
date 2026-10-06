@@ -14,6 +14,7 @@ import LayoutComponent from "./components/Layout";
 import AccountOverviewView from "./views/AccountView";
 import AddTransactionView from "./views/AddTransactionView";
 import DashboardView from "./views/DashboardView";
+import TransactionsView from "./views/TransactionsView";
 import MyStocksView from "./views/MyStocksView";
 
 // import StocksView from "./views/StocksView";
@@ -43,6 +44,7 @@ const App = () => {
             <LayoutComponent title="Stock Finder" view={<StocksView />} />
           }
         /> */}
+        <Route path="/transactions" element={<LayoutComponent title="Transactions" view={<TransactionsView />} />} />
         <Route
           path="/add"
           element={

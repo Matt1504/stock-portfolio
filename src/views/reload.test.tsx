@@ -1,13 +1,12 @@
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import dayjs from "dayjs";
 import { DocumentNode, print } from "graphql";
 
 import ReloadButton from "../components/ReloadButton";
 import SelectedAccountInfo from "./AccountView/SelectedAccountInfo";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./AccountView/gql";
 import DashboardView from "./DashboardView";
-import { DASHBOARD_TRANSACTIONS, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./DashboardView/gql";
+import { DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./DashboardView/gql";
 import SelectedStockInfo from "./MyStocksView/SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./MyStocksView/gql";
 
@@ -53,7 +52,7 @@ const transaction = {
   platform: { id: "platform-cad", name: "Broker", currency: { id: "currency-cad", code: "CAD" } },
   activity: { name: "Buy" },
   stock: { currency: null, id: "stock-1", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } },
-  spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
+  transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
   description: "Purchase",
   price: 10,
   shares: 1,
@@ -142,12 +141,12 @@ function seed(client: ApolloClient<object>, query: DocumentNode, data: object, v
 
 test("dashboard reload requests all three datasets even when Apollo already has them cached", async () => {
   const responses = new Map<string, object>([
-    [print(DASHBOARD_TRANSACTIONS), { accounts, recentTransactions: [{ ...transaction, total: 20 }] }],
+    [print(DASHBOARD_METADATA), { accounts, recentTransactions: [{ ...transaction, total: 20 }] }],
     [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
     [print(TRANSACTIONS_BY_ACTIVITY), { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 250 }] }],
   ]);
   const { client, requests } = createClient(responses);
-  seed(client, DASHBOARD_TRANSACTIONS, { accounts, recentTransactions: [transaction] }, { startDate: dayjs().subtract(29, "day").format("YYYY-MM-DD"), endDate: dayjs().format("YYYY-MM-DD") });
+  seed(client, DASHBOARD_METADATA, { accounts, recentTransactions: [transaction] }, {});
   seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
   seed(client, TRANSACTIONS_BY_ACTIVITY, { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] }, { activity: "activity-contribution" });
 
@@ -162,7 +161,7 @@ test("dashboard reload requests all three datasets even when Apollo already has 
   await waitFor(() => expect(reload).toBeEnabled());
   expect(requests.every(request => request.context.headers["X-Cache-Bypass"] === "true")).toBe(true);
   expect(requests.map((request) => request.query).sort()).toEqual(Array.from(responses.keys()).sort());
-  expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20');
+  expect(screen.queryByTestId("transactions")).not.toBeInTheDocument();
 
   fireEvent.click(reload);
   await waitFor(() => expect(requests).toHaveLength(6));
@@ -172,12 +171,12 @@ test("dashboard reload requests all three datasets even when Apollo already has 
 test("dashboard recalculates contribution limits when contributions are unchanged", async () => {
   const contributions = { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] };
   const responses = new Map<string, object>([
-    [print(DASHBOARD_TRANSACTIONS), { accounts, recentTransactions: [transaction] }],
+    [print(DASHBOARD_METADATA), { accounts, recentTransactions: [transaction] }],
     [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
     [print(TRANSACTIONS_BY_ACTIVITY), contributions],
   ]);
   const { client } = createClient(responses);
-  seed(client, DASHBOARD_TRANSACTIONS, responses.get(print(DASHBOARD_TRANSACTIONS))!, { startDate: dayjs().subtract(29, "day").format("YYYY-MM-DD"), endDate: dayjs().format("YYYY-MM-DD") });
+  seed(client, DASHBOARD_METADATA, responses.get(print(DASHBOARD_METADATA))!, {});
   seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
   seed(client, TRANSACTIONS_BY_ACTIVITY, contributions, { activity: "activity-contribution" });
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);

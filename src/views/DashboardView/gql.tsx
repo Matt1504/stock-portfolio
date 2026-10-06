@@ -33,7 +33,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
           name
           ticker
       }
-      transactionDate
+      transactionDate transferBatch
       spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -73,7 +73,7 @@ export const DASHBOARD_TRANSACTIONS = gql(`
               ticker
               name
           }
-          transactionDate
+          transactionDate transferBatch
           spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -135,7 +135,7 @@ export const PORTFOLIO_OVERVIEW = gql`
     currencies { edges { node { id code } } }
     platforms(profileId: $profileId) { edges { node { id currency { id code } } } }
     history: transactionsByDateRange(profileId: $profileId) {
-      id transactionDate price shares fee total spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
+      id transactionDate transferBatch price shares fee total spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned
       priceCurrency { id code } totalCurrency { id code } exchangeRate
       activity { name }
@@ -145,3 +145,5 @@ export const PORTFOLIO_OVERVIEW = gql`
     }
   }
 `;
+
+export const DASHBOARD_METADATA = gql`query DashboardMetadata { accounts { edges { node { id name code hasContributionLimit } } } }`;

@@ -144,6 +144,7 @@ code {
 .portfolio-content .ant-form-vertical .ant-form-item-label,
 .ant-modal .ant-form-vertical .ant-form-item-label { padding-bottom: 10px; }
 .portfolio-content .ant-form-item { margin-bottom: 28px; }
+.portfolio-content .portfolio-transaction-form > .transaction-stock-field { margin-bottom: 6px; }
 .portfolio-content .ant-form-inline { gap: 16px 24px; align-items: center; }
 .portfolio-content .ant-form-inline .ant-form-item { margin: 0; }
 .ant-modal .ant-modal-body { padding-top: 20px; }

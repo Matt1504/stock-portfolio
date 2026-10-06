@@ -19,7 +19,7 @@ let sequence = 0;
 function tx(stock: string, activity: string, shares: number, total = 100, platform = "broker"): Transaction {
   sequence += 1;
   return {
-    spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id: `tx-${sequence}`, account: { id: "account", name: "Savings", code: "TFSA" },
+    transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id: `tx-${sequence}`, account: { id: "account", name: "Savings", code: "TFSA" },
     platform: { id: platform, name: platform, currency },
     activity: { name: activity }, stock: { currency: null, id: stock, ticker: stock, name: stock, asset: { id: "stock-asset", name: "Stock" } },
     transactionDate: `2026-01-${String(sequence).padStart(2, "0")}`,
@@ -155,7 +155,7 @@ test("GIC maturity removes principal from holdings without creating shares", () 
 test.each(["Index Fund", "Mutual Fund"])("amount-only %s purchases contribute cost without inventing shares", asset => {
   const first = tx("TDB2440", "Buy", 0, 3000);
   first.stock = { ...first.stock!, asset: { id: "fund", name: asset } };
-  const second = { ...first, id: "second", shares: undefined, total: 105.47 };
+  const second = { ...first, id: "second", transactionDate: new Date("2026-01-02"), shares: undefined, total: 105.47 };
   const summary = portfolioStatistics([first, second]);
   expect(summary.holdings.totalBookCost).toBeCloseTo(3105.47);
   expect(summary.holdings.totalShares).toBe(0);
@@ -218,4 +218,14 @@ test("zero-cost positions are excluded consistently from both holding rankings",
   expect(summary.holdings.totalShares).toBe(1);
   expect(summary.largestHolding).toBeUndefined();
   expect(summary.smallestHolding).toBeUndefined();
+});
+
+test("amount-only funds move remaining book cost between platforms", () => {
+  const stock = { id: "FUND", ticker: "FUND", asset: { name: "Mutual Fund" } };
+  const purchase = { ...tx("FUND", "Buy", 0, 1000, "old"), stock } as Transaction;
+  const outgoing = { ...tx("FUND", "Transfer Out", 0, 1000, "old"), stock } as Transaction;
+  const incoming = { ...tx("FUND", "Transfer In", 0, 1000, "new"), stock } as Transaction;
+  expect(calculateStockHoldings([purchase, outgoing]).totalBookCost).toBe(0);
+  expect(calculateStockHoldings([incoming]).totalBookCost).toBe(1000);
+  expect(calculateStockHoldings([purchase, outgoing, incoming]).totalBookCost).toBe(1000);
 });

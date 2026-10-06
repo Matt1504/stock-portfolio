@@ -1,202 +1,82 @@
-import { useProfileMutation as useMutation } from "../../profiles/hooks";
-import { Button, Modal, Select } from "antd";
+import { useApolloClient } from "@apollo/client";
+import { useProfileMutation, useProfileQuery } from "../../profiles/hooks";
+import { Alert, Button, Checkbox, DatePicker, Modal, Select, Space, Table, Typography } from "antd";
 import React, { useEffect, useState } from "react";
-
+import dayjs from "dayjs";
 import { ArrowDownOutlined } from "@ant-design/icons";
-
-import { CircularProgress, Stack } from "@mui/material";
-
 import { NotificationComponent } from "../../components/Notification";
 import { Account } from "../../models/Account";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Platform } from "../../models/Platform";
-import { TRANSFER_ACCOUNT } from "./gql";
+import { PREVIEW_ACCOUNT_TRANSFER, TRANSFER_ACCOUNT } from "./gql";
+import { formatNumberAsCurrency, formatNumber } from "../../utils/utils";
 
-type TAMProps = {
-  platforms: GraphQLNode<Platform>[];
-  accounts: GraphQLNode<Account>[];
-  notification: NotificationComponent;
-};
+type TAMProps = { platforms?: GraphQLNode<Platform>[]; accounts: GraphQLNode<Account>[]; notification: NotificationComponent };
 
-const TransferAccountModal = (props: TAMProps) => {
-  const { platforms, accounts, notification } = props;
-  const [transferFrom, setTransferFrom] = useState<GraphQLNode<Platform>>();
-  const [transferTo, setTransferTo] = useState<
-    GraphQLNode<Platform> | undefined
-  >();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [transferAccount, { loading }] = useMutation(
-    TRANSFER_ACCOUNT,
-    {
-      update: (cache: any, mutationResult: any) => {
-        if (!mutationResult.data.transferAccount.success) {
-          notification.openNotificationWithIcon(
-            "error",
-            "Error Transferring Account",
-            "The account could not be transferred. Please try again."
-          );
-        } else {
-          notification.openNotificationWithIcon(
-            "success",
-            "Account Transferred",
-            "Account has been successfully transferred. Please Refresh if necessary"
-          );
-          setIsModalOpen(false);
-        }
-      },
-    }
-  );
-
-  const handleTransferFrom = (value: string) => {
-    let index = platforms.findIndex(
-      (x: GraphQLNode<Platform>) => x.node.id === value
-    );
-    if (index === -1) return;
-    var platform = platforms[index];
-    setTransferFrom(platform);
-    setTransferTo(undefined);
-  };
-
-  const handlTransferTo = (value: string) => {
-    let index = platforms.findIndex(
-      (x: GraphQLNode<Platform>) => x.node.id === value
-    );
-    if (index === -1) return;
-    var platform = platforms[index];
-    setTransferTo(platform);
-  };
-
-  const showModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleOk = async () => {
-    if (!transferFrom || !transferTo) {
-      notification.openNotificationWithIcon(
-        "warning",
-        "Invalid Account",
-        "There must be an account to transfer from and to in order for a successful transfer."
-      );
-      return;
-    }
-    await transferAccount({
-      variables: {
-        transferFrom: transferFrom?.node.id,
-        transferTo: transferTo?.node.id,
-      },
-    });
-  };
-
-  const handleCancel = () => {
-    setIsModalOpen(false);
-  };
+export default function TransferAccountModal({ platforms = [], notification }: TAMProps) {
+  const client = useApolloClient();
+  const [open, setOpen] = useState(false);
+  const [from, setFrom] = useState<string>();
+  const [to, setTo] = useState<string>();
+  const [date, setDate] = useState<string | undefined>(dayjs().format("YYYY-MM-DD"));
+  const [closeOriginalAccount, setCloseOriginalAccount] = useState(true);
+  const available = platforms.map(edge => edge.node).filter(platform => !platform.closedAt);
+  const source = available.find(platform => platform.id === from);
+  const destinations = available.filter(platform => platform.id !== from && platform.account?.id === source?.account?.id && platform.currency?.id === source?.currency?.id);
+  const variables = { transferFrom: from, transferTo: to, transferDate: date, closeOriginalAccount };
+  const preview = useProfileQuery(PREVIEW_ACCOUNT_TRANSFER, { variables, skip: !open || !from || !to || !date, fetchPolicy: "network-only", notifyOnNetworkStatusChange: true });
+  const [transfer, { loading: saving }] = useProfileMutation(TRANSFER_ACCOUNT, {
+    // Refresh metadata and ledger views, but do not rerun the preview against
+    // the source whose balances this mutation has just transferred.
+    refetchQueries: () => Array.from(client.getObservableQueries("active").values())
+      .filter(query => query.queryName !== "previewAccountTransfer")
+      .map(query => ({ query: query.options.query, variables: query.variables })),
+  });
+  const details = from && to && date && !preview.loading && !preview.error ? preview.data?.previewAccountTransfer : undefined;
 
   useEffect(() => {
-    setTransferFrom(undefined);
-    setTransferTo(undefined);
-  }, [isModalOpen]);
+    if (open && !to && destinations.length === 1) setTo(destinations[0].id);
+  }, [open, to, destinations]);
 
-  useEffect(() => {
-    if (!isModalOpen) return;
-    if (!transferFrom && platforms.length === 1) {
-      setTransferFrom(platforms[0]);
-      return;
+  const submit = async () => {
+    if (saving || !details) return;
+    try {
+      const result = await transfer({ variables });
+      if (!result.data?.transferAccount.success) throw new Error("The transfer could not be completed. Refresh and try again.");
+      if (result.data.transferAccount.success) {
+        setOpen(false);
+        notification.openNotificationWithIcon("success", closeOriginalAccount ? "Account transferred and closed" : "Account transferred", "Linked transfer entries were saved. Historical transactions remain with the source platform.");
+      }
+    } catch (error) {
+      notification.openNotificationWithIcon("error", "Transfer not completed", error instanceof Error ? error.message : "Refresh and try again.");
     }
-    const destinations = transferFrom ? platforms.filter(platform =>
-      platform.node.id !== transferFrom.node.id &&
-      platform.node.account?.id === transferFrom.node.account?.id &&
-      platform.node.currency?.id === transferFrom.node.currency?.id
-    ) : [];
-    if (!transferTo && destinations.length === 1) setTransferTo(destinations[0]);
-  }, [isModalOpen, platforms, transferFrom, transferTo]);
-
-  return (
-    <>
-      <Button type="primary" onClick={showModal}>
-        Transfer
-      </Button>
-      <Modal
-        title="Transfer Account"
-        open={isModalOpen}
-        onOk={handleOk}
-        onCancel={handleCancel}
-      >
-        <p>Transfers must be between accounts and the same currency.</p>
-        <p>
-          By transferring, all holdings will be moved to the specified account
-          platform, leaving the initial platform account empty.
-        </p>
-        <p>Account: {transferFrom?.node.account?.code}</p>
-        <Stack
-          direction="column"
-          justifyContent="center"
-          alignItems="center"
-          spacing={2}
-        >
-          <Select
-            showSearch
-            placeholder="Platform Transferring From"
-            filterOption={(input, option: any) =>
-              (option?.label ?? "").toLowerCase().includes(input)
-            }
-            optionFilterProp="children"
-            style={{ width: 400 }}
-            value={transferFrom?.node.id}
-            onChange={handleTransferFrom}
-            options={accounts?.map((account: GraphQLNode<Account>) => ({
-              label: account.node.code,
-              options: platforms
-                ?.filter(
-                  (platform: GraphQLNode<Platform>) =>
-                    account.node.code === platform.node.account?.code
-                )
-                .map((x: GraphQLNode<Platform>) => ({
-                  value: x.node.id,
-                  label: `${x.node.name} (${x.node.currency?.code})`,
-                })),
-            }))}
-          />
-          <ArrowDownOutlined />
-          <Select
-            showSearch
-            placeholder="Platform Transferring To"
-            filterOption={(input, option: any) =>
-              (option?.label ?? "").toLowerCase().includes(input)
-            }
-            disabled={!transferFrom}
-            style={{ width: 400 }}
-            value={transferTo?.node.id}
-            onChange={handlTransferTo}
-            optionFilterProp="children"
-            options={accounts
-              ?.filter(
-                (account: GraphQLNode<Account>) =>
-                  !transferFrom ||
-                  account.node.id === transferFrom?.node.account?.id
-              )
-              .map((account: GraphQLNode<Account>) => ({
-                label: account.node.code,
-                options: platforms
-                  ?.filter(
-                    (platform: GraphQLNode<Platform>) =>
-                      account.node.code === platform.node.account?.code &&
-                      (!transferFrom ||
-                        (transferFrom?.node.currency?.code ===
-                          platform?.node.currency?.code &&
-                          transferFrom.node.id !== platform?.node.id))
-                  )
-                  .map((x: GraphQLNode<Platform>) => ({
-                    value: x.node.id,
-                    label: `${x.node.name} (${x.node.currency?.code})`,
-                  })),
-              }))}
-          />
-          {loading && <CircularProgress />}
-        </Stack>
-      </Modal>
-    </>
-  );
-};
-
-export default TransferAccountModal;
+  };
+  const options = (items: Platform[]) => items.map(platform => ({ value: platform.id, label: `${platform.account?.code} · ${platform.name} (${platform.currency?.code})` }));
+  return <>
+    <Button type="primary" disabled={!available.length} onClick={() => { setFrom(undefined); setTo(undefined); setDate(dayjs().format("YYYY-MM-DD")); setCloseOriginalAccount(true); setOpen(true); }}>Transfer Account</Button>
+    <Modal title="Transfer Account" open={open} onCancel={() => { if (!saving) setOpen(false); }} onOk={submit}
+      okText={closeOriginalAccount ? "Transfer and Close" : "Transfer"} okButtonProps={{ disabled: !details || preview.loading }} confirmLoading={saving}
+      cancelButtonProps={{ disabled: saving }} closable={!saving} maskClosable={!saving} keyboard={!saving} width={620}>
+      <Typography.Paragraph>Transfer all remaining assets and cash as of the transfer date to another platform of the same account type and currency. Each asset receives linked Transfer Out and Transfer In entries carrying its shares and book cost; cash receives a separate pair.</Typography.Paragraph>
+      <Typography.Paragraph>The original transactions stay with the source platform. You can keep it open to record later activity, or close it on the transfer date and allow only historical transactions. No sale or contribution is recorded.</Typography.Paragraph>
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <Select aria-label="Source platform" style={{ width: "100%" }} placeholder="Transfer from" showSearch optionFilterProp="label" disabled={saving} value={from} options={options(available)} onChange={value => { setFrom(value); setTo(undefined); }} />
+        <ArrowDownOutlined />
+        <Select aria-label="Destination platform" style={{ width: "100%" }} placeholder="Transfer to" showSearch optionFilterProp="label" disabled={!source || saving} value={to} options={options(destinations)} onChange={setTo} />
+        <div><Typography.Text>Transfer date</Typography.Text><br /><DatePicker aria-label="Transfer date" value={date ? dayjs(date) : null} onChange={value => setDate(value?.format("YYYY-MM-DD"))} disabled={saving} disabledDate={value => value.isAfter(dayjs(), "day")} /></div>
+        <Checkbox checked={closeOriginalAccount} disabled={saving} onChange={event => setCloseOriginalAccount(event.target.checked)}>Close Original Account</Checkbox>
+        {preview.loading && <Typography.Text type="secondary">Calculating remaining assets and cash…</Typography.Text>}
+        {preview.error && <Alert showIcon type="error" message={preview.error.message} />}
+        {details && <>
+          <Table size="small" pagination={false} rowKey="stockId" dataSource={details.assets} columns={[
+            { title: "Asset", dataIndex: "ticker" },
+            { title: "Shares", dataIndex: "shares", render: value => Number(value) ? formatNumber(Number(value), 4) : "—" },
+            { title: `Book cost (${details.currency})`, dataIndex: "bookCost", render: value => formatNumberAsCurrency(Number(value)) },
+          ]} />
+          <Typography.Text strong>Cash to transfer: {formatNumberAsCurrency(Number(details.cash))} {details.currency}</Typography.Text>
+          <Alert type="warning" showIcon message={`Submitting transfers these balances${closeOriginalAccount ? ` and closes ${source?.name}` : ` and keeps ${source?.name} open`}. Check the balances against your statement first.`} />
+        </>}
+      </Space>
+    </Modal>
+  </>;
+}

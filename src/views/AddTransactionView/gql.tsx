@@ -33,6 +33,7 @@ export const GET_PLATFORM_INFO = gql(`
         node {
           id
           name
+          closedAt
           account {
             id
           }

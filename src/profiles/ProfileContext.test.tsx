@@ -62,7 +62,7 @@ function setup(url = "/mystocks?stock=shared-stock", options: { empty?: boolean;
         shares: operation.variables.profileId === "alice" ? 2 : 7,
         account: { id: "account", code: "TFSA" }, platform: { id: "platform-" + operation.variables.profileId, name: "Broker", currency: { id: "cad", code: "CAD" } },
         activity: { name: "Buy" }, stock: { currency: null, id: "shared-stock", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } },
-        spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-10-01", price: 10, fee: 0, total: 20, rate: null, maturityDate: null }] };
+        transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-10-01", price: 10, fee: 0, total: 20, rate: null, maturityDate: null }] };
       observer.next({ data }); observer.complete();
     };
     if (field === "transactionsByStock" && operation.variables.profileId === "alice" && options.delayAlice) completeAlice = finish;

@@ -13,6 +13,12 @@ export type HoldingIssue = {
   missingShares: number;
 };
 
+/** Match the backend ledger: date, then creation ID for same-day events. */
+export function compareLedgerTransactions(a: Transaction, b: Transaction): number {
+  return new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+    || (a.id ?? "").localeCompare(b.id ?? "");
+}
+
 export function calculateStockHoldings(transactions: Transaction[], selectedStockId?: string) {
   const positions = new Map<string, StockHolding & { platform: string; accountCode?: string }>();
   const bookCostAfterTransaction = new Map<string, number>();
@@ -21,7 +27,7 @@ export function calculateStockHoldings(transactions: Transaction[], selectedStoc
   let hasIncompleteSales = false;
 
   [...transactions]
-    .sort((a, b) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime())
+    .sort(compareLedgerTransactions)
     .forEach((transaction) => {
       const activity = transaction.activity.name;
       const quantity = transaction.shares ?? 0;
@@ -55,15 +61,19 @@ export function calculateStockHoldings(transactions: Transaction[], selectedStoc
         position.bookCost = Math.max(0, position.bookCost + (activity === "Buy" ? transaction.total ?? 0 : -(transaction.principalReturned ?? 0)));
         runningBookCost += position.bookCost - previousCost;
         positions.set(key, position);
-      } else if (stock?.id && ["Index Fund", "Mutual Fund"].includes(stock.asset?.name ?? "") && quantity === 0 && ["Buy", "Sell"].includes(activity ?? "")) {
+      } else if (stock?.id && ["Index Fund", "Mutual Fund"].includes(stock.asset?.name ?? "") && quantity === 0 && ["Buy", "Sell", "Transfer In", "Transfer Out"].includes(activity ?? "")) {
         const key = JSON.stringify([transaction.platform.id, stock.id]);
         const position = positions.get(key) ?? { stock, shares: 0, bookCost: 0, platform: transaction.platform.name ?? "", accountCode: transaction.account.code };
-        if (activity === "Buy") {
+        if (activity === "Buy" || activity === "Transfer In") {
           // Amount-only funds use recorded purchase totals, just as on My Stocks.
           const cost = transaction.total ?? 0;
           position.bookCost += cost;
           runningBookCost += cost;
           positions.set(key, position);
+        } else if (activity === "Transfer Out") {
+          const cost = Math.min(position.bookCost, transaction.total ?? 0);
+          position.bookCost -= cost;
+          runningBookCost -= cost;
         } else {
           // TODO: Record disposal cost for amount-only funds. Sale proceeds alone
           // cannot identify the principal removed or the realized gain.

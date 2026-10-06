@@ -1,3 +1,4 @@
+import LastUpdated from "../../components/LastUpdated";
 import FlippableStatistics, { accountCardPairs } from "../../components/FlippableStatistics";
 import { calculateCashBalance } from "./cashBalance";
 import { portfolioStatistics } from "./portfolioStatistics";
@@ -7,7 +8,7 @@ import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
 import { Alert, Col, Row, Tabs } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -34,9 +35,9 @@ import { GraphData } from "../../models/GraphData";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Platform } from "../../models/Platform";
 import { Transaction } from "../../models/Transaction";
-import { compareDates, shareCountPrecision, formatNumber } from "../../utils/utils";
+import { shareCountPrecision, formatNumber } from "../../utils/utils";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./gql";
-import { HoldingIssue } from "./holdings";
+import { compareLedgerTransactions, HoldingIssue } from "./holdings";
 
 type SAProps = {
   name: string | undefined;
@@ -118,14 +119,8 @@ defaultAccountDetails.push({ title: "Cash Balance", value: 0, prefix: "$", colou
 const SelectedAccountInfo = (props: SAProps) => {
   const { name, platform, platformGroup = [], account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
   const query = platform ? TRANSACTIONS_BY_PLATFORM : TRANSACTIONS_BY_ACCOUNT;
-  const [accountDetails, setAccountDetails] = useState(() => defaultAccountDetails.map((detail) => ({ ...detail })));
-  const [pieGraphHoldingData, setPieGraphHoldingData] = useState<GraphData[]>(
-    []
-  );
   const [bulkEditing, setBulkEditing] = useState(false);
   const [chartRange, setChartRange] = useState<ChartRange>("all");
-  const [graphBookCostData, setGraphBookCostData] = useState<GraphData[]>([]);
-  const [holdingIssues, setHoldingIssues] = useState<HoldingIssue[]>([]);
 
   const client = useApolloClient();
   // Keep both currency queries mounted with stable variables. A tab change only
@@ -148,9 +143,12 @@ const SelectedAccountInfo = (props: SAProps) => {
   ), [data, currency.id]);
   useRenderTiming("account details");
 
-  useEffect(() => {
+  // Derive display values in the same render as the selected query result.
+  // Effect-backed state could show the previous selection for one frame,
+  // particularly when switching to a result already in Apollo's cache.
+  const { accountDetails, pieGraphHoldingData, graphBookCostData, holdingIssues } = useMemo(() => {
     if (!filteredTransactions) {
-      return;
+      return { accountDetails: defaultAccountDetails.map(detail => ({ ...detail })), pieGraphHoldingData: [] as GraphData[], graphBookCostData: [] as GraphData[], holdingIssues: [] as HoldingIssue[] };
     }
     const finishTiming = startCalculationTiming("account history and statistics", filteredTransactions.length);
 
@@ -168,9 +166,7 @@ const SelectedAccountInfo = (props: SAProps) => {
     var transactions = [...filteredTransactions];
 
     transactions
-      .sort((a: Transaction, b: Transaction) =>
-        compareDates(a.transactionDate, b.transactionDate)
-      )
+      .sort(compareLedgerTransactions)
       .forEach((transaction: Transaction) => {
         var transDate = transaction.transactionDate.toString();
         bookCost = portfolio.bookCostAfterTransaction.get(transaction.id ?? "") ?? bookCost;
@@ -273,7 +269,7 @@ const SelectedAccountInfo = (props: SAProps) => {
 
     const maxHolding = summary.largestHolding;
 
-    setPieGraphHoldingData(
+    const pieGraphHoldingData = (
       portfolio.holdings.filter((holding) => holding.bookCost > 0).map((holding) => {
         return new GraphData(
           `${holding.stock.ticker}`,
@@ -284,12 +280,12 @@ const SelectedAccountInfo = (props: SAProps) => {
       })
     );
 
-    setGraphBookCostData(Array.from(bookCostHistory.values()));
-    setHoldingIssues(portfolio.issues);
+    const graphBookCostData = Array.from(bookCostHistory.values());
+    const holdingIssues = portfolio.issues;
 
-    setAccountDetails((prev: HoldingDetail[]) => {
+    const accountDetails = (() => {
       const finishCardsTiming = startCalculationTiming("account card values", filteredTransactions.length);
-      let update = prev.map((detail) => ({ ...detail }));
+      let update = defaultAccountDetails.map((detail) => ({ ...detail }));
       update[0].value = portfolio.totalShares;
       update[0].precision = shareCountPrecision(portfolio.totalShares);
       update[1].value = portfolio.holdings.filter(holding => holding.shares > 0).length;
@@ -312,8 +308,9 @@ const SelectedAccountInfo = (props: SAProps) => {
       update[14].value = calculateCashBalance(filteredTransactions);
       finishCardsTiming();
       return update;
-    });
+    })();
     finishTiming();
+    return { accountDetails, pieGraphHoldingData, graphBookCostData, holdingIssues };
   }, [filteredTransactions]);
 
   return (
@@ -329,10 +326,12 @@ const SelectedAccountInfo = (props: SAProps) => {
           <Typography variant="h6">
             {accountName} {name}
           </Typography>
-          <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} disabled={bulkEditing} />
+          <LastUpdated queries={[query]} />
+      <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} disabled={bulkEditing} />
         </Stack>
       </Col>
       <Col span={24}>
+        {props.platformGroup?.find(item => item.id === props.platform)?.closedAt && <Alert type="info" showIcon style={{ marginBottom: 16 }} message={`Platform closed on ${props.platformGroup.find(item => item.id === props.platform)?.closedAt}. Historical transactions remain available.`} />}
         <Tabs
           activeKey={currency.id}
           size="large"

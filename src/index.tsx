@@ -1,3 +1,4 @@
+import { dataFreshnessLink } from './utils/dataFreshness';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ApolloClient,
@@ -16,7 +17,7 @@ async function bootStrap() {
 
   const client = new ApolloClient({
     cache: new InMemoryCache(),
-    link: performanceDiagnosticsLink.concat(link),
+    link: dataFreshnessLink.concat(performanceDiagnosticsLink).concat(link),
   });
 
   const root = ReactDOM.createRoot(

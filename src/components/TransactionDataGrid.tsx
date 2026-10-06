@@ -1,8 +1,8 @@
 import BulkTransactionEditor from "./BulkTransactionEditor";
 import { useProfileMutation as useMutation, useProfileQuery } from "../profiles/hooks";
-import { Alert, Button, DatePicker, InputNumber, Modal, Popover, Select, Space, Typography } from "antd";
+import { Alert, Button, DatePicker, InputNumber, Modal, Popover, Select, Space, Table, Typography } from "antd";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DocumentNode, gql } from "@apollo/client";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -33,7 +33,7 @@ import { filterTransactions, readTablePreferences, saveTablePreferences, TablePr
 export const EDIT_TRANSACTION_PLATFORMS = gql`
   query EditTransactionPlatforms($profileId: ID!) {
     platforms(profileId: $profileId) {
-      edges { node { id name account { id code } currency { id code } } }
+      edges { node { id name closedAt account { id code } currency { id code } } }
     }
   }
 `;
@@ -56,6 +56,9 @@ type TDGProps = {
   onDateRangeChange?: (range: TransactionDateRange) => void;
   loading?: boolean;
   onBulkEditChange?: (active: boolean) => void;
+  searchMode?: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
   hiddenFilters?: ("account" | "stock")[];
 };
 
@@ -173,7 +176,7 @@ const defaultColumns: GridColDef[] = [
 ];
 
 const TransactionDataGridContent = (props: TDGProps) => {
-  const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, onBulkEditChange, hiddenFilters = []}  = props;
+  const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, onBulkEditChange, hiddenFilters = [], searchMode, onLoadMore, hasMore}  = props;
   const [selectedItem, setSelectedItem] = useState<Transaction>();
   const [open, setOpen] = useState(false);
   const notification = new NotificationComponent();
@@ -261,6 +264,17 @@ const TransactionDataGridContent = (props: TDGProps) => {
   const preferenceKey = `stock-portfolio-table-v1:${viewName}:${[...removeColumns].sort().join(",")}`;
   const defaults: TablePreferences = { sortModel: [{ field: defaultSort, sort: ascending ? "asc" : "desc" }], pageSize: 25, visibility: {}, widths: {}, density: "standard" };
   const [preferences, setPreferences] = useState(() => readTablePreferences(preferenceKey, defaults));
+  const loadMoreAnchor = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!searchMode || !hasMore || loading || !onLoadMore) return;
+    const onPageScroll = (event: Event) => {
+      if (event.target !== document && event.target !== window) return;
+      const anchor = loadMoreAnchor.current;
+      if (anchor && anchor.getBoundingClientRect().top <= window.innerHeight + 100) onLoadMore();
+    };
+    window.addEventListener("scroll", onPageScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onPageScroll);
+  }, [searchMode, hasMore, loading, onLoadMore]);
   const [bulkHiddenColumns, setBulkHiddenColumns] = useState<string[]>([]);
   const [bulkRows, setBulkRows] = useState<Transaction[] | null>(null);
   useEffect(() => {
@@ -298,8 +312,8 @@ const TransactionDataGridContent = (props: TDGProps) => {
   );
   columns.push({ field: "actions", headerName: "Actions", width: 120, sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
     renderCell: params => <>
-      <IconButton aria-label="Edit transaction" title="Edit transaction" onClick={() => handleEditClick(params.row)} disabled={deleting}><EditIcon /></IconButton>
-      <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(undefined); }} disabled={deleting}><DeleteOutlineIcon /></IconButton>
+      <IconButton aria-label="Edit transaction" title="Edit transaction" onClick={() => handleEditClick(params.row)} disabled={deleting || !!params.row.transferBatch}><EditIcon /></IconButton>
+      <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(undefined); }} disabled={deleting || !!params.row.transferBatch}><DeleteOutlineIcon /></IconButton>
     </> });
   const [widthField, setWidthField] = useState("transactionDate");
   const resizeField = columns.some(column => column.field === widthField) ? widthField : "transactionDate";
@@ -327,9 +341,9 @@ const TransactionDataGridContent = (props: TDGProps) => {
       <Space wrap size={[16, 16]} style={{ marginBottom: 24, width: "100%" }}>
         <Button onClick={() => {
           setBulkHiddenColumns([...removeColumns, ...Array.from(redundantColumns), ...Object.keys(preferences.visibility).filter(field => preferences.visibility[field] === false)]);
-          setBulkRows(filteredRows.slice());
-        }} disabled={loading || deleting || !filteredRows.length}>Bulk Edit</Button>
-        <DatePicker.RangePicker aria-label="Transaction date range" placeholder={["Start date", "End date"]}
+          setBulkRows(filteredRows.filter(row => !row.transferBatch));
+        }} disabled={loading || deleting || !filteredRows.some(row => !row.transferBatch)}>Bulk Edit</Button>
+        {!searchMode && <> <DatePicker.RangePicker aria-label="Transaction date range" placeholder={["Start date", "End date"]}
           allowEmpty={[true, true]}
           value={dates.start || dates.end ? [dates.start ? dayjs(dates.start) : null, dates.end ? dayjs(dates.end) : null] : null}
           onChange={value => changeDates({ start: value?.[0]?.format("YYYY-MM-DD"), end: value?.[1]?.format("YYYY-MM-DD") })} />
@@ -345,9 +359,33 @@ const TransactionDataGridContent = (props: TDGProps) => {
           <InputNumber aria-label="Column width in pixels" min={50} max={2000} step={10} value={preferences.widths[resizeField] ?? columns.find(column => column.field === resizeField)?.width ?? 100} addonAfter="px" onChange={width => { if (width) setPreferences(value => ({ ...value, widths: { ...value.widths, [resizeField]: width } })); }} />
           <Button onClick={() => { setPreferences(defaults); setPage(0); }}>Reset table preferences</Button>
         </Space>}><Button>Table settings</Button></Popover>
-        <Typography.Text type="secondary" aria-live="polite">{filteredRows.length} of {rows.length} transactions</Typography.Text>
+        </>}
+        <Typography.Text type="secondary" aria-live="polite">{searchMode ? `${rows.length} transactions loaded${hasMore ? " · more results available" : ""}` : `${filteredRows.length} of ${rows.length} transactions`}</Typography.Text>
       </Space>
-      <DataGrid
+      {searchMode ? <div>
+        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 12 }}>Column sorting applies to the loaded transactions.</Typography.Text>
+        <Table rowKey="id" dataSource={filteredRows} pagination={false} loading={loading} scroll={{ x: "max-content" }} size="small" onChange={(_pagination, _filters, sorter) => {
+          const selection = Array.isArray(sorter) ? sorter[0] : sorter;
+          setPreferences(value => ({ ...value, sortModel: selection.order && selection.columnKey ? [{ field: String(selection.columnKey), sort: selection.order === "ascend" ? "asc" : "desc" }] : [] }));
+        }} columns={columns.filter(column => preferences.visibility[column.field] !== false).map(column => ({
+          key: column.field, title: column.headerName, width: column.width,
+          sortOrder: preferences.sortModel[0]?.field === column.field ? (preferences.sortModel[0].sort === "asc" ? "ascend" as const : "descend" as const) : null,
+          sorter: column.sortable === false ? undefined : (left: Transaction, right: Transaction) => {
+            const rawValue = (row: Transaction) => column.valueGetter ? column.valueGetter({ row, field: column.field, value: (row as any)[column.field] } as any) : (row as any)[column.field];
+            const a = rawValue(left);
+            const b = rawValue(right);
+            if (a == null || b == null) return a == null ? (b == null ? 0 : -1) : 1;
+            return column.type === "number" || column.type === "date" ? Number(a) - Number(b) : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+          },
+          render: (_: unknown, row: Transaction) => {
+            const params: any = { row, id: row.id, field: column.field, value: (row as any)[column.field] };
+            if (column.valueGetter) params.value = column.valueGetter(params);
+            if (column.renderCell) return column.renderCell(params);
+            return column.valueFormatter ? column.valueFormatter(params) : params.value instanceof Date ? params.value.toLocaleDateString() : params.value ?? "—";
+          },
+        }))} />
+        {hasMore && <div ref={loadMoreAnchor} style={{ marginTop: 24 }}><Button onClick={onLoadMore} disabled={loading}>Load more transactions</Button></div>}
+      </div> : <DataGrid
         autoHeight
         loading={loading}
         columns={columns}
@@ -364,7 +402,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
           toolbar: CustomToolbar,
           noRowsOverlay: () => <Box sx={{ p: 3, textAlign: "center" }}>{hasFilters ? "No transactions match these filters. Try changing or clearing them." : "No transactions to display."}</Box>,
         }}
-      />
+      />}
     </Box>
   );
 };

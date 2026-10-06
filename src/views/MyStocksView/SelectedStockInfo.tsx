@@ -1,3 +1,4 @@
+import LastUpdated from "../../components/LastUpdated";
 import { Link } from "react-router-dom";
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
@@ -199,7 +200,8 @@ const SelectedStockInfo = (props: SSProps) => {
               </span>
             ) : <span>{currency}</span>}
           </Typography>
-          <ReloadButton onReload={() => coldRefetch(client, [TRANSACTIONS_BY_STOCK])} loading={loading} disabled={bulkEditing} />
+          <LastUpdated queries={[TRANSACTIONS_BY_STOCK]} />
+      <ReloadButton onReload={() => coldRefetch(client, [TRANSACTIONS_BY_STOCK])} loading={loading} disabled={bulkEditing} />
         </Stack>
       </Col>
       {amountCurrencies.length > 0 && <Col span={24}>

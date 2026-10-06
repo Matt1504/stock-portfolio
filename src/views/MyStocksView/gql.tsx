@@ -92,7 +92,7 @@ export const TRANSACTIONS_BY_STOCK = gql(`
                 name
                 ticker
             }
-            transactionDate
+            transactionDate transferBatch
             spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -116,7 +116,7 @@ export const UPDATE_TRANSACTION = gql(`
                 id
                 account { id code }
                 platform { id name account { id code } currency { id code } }
-                transactionDate
+                transactionDate transferBatch
                 spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate

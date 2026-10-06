@@ -12,7 +12,7 @@ export function stockStatistics(transactions: Transaction[], assetType = "Stock"
   const isGic = assetType === "GIC";
   const fundTrades = transactions.filter(transaction => ["Buy", "Sell"].includes(transaction.activity.name ?? ""));
   const amountOnlyFund = isFund && (!fundTrades.length || fundTrades.some(transaction => !(transaction.shares && transaction.shares > 0)));
-  const portfolio = calculateStockHoldings(amountOnlyFund ? [] : transactions, stockId);
+  const portfolio = calculateStockHoldings(amountOnlyFund ? transactions.map(transaction => ({ ...transaction, stock: transaction.stock ? { ...transaction.stock, asset: { id: transaction.stock.asset?.id ?? assetType, name: assetType } } : undefined })) : transactions, stockId);
   let principalReturned = 0;
   let invested = 0, proceeds = 0, dividends = 0, sharesBought = 0, sharesSold = 0, fees = 0;
   let lastBuy = "", lastSell = "";
@@ -53,7 +53,7 @@ export function stockStatistics(transactions: Transaction[], assetType = "Stock"
     detail("Last Buy Date", lastBuy || "—"),
   ] };
   return { portfolio, details: [
-    detail("Book Cost", amountOnlyFund ? invested : portfolio.totalBookCost, true),
+    detail("Book Cost", portfolio.totalBookCost, true),
     detail("Average Cost per Share", portfolio.totalShares ? portfolio.totalBookCost / portfolio.totalShares : "—", true),
     detail("Realized Profit/Loss", amountOnlyFund || portfolio.realizedGain === undefined ? "—" : portfolio.realizedGain + dividends, true),
     detail("Realized Gain/Loss", amountOnlyFund ? "—" : portfolio.realizedGain ?? "—", true),

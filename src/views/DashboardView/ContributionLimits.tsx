@@ -12,6 +12,7 @@ import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
 import { Transaction } from "../../models/Transaction";
 import { formatNumberAsCurrency, formatNumber } from "../../utils/utils";
+import ContributionBars from "./ContributionBars";
 import ContributionGraph from "./ContributionGraph";
 import { GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
 
@@ -94,12 +95,16 @@ const ContributionLimits = (props: CLProps) => {
                 </Typography>
             </Col>
             {accounts.edges.map((account: GraphQLNode<Account>) => {
+                const name = account.node.name ?? "";
+                const savingsIndex = name.indexOf("Savings");
                 return (
-                    <Col xs={24} md={12} xl={8} key={account.node.id}>
+                    <Col xs={24} md={12} xl={6} key={account.node.id}>
                         <Card role="group" aria-label={`${account.node.code} contributions`}>
                             <Statistic 
                                 loading={isLoading}
-                                title={account.node.name}
+                                title={<span style={{ display: "inline-block", minHeight: 39 }}>
+                                    {savingsIndex > 0 ? <>{name.slice(0, savingsIndex)}<br />{name.slice(savingsIndex)}</> : name}
+                                </span>}
                                 value={account.node.hasContributionLimit === false ? "-" : computeContributionUsed(account.node.id ?? "")}
                                 suffix={account.node.hasContributionLimit === false ? undefined : "%"}
                                 precision={account.node.hasContributionLimit === false ? undefined : 2}
@@ -109,6 +114,9 @@ const ContributionLimits = (props: CLProps) => {
                     </Col>
                 )
             })}
+            <Col span={24}>
+                {!isLoading && <ContributionBars data={accounts.edges.map(({ node }) => ({ name: node.code ?? "", contribution: contributions.get(node.id ?? "") ?? 0, limit: node.hasContributionLimit === false ? undefined : contributionLimits.get(node.id ?? "") ?? 0 }))} />}
+            </Col>
             <Col span={24}>
                 {data && eligibleAccounts.length > 0 && <ContributionGraph accounts={eligibleAccounts} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
             </Col>

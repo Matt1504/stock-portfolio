@@ -32,6 +32,7 @@ export interface TransactionForm {
 }
 
 export interface Transaction extends GraphQLType {
+    transferBatch?: string | null,
     account: Account,
     stock?: Stock,
     spinoffSource?: Stock,

@@ -8,7 +8,7 @@ import { stockStatistics } from "./statistics";
 jest.mock("../../components/TransactionDataGrid", () => ({ TransactionDataGrid: () => null }));
 jest.mock("recharts", () => ({ ...jest.requireActual("recharts"), ResponsiveContainer: () => null }));
 function tx(id: string, name: string, shares: number, total: number, date: string, fee = 0): Transaction {
-  return { spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id, activity: { name }, shares, total, fee, price: 10, transactionDate: date,
+  return { transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id, activity: { name }, shares, total, fee, price: 10, transactionDate: date,
     stock: { currency: null, id: "stock", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } }, account: { id: "account", code: "TFSA" },
     platform: { id: "broker", name: "Broker", currency: { id: "usd", code: "USD" } }, rate: null, maturityDate: null,
   } as unknown as Transaction;

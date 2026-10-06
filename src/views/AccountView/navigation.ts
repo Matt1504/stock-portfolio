@@ -47,6 +47,7 @@ export function buildAccountOptions(data?: AccountData): AccountOption[] {
       return currencyOrder || (a.id ?? "").localeCompare(b.id ?? "");
     });
     option.id = option.platforms[0].id!;
+    if (option.platforms.every(platform => platform.closedAt)) option.name += " (closed)";
     options.push(option);
   });
   return options;

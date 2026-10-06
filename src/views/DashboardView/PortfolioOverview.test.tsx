@@ -8,7 +8,7 @@ import { portfolioStatistics } from "../AccountView/portfolioStatistics";
 import { Transaction } from "../../models/Transaction";
 
 function tx(id: string, activity: string, total: number, code = "CAD", shares = 0, fee = 0, stock = false) {
-  return { spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, id, activity: { name: activity }, total, shares, fee, transactionDate: "2024-01-01", account: { id: "account", code: "TFSA" }, platform: { id: code, name: "Broker", currency: { id: code, code } }, stock: stock ? { currency: null, id: "stock", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } } : null, price: 100 };
+  return { transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, id, activity: { name: activity }, total, shares, fee, transactionDate: "2024-01-01", account: { id: "account", code: "TFSA" }, platform: { id: code, name: "Broker", currency: { id: code, code } }, stock: stock ? { currency: null, id: "stock", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } } : null, price: 100 };
 }
 const history = [
   tx("1", "Buy", 202, "CAD", 2, 2, true), tx("2", "Sell", 60, "CAD", 0.5, 1, true),
@@ -17,6 +17,7 @@ const history = [
   tx("10", "Buy", 300, "USD", 3, 0, true), tx("11", "Contribution", 500, "USD"),
 ];
 const data = { history, currencies: { edges: ["CAD", "USD"].map(code => ({ node: { id: code, code } })) }, platforms: { edges: ["CAD", "CAD", "USD"].map((code, index) => ({ node: { id: String(index), currency: { id: code, code } } })) } };
+jest.mock("recharts", () => ({ ...jest.requireActual("recharts"), ResponsiveContainer: () => null }));
 beforeEach(() => {
   Object.defineProperty(window, "matchMedia", { writable: true, value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }) });
 });

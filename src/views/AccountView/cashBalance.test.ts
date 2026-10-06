@@ -52,3 +52,7 @@ test("empty history starts at zero and missing cash history can be negative", ()
 test("SEC fees are account cash expenses deducted once", () => {
   expect(calculateCashBalance([tx("Contribution", 100), tx("Service Fee", 2), tx("SEC Fee", 0.03)])).toBe(97.97);
 });
+
+test("amount-only asset transfers carry book cost without moving cash", () => {
+  expect(calculateCashBalance([tx("Transfer In", 1000, { stock: { id: "fund" } as any }), tx("Transfer Out", 600, { stock: { id: "fund" } as any })])).toBe(0);
+});

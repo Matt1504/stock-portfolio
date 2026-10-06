@@ -210,9 +210,9 @@ const AddTransactionView = () => {
   const platformOptions = useMemo<{ value: string | undefined; label: string | undefined }[]>(() => {
     if (!currency || !account) return [];
     return (data?.platforms?.edges ?? [])
-      .filter((x: GraphQLNode<Platform>) => x.node.currency?.id === currency && x.node.account?.id === account)
-      .map((x: GraphQLNode<Platform>) => ({ value: x.node.id, label: x.node.name }));
-  }, [account, currency, data?.platforms?.edges]);
+      .filter((x: GraphQLNode<Platform>) => x.node.currency?.id === currency && x.node.account?.id === account && (!x.node.closedAt || (!!transactionDate && transactionDate <= x.node.closedAt)))
+      .map((x: GraphQLNode<Platform>) => ({ value: x.node.id, label: x.node.closedAt ? `${x.node.name} (closed ${x.node.closedAt})` : x.node.name }));
+  }, [account, currency, data?.platforms?.edges, transactionDate]);
 
   useEffect(() => {
     if (loading) return;
@@ -349,8 +349,9 @@ const AddTransactionView = () => {
               <DatePicker />
             </Form.Item>
             <Form.Item
+              className="transaction-stock-field"
               label={activity === "Stock Spinoff" ? "Stock Received" : "Stock"}
-              extra={activity === "Withholding Tax" ? "Optional: leave empty for account withholding tax." : activity === "Interest" ? "Optional: leave empty for interest earned on the account." : selectedStockId ? `Asset Type: ${assetName}` : undefined}
+              extra={activity === "Withholding Tax" ? "Optional: leave empty for account withholding tax." : activity === "Interest" ? "Optional: leave empty for interest earned on the account." : <span style={{ visibility: selectedStockId ? "visible" : "hidden" }} aria-hidden={!selectedStockId}>Asset Type: {assetName}</span>}
               hidden={[
                 "Contribution",
                 "Withdrawal",

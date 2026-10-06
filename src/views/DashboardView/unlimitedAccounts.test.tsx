@@ -6,13 +6,14 @@ import ContributionLimits from "./ContributionLimits";
 jest.mock("./ContributionGraph", () => ({ __esModule: true, default: ({ accounts }: any) => <div data-testid="limit-graph">{accounts.map((account: any) => account.node.code).join(",")}</div> }));
 const tfsa = { __typename: "AccountType", id: "tfsa", code: "TFSA", name: "Tax-Free Savings Account", hasContributionLimit: true };
 const nrsa = { __typename: "AccountType", id: "nrsa", code: "NRSA", name: "Non-Registered Savings Account", hasContributionLimit: false };
+jest.mock("recharts", () => ({ ...jest.requireActual("recharts"), ResponsiveContainer: () => null }));
 beforeEach(() => {
   Object.defineProperty(window, "matchMedia", { writable: true, value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }) });
 });
 function show(nodes = [tfsa, nrsa]) {
   const accounts = { __typename: "AccountConnection", edges: nodes.map(node => ({ __typename: "AccountEdge", node })) };
   const client = new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link: new ApolloLink(operation => new Observable(observer => {
-    const tx = (id: string, account: typeof tfsa, total: number) => ({ id, account, total, activity: { name: "Contribution" }, platform: { id: "broker", name: "Broker", currency: { id: "cad", code: "CAD" } }, stock: null, description: "", transactionDate: "2026-10-01", price: 0, shares: 0, fee: 0, rate: null, maturityDate: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null });
+    const tx = (id: string, account: typeof tfsa, total: number) => ({ id, account, total, activity: { name: "Contribution" }, platform: { id: "broker", name: "Broker", currency: { id: "cad", code: "CAD" } }, stock: null, description: "", transactionDate: "2026-10-01", price: 0, shares: 0, fee: 0, rate: null, maturityDate: null, transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null });
     observer.next({ data: operation.operationName === "transaction_activity" ? { transactions: [tx("1", nrsa, 125), tx("2", nrsa, 75), tx("3", tfsa, 50)] } : { activities: { edges: [{ node: { id: "contribution", name: "Contribution" } }] }, contributionLimits: { edges: [{ node: { id: "tfsa-limit", account: tfsa, amount: 100, yearEnd: "2026-12-31" } }, { node: { id: "old-nrsa-limit", account: nrsa, amount: 10, yearEnd: "2026-12-31" } }] } } }); observer.complete();
   })) });
   render(<ApolloProvider client={client}><AddContributionLimit accounts={accounts} /><ContributionLimits accounts={accounts} /></ApolloProvider>);

@@ -6,6 +6,7 @@ import {
   AreaChartOutlined,
   FolderOpenOutlined,
   PlusOutlined,
+  SearchOutlined,
   StockOutlined
 } from "@ant-design/icons";
 
@@ -34,6 +35,7 @@ const items: MenuItem[] = [
   getItem("Dashboard", "/home", <AreaChartOutlined />),
   getItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
   getItem("My Stocks", "/mystocks", <StockOutlined />),
+  getItem("Transactions", "/transactions", <SearchOutlined />),
   getItem("Add Transaction", "/add", <PlusOutlined />),
 ];
 

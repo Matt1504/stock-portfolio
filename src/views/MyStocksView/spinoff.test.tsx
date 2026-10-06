@@ -15,8 +15,8 @@ const currency = { id: "usd", code: "USD" };
 const asset = { id: "asset", name: "Stock" };
 const parent = { id: "mmm", name: "3M", ticker: "MMM", asset, currency };
 const child = { id: "solv", name: "Solventum", ticker: "SOLV", asset, currency };
-const base = { account: { id: "rrsp", code: "RRSP" }, platform: { id: "broker", name: "Broker", currency }, priceCurrency: currency, totalCurrency: currency, exchangeRate: 1, fee: 0, price: null, rate: null, maturityDate: null, gicPurchase: null, interestCalculation: "simple", principalReturned: null, interestEarned: null };
-const buy = { ...base, id: "buy", stock: parent, activity: { name: ActivityEnum.BUY }, transactionDate: "2023-01-01", shares: 4, total: 500, spinoffSource: null, allocatedBookCost: null } as unknown as Transaction;
+const base = { transferBatch: null, account: { id: "rrsp", code: "RRSP" }, platform: { id: "broker", name: "Broker", currency }, priceCurrency: currency, totalCurrency: currency, exchangeRate: 1, fee: 0, price: null, rate: null, maturityDate: null, gicPurchase: null, interestCalculation: "simple", principalReturned: null, interestEarned: null };
+const buy = { ...base, id: "buy", stock: parent, activity: { name: ActivityEnum.BUY }, transactionDate: "2023-01-01", shares: 4, total: 500, transferBatch: null, spinoffSource: null, allocatedBookCost: null } as unknown as Transaction;
 const event = { ...base, id: "event", stock: child, spinoffSource: parent, allocatedBookCost: 77.6, activity: { name: ActivityEnum.STOCKSPINOFF }, transactionDate: "2024-04-01", shares: 1, total: 0 } as unknown as Transaction;
 const values = (rows: Transaction[], id: string) => Object.fromEntries(stockStatistics(rows, "Stock", id).details.map(detail => [detail.title, detail.value]));
 beforeEach(() => Object.defineProperty(window, "matchMedia", { writable: true, value: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }) }));
@@ -36,7 +36,7 @@ test("spinoff moves cost without cash, purchases, profit, or changing parent sha
 });
 
 test("future sales use allocated costs for each stock", () => {
-  const sale = { ...event, id: "sale", spinoffSource: null, allocatedBookCost: null, activity: { name: ActivityEnum.SELL }, transactionDate: "2024-04-02", total: 100 } as unknown as Transaction;
+  const sale = { ...event, id: "sale", transferBatch: null, spinoffSource: null, allocatedBookCost: null, activity: { name: ActivityEnum.SELL }, transactionDate: "2024-04-02", total: 100 } as unknown as Transaction;
   expect(values([event, sale], "solv")["Realized Gain/Loss"]).toBeCloseTo(22.4);
   const parentSale = { ...sale, stock: parent, shares: 1, total: 120 } as unknown as Transaction;
   expect(values([buy, event, parentSale], "mmm")["Realized Gain/Loss"]).toBeCloseTo(14.4);
