@@ -37,6 +37,7 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
   const overviewData = { ...data, history: [...history, tx("service-cad", "Service Fee", 5), tx("service-usd", "Service Fee", 7, "USD")] };
   const requests: any[] = [];
   const client = new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link: new ApolloLink(operation => new Observable(observer => {
+    if (operation.operationName === "MarketValuation") { observer.next({ data: { marketValuation: null } }); observer.complete(); return; }
     requests.push({ variables: operation.variables, context: operation.getContext() });
     Promise.resolve().then(() => { observer.next({ data: overviewData }); observer.complete(); });
   })) });
@@ -45,7 +46,7 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
   expect(requests[0].variables).toEqual({ profileId: "owner" });
   expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
   fireEvent.click(screen.getByRole("button", { name: "Show Total Book Cost" }));
   expect(screen.getByRole("group", { name: "Total Book Cost" })).toHaveTextContent("151.50");
   fireEvent.click(screen.getByRole("button", { name: "Show Realized Gain/Loss" }));
@@ -55,6 +56,7 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
 
   expect(screen.getByRole("group", { name: "Fees Paid" })).toHaveTextContent("40.00");
   fireEvent.click(screen.getByRole("tab", { name: "USD" }));
+  expect(screen.getAllByRole("region", { name: "Market valuation" })).toHaveLength(1);
   expect(screen.getByRole("group", { name: "Net Deposits" })).toHaveTextContent("500.00");
   expect(screen.getByRole("group", { name: "Realized Gain/Loss" })).toHaveTextContent("0.00");
   fireEvent.click(screen.getByRole("button", { name: "Show Realized Profit" }));
@@ -66,7 +68,7 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
   await coldRefetch(client, [PORTFOLIO_OVERVIEW]);
   expect(requests).toHaveLength(2);
   expect(requests[1].context.headers["X-Cache-Bypass"]).toBe("true");
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
 });
 
 

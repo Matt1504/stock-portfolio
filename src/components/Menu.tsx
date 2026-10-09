@@ -1,6 +1,6 @@
 import { Layout, Menu } from "antd";
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import {
   AreaChartOutlined,
@@ -31,14 +31,6 @@ function getItem(
   } as MenuItem;
 }
 
-const items: MenuItem[] = [
-  getItem("Dashboard", "/home", <AreaChartOutlined />),
-  getItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
-  getItem("My Stocks", "/mystocks", <StockOutlined />),
-  getItem("Transactions", "/transactions", <SearchOutlined />),
-  getItem("Add Transaction", "/add", <PlusOutlined />),
-];
-
 type MProps = {
   collapsed: boolean, 
   setCollapsed: Function,
@@ -46,16 +38,18 @@ type MProps = {
 
 const MenuComponent = (props: MProps) => {
   const { collapsed, setCollapsed } = props;
-  const navigate = useNavigate();
   const { pathname, search } = useLocation();
-
-  function handleMenuClick(path: string) {
-    if (path === null || path === "") {
-      return;
-    }
-    const profile = new URLSearchParams(search).get("profile");
-    return navigate({ pathname: path, search: profile ? new URLSearchParams({ profile }).toString() : "" });
-  }
+  const profile = new URLSearchParams(search).get("profile");
+  const profileSearch = profile ? `?${new URLSearchParams({ profile }).toString()}` : "";
+  const navItem = (label: string, path: string, icon: React.ReactNode) =>
+    getItem(<Link to={`${path}${profileSearch}`}>{label}</Link>, path, icon);
+  const items: MenuItem[] = [
+    navItem("Dashboard", "/home", <AreaChartOutlined />),
+    navItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
+    navItem("My Stocks", "/mystocks", <StockOutlined />),
+    navItem("Transactions", "/transactions", <SearchOutlined />),
+    navItem("Add Transaction", "/add", <PlusOutlined />),
+  ];
 
   return (
     <Sider
@@ -79,7 +73,6 @@ const MenuComponent = (props: MProps) => {
         mode="inline"
         theme="dark"
         items={items}
-        onClick={(item) => handleMenuClick(item.key)}
       />
     </Sider>
   );

@@ -1,10 +1,11 @@
+import MarketValuation, { MARKET_VALUATION } from "../../components/MarketValuation";
 import LastUpdated from "../../components/LastUpdated";
 import { Link } from "react-router-dom";
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
 import { startCalculationTiming, useRenderTiming } from "../../utils/performanceDiagnostics";
-import { Alert, Col, Row, Tag, Tabs } from "antd";
+import { Alert, Col, Row, Tag, Tabs, Typography as AntTypography } from "antd";
 import { useContext, useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -201,7 +202,7 @@ const SelectedStockInfo = (props: SSProps) => {
             ) : <span>{currency}</span>}
           </Typography>
           <LastUpdated queries={[TRANSACTIONS_BY_STOCK]} />
-      <ReloadButton onReload={() => coldRefetch(client, [TRANSACTIONS_BY_STOCK])} loading={loading} disabled={bulkEditing} />
+      <ReloadButton onReload={() => coldRefetch(client, [TRANSACTIONS_BY_STOCK, MARKET_VALUATION])} loading={loading} disabled={bulkEditing} />
         </Stack>
       </Col>
       {amountCurrencies.length > 0 && <Col span={24}>
@@ -222,6 +223,8 @@ const SelectedStockInfo = (props: SSProps) => {
       </Col>}
       {hasHoldingIssues && !loading && <Col span={24}><Alert type="warning" showIcon message="Some sales exceed recorded holdings. Review the transaction history; realized gain/loss is unavailable until missing entries are corrected." style={{ marginBottom: 16 }} /></Col>}
       <Col span={24}>
+        {!isFund && !isGic && <MarketValuation key={`valuation:${profile?.id}:${stock}:${selectedAmountCurrency}`} currency={selectedAmountCurrency ?? currency} stock={stock} />}
+        <AntTypography.Title level={5} style={{ marginTop: 0, marginBottom: 16 }}>Portfolio Analytics</AntTypography.Title>
         {!isFund && !isGic ? <FlippableStatistics key={`${profile?.id ?? ""}:${stock}:${selectedAmountCurrency}`} pairs={stockCardPairs} details={holdingDetails} descriptions={stockStatisticDescriptions} loading={loading} /> : <ExpandableStatistics columns={assetType === "Index Fund" ? 4 : isFund || isGic ? 3 : 4} collapsible={assetType !== "Index Fund"} details={holdingDetails} descriptions={isGic ? {
           ...stockStatisticDescriptions,
           "Book Cost": "Principal invested in GIC purchases minus principal returned by linked GIC Maturity transactions. Interest is excluded. Matured purchases have no outstanding book cost.",

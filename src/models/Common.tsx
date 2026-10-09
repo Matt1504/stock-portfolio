@@ -10,4 +10,6 @@ export type HoldingDetail = {
     prefix: string | undefined;
     colour: string;
     precision: number | undefined;
+    suffix?: string;
+    valueColor?: string;
   };

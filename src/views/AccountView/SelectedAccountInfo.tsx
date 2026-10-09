@@ -1,3 +1,4 @@
+import MarketValuation, { MARKET_VALUATION } from "../../components/MarketValuation";
 import LastUpdated from "../../components/LastUpdated";
 import FlippableStatistics, { accountCardPairs } from "../../components/FlippableStatistics";
 import { calculateCashBalance } from "./cashBalance";
@@ -7,7 +8,7 @@ import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../component
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
-import { Alert, Col, Row, Tabs } from "antd";
+import { Alert, Col, Row, Tabs, Typography as AntTypography } from "antd";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -327,7 +328,7 @@ const SelectedAccountInfo = (props: SAProps) => {
             {accountName} {name}
           </Typography>
           <LastUpdated queries={[query]} />
-      <ReloadButton onReload={() => coldRefetch(client, [query])} loading={loading} disabled={bulkEditing} />
+      <ReloadButton onReload={() => coldRefetch(client, [query, MARKET_VALUATION])} loading={loading} disabled={bulkEditing} />
         </Stack>
       </Col>
       <Col span={24}>
@@ -361,6 +362,8 @@ const SelectedAccountInfo = (props: SAProps) => {
         />
       </Col>}
       <Col span={24}>
+        <MarketValuation key={`${account}:${platform}:${currency.code}`} currency={currency.code} platform={platform} account={platform ? undefined : account} />
+        <AntTypography.Title level={5} style={{ marginTop: 0, marginBottom: 16 }}>Portfolio Analytics</AntTypography.Title>
         <FlippableStatistics key={`${account}:${platform ?? ""}:${currency.id}`} pairs={accountCardPairs} loading={loading} descriptions={accountStatisticDescriptions} details={accountDetails} />
       </Col>
       {data && !loading ? (

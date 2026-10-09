@@ -59,8 +59,8 @@ export const CREATE_PLATFORM = gql(`
     }`);
 
 export const TRANSFER_ACCOUNT = gql(`
-    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!) {
-        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount) {
+    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!, $marketValues: [TransferAssetValueInput!]) {
+        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount, marketValues: $marketValues) {
             success
         }
   }`);

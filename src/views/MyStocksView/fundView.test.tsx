@@ -93,6 +93,7 @@ test("stock summaries separate recorded CAD and USD costs and chart entries", as
   fireEvent.click(screen.getByRole("tab", { name: "USD" }));
   await waitFor(() => expect(screen.getByRole("group", { name: "Book Cost" })).toHaveTextContent("200.00"));
   expect(screen.getByText(/Recorded amounts in USD/)).toBeVisible();
+  expect(screen.getAllByRole("region", { name: "Market valuation" })).toHaveLength(1);
   expect(JSON.parse(screen.getByTestId("history-chart").getAttribute("data-dates")!)).toHaveLength(1);
 });
 

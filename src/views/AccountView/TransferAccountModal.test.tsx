@@ -25,8 +25,10 @@ test("explains retained history, previews balances and submits the closing date"
   fireEvent.click(screen.getByText("TFSA · Old Broker (CAD)"));
   await waitFor(() => expect(useProfileQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ variables: expect.objectContaining({ transferFrom: "source", transferTo: "dest" }) })));
   expect(screen.getByText(/Cash to transfer: \$53.25 CAD/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Transfer and Close" })).toBeDisabled();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer market value for EX" }), { target: { value: "450" } });
   fireEvent.click(screen.getByRole("button", { name: "Transfer and Close" }));
-  await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: { transferFrom: "source", transferTo: "dest", transferDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), closeOriginalAccount: true } }));
+  await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: { transferFrom: "source", transferTo: "dest", transferDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), closeOriginalAccount: true, marketValues: [{ stockId: "EX", marketValue: "450" }] } }));
   await waitFor(() => expect(notify).toHaveBeenCalledWith("success", "Account transferred and closed", expect.any(String)));
 });
 test("a preview error prevents transfer and reports the reason", () => {
@@ -50,6 +52,7 @@ test("unchecking closure previews dated balances and submits an open-source tran
   fireEvent.click(screen.getByRole("checkbox", { name: "Close Original Account" }));
   await waitFor(() => expect(useProfileQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ variables: expect.objectContaining({ closeOriginalAccount: false }) })));
   expect(screen.getByText(/keeps Old Broker open/)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer market value for EX" }), { target: { value: "450" } });
   fireEvent.click(screen.getByRole("button", { name: "Transfer", exact: true }));
   await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: expect.objectContaining({ closeOriginalAccount: false }) }));
   await waitFor(() => expect(notify).toHaveBeenCalledWith("success", "Account transferred", expect.any(String)));

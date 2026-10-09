@@ -263,3 +263,17 @@ Use **Transfer Account** beside **Add Platform** on My Accounts. Choose an open 
 Closed platforms remain available for historical viewing. Add Transaction offers a closed platform when the selected transaction date is on or before its closing date; the backend enforces the same date restriction for edits and imports. Transfers reject negative recorded balances, undated or later source transactions, unresolved amount-only fund sales, and outstanding GICs (their purchase/maturity links need a separate transfer workflow).
 
 Holdings and account book-cost history process transactions by date, then ascending creation ID for same-day events, matching the backend transfer ledger. Transferring assets does not realize profit or affect cash: remaining purchase cost carries to the destination and is used for later sale gains. Previously earned dividends and realized gains remain on the original platform; lifetime stock and portfolio totals include both platforms.
+
+### Cached market valuations
+
+Dashboard, account and share-based stock pages show Market Valuation cards returned by
+backend `marketValuation`: account value (or native stock price), market value, unrealized
+gain/loss and unrealized return. The backend uses the current holdings ledger plus Redis
+quotes and current USD/CAD FX. Existing recorded statistics are unchanged. Prices are
+fetched hourly by the separate worker; page refresh reads the latest cache without
+contacting Yahoo. The displayed quote/fetch timestamps describe the prices actually used.
+Missing prices or unsupported GIC/amount-only fund valuations show an incomplete warning
+and dashes rather than treating holdings as worth zero. Dashboard currencies remain
+separate; foreign holdings within an account are converted to that account's currency.
+
+Asset account transfers now require a total market value for each holding in the transfer dialog, expressed in the platform currency. The entered value is stored on both linked transfer entries separately from carried book cost; cash and existing gain/loss calculations are unchanged. Historical transfers can retain estimated transfer-date closing values from the backend backfill script. The return card now flips between Unrealized Return and Annualized Return (XIRR). Its tooltip explains the selected scope, first recorded investment date, and any use of estimated historical transfer values. XIRR includes dated cash flows and compound growth, rather than dividing gains by years. Missing prices keep the existing Valuation Incomplete warning and dash placeholders. Insufficient cash-flow history or missing stock spinoff market values also produce a dash with an explanation in the tooltip.

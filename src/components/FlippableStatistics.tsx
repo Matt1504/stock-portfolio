@@ -50,7 +50,7 @@ function statisticMagnitude(detail: HoldingDetail) {
   return amount.trim() && Number.isFinite(numeric) ? numeric : -Infinity;
 }
 
-function FlipCard({ front, back, descriptions, loading }: { front: HoldingDetail; back?: HoldingDetail; descriptions: Record<string, string>; loading?: boolean }) {
+export function FlipCard({ front, back, descriptions, loading }: { front: HoldingDetail; back?: HoldingDetail; descriptions: Record<string, string>; loading?: boolean }) {
   const [selectedFace, setSelectedFace] = useState<boolean>();
   const flipped = selectedFace ?? Boolean(back && statisticMagnitude(back) > statisticMagnitude(front));
   const [flipping, setFlipping] = useState(false);
@@ -70,7 +70,7 @@ function FlipCard({ front, back, descriptions, loading }: { front: HoldingDetail
     className={`flip-statistic-face ${reverse ? "flip-statistic-face--back" : ""} flip-statistic-face--${statisticColor(detail.title)}`}
     aria-hidden={reverse !== flipped}
   >
-    <Statistic title={<span aria-hidden="true">&nbsp;</span>} value={loading ? "—" : detail.value} prefix={loading ? undefined : detail.prefix} precision={detail.precision} />
+    <Statistic title={<span aria-hidden="true">&nbsp;</span>} value={loading ? "—" : detail.value} prefix={loading ? undefined : detail.prefix} suffix={loading ? undefined : detail.suffix} precision={detail.precision} valueStyle={detail.valueColor ? { color: detail.valueColor } : undefined} />
   </div>;
   return <Card role="group" aria-label={active.title} aria-busy={loading} className={`flip-statistic${back ? " flip-statistic--paired" : ""} flip-statistic--${statisticColor(active.title)}`} onClick={event => { if (back && !loading && !(event.target as Element).closest("button")) flip(); }}>
     <div className="flip-statistic-title"><StatisticTitle key={active.title} title={active.title} description={descriptions[active.title]} disabled={flipping || loading} /></div>

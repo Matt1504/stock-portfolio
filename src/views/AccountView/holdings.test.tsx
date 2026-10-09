@@ -80,7 +80,7 @@ test("one remaining Disney share renders one full pie sector and correct statist
   await waitFor(() => expect(screen.getByText("100.00%")).toBeInTheDocument());
   expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
   expect(screen.getAllByRole("group").map(group => group.getAttribute("aria-label"))).toEqual([
     "Cash Balance", "Total Book Cost", "Realized Profit", "Amount Contributed",
     "Amount Transferred In", "Dividends/Interest Earned", "Total Share(s) Owned", "Largest Holding",

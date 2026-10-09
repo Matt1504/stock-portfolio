@@ -1,3 +1,4 @@
+import { MARKET_VALUATION } from "../../components/MarketValuation";
 import LastUpdated from "../../components/LastUpdated";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery } from "../../profiles/hooks";
@@ -18,7 +19,7 @@ const DashboardView = () => {
     <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: "wrap", rowGap: 2 }}>
       {data?.accounts && <AddContributionLimit accounts={data.accounts} />}
       <LastUpdated queries={[DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW]} />
-      <ReloadButton loading={loading} onReload={() => coldRefetch(client, [DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW])} />
+      <ReloadButton loading={loading} onReload={() => coldRefetch(client, [DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW, MARKET_VALUATION])} />
     </Stack>
     {error && <Alert type="error" message="Unable to load dashboard. Try refreshing." />}
     <PortfolioOverview />

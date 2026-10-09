@@ -22,7 +22,6 @@ type CLProps = {
 
 const ContributionLimits = (props: CLProps) => {
     const {accounts} = props;
-    const eligibleAccounts = accounts.edges.filter(account => account.node.hasContributionLimit !== false);
     const [contributionLimits, setContributionLimits] = useState<Map<string, number>>(new Map<string, number>());
     const [contributions, setContributions] = useState<Map<string, number>>(new Map<string, number>());
     const {data, loading: limitsLoading} = useQuery(GET_CONTRIBUTION_LIMITS, {
@@ -118,7 +117,7 @@ const ContributionLimits = (props: CLProps) => {
                 {!isLoading && <ContributionBars data={accounts.edges.map(({ node }) => ({ name: node.code ?? "", contribution: contributions.get(node.id ?? "") ?? 0, limit: node.hasContributionLimit === false ? undefined : contributionLimits.get(node.id ?? "") ?? 0 }))} />}
             </Col>
             <Col span={24}>
-                {data && eligibleAccounts.length > 0 && <ContributionGraph accounts={eligibleAccounts} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
+                {data && <ContributionGraph accounts={accounts.edges} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
             </Col>
         </Row>
     );

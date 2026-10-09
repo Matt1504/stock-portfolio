@@ -77,6 +77,11 @@ test("both broker currencies load concurrently and switching pending tabs preser
   const client = new ApolloClient({
     cache: new InMemoryCache({ addTypename: false }),
     link: new ApolloLink(operation => new Observable(observer => {
+      if (operation.operationName === "MarketValuation") {
+        observer.next({ data: { marketValuation: null } });
+        observer.complete();
+        return;
+      }
       requests.push({ platform: operation.variables.platform_one, observer, context: operation.getContext() });
       return cancelled;
     })),
@@ -115,9 +120,16 @@ test("both broker currencies load concurrently and switching pending tabs preser
 
 function createClient(responses: Map<string, object>) {
   const requests: { query: string; variables: Record<string, unknown>; context: Record<string, any> }[] = [];
+  const valuationRequests: { context: Record<string, any> }[] = [];
   const client = new ApolloClient({
     cache: new InMemoryCache({ addTypename: false }),
     link: new ApolloLink((operation) => new Observable((observer) => {
+      if (operation.operationName === "MarketValuation") {
+        valuationRequests.push({ context: operation.getContext() });
+        observer.next({ data: { marketValuation: null } });
+        observer.complete();
+        return;
+      }
       const query = print(operation.query);
       requests.push({ query, variables: operation.variables, context: operation.getContext() });
       const timeout = setTimeout(() => {
@@ -132,7 +144,7 @@ function createClient(responses: Map<string, object>) {
       return () => clearTimeout(timeout);
     })),
   });
-  return { client, requests };
+  return { client, requests, valuationRequests };
 }
 
 function seed(client: ApolloClient<object>, query: DocumentNode, data: object, variables?: object) {
@@ -211,7 +223,7 @@ test.each([
 
 test("stock reload continues to request the API even with cached transactions", async () => {
   const responses = new Map([[print(TRANSACTIONS_BY_STOCK), { transactions: [{ ...transaction, total: 20 }] }]]);
-  const { client, requests } = createClient(responses);
+  const { client, requests, valuationRequests } = createClient(responses);
   seed(client, TRANSACTIONS_BY_STOCK, { transactions: [transaction] }, { stock: "stock-1" });
   render(<ApolloProvider client={client}><SelectedStockInfo stock="stock-1" name="Example" currency="CAD" /></ApolloProvider>);
   await screen.findByTestId("transactions");
@@ -221,6 +233,8 @@ test("stock reload continues to request the API even with cached transactions", 
   expect(requests[0].context.headers["X-Cache-Bypass"]).toBe("true");
   expect(requests[0].context.fetchOptions.cache).toBe("no-store");
   expect(requests[0].variables).toEqual({ stock: "stock-1" });
+  await waitFor(() => expect(valuationRequests).toHaveLength(2));
+  expect(valuationRequests[1].context.headers["X-Cache-Bypass"]).toBe("true");
   await waitFor(() => expect(screen.getByTestId("transactions")).toHaveTextContent('"total":20'));
 });
 

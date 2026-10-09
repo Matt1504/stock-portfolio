@@ -56,7 +56,7 @@ const ContributionGraph = (props: CGProps) => {
             contributionHistory.set(transDate, transHistory);
         });
 
-        const accountContributionLimits = (contributionLimits?.edges ?? []).filter((limit: GraphQLNode<ContributionLimt>) => limit.node.account?.id === account.node.id);
+        const accountContributionLimits = account.node.hasContributionLimit === false ? [] : (contributionLimits?.edges ?? []).filter((limit: GraphQLNode<ContributionLimt>) => limit.node.account?.id === account.node.id);
         const graphData = Array.from(contributionHistory.values());
         
         if (accountContributionLimits.length) {
@@ -128,12 +128,12 @@ const ContributionGraph = (props: CGProps) => {
                                 name="Total Contribution"
                                 stroke="#82ca9d"
                             />
-                            <Line
+                            {accounts[selectedAccount]?.node.hasContributionLimit !== false && <Line
                                 type="monotone"
                                 dataKey="value_1"
                                 name="Contribution Limit"
                                 stroke="#FF6961"
-                            />
+                            />}
                         </LineChart>
                 </ResponsiveContainer>
             </Col>

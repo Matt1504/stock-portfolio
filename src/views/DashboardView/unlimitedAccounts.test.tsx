@@ -21,7 +21,7 @@ function show(nodes = [tfsa, nrsa]) {
 test("unlimited accounts display contributions without a percentage or limit while retaining limit setup exclusions", async () => {
   show();
   expect(await screen.findByTestId("limit-graph")).toHaveTextContent("TFSA");
-  expect(screen.getByTestId("limit-graph")).not.toHaveTextContent("NRSA");
+  expect(screen.getByTestId("limit-graph")).toHaveTextContent("NRSA");
   expect(screen.getByText(tfsa.name)).toBeVisible();
   expect(screen.getByText(nrsa.name)).toBeVisible();
   expect(screen.getByText("Contributions")).toBeVisible();
@@ -39,5 +39,5 @@ test("only unlimited accounts still show contribution totals without limit contr
   expect(screen.queryByRole("button", { name: "Add Contribution Limit" })).not.toBeInTheDocument();
   expect(screen.getByText("Contributions")).toBeVisible();
   await waitFor(() => expect(screen.getByRole("group", { name: "NRSA contributions" })).toHaveTextContent("$200.00 / -"));
-  expect(screen.queryByTestId("limit-graph")).not.toBeInTheDocument();
+  expect(screen.getByTestId("limit-graph")).toHaveTextContent("NRSA");
 });
