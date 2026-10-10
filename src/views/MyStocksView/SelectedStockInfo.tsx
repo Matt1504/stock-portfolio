@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
-import { startCalculationTiming, useRenderTiming } from "../../utils/performanceDiagnostics";
+import { useRenderTiming } from "../../utils/performanceDiagnostics";
 import { Alert, Col, Row, Tag, Tabs, Typography as AntTypography } from "antd";
 import { useContext, useEffect, useMemo, useState } from "react";
 import {
@@ -36,11 +36,10 @@ import { TransactionDataGrid } from "../../components/TransactionDataGrid";
 import { GraphData } from "../../models/GraphData";
 import { Transaction } from "../../models/Transaction";
 import {
-  formatNumber,
-  compareDates
+  formatNumber
 } from "../../utils/utils";
 import { TRANSACTIONS_BY_STOCK } from "./gql";
-import { isFundAsset, stockStatistics } from "./statistics";
+import { FinancialAnalytics, graphPoints, statisticDetails } from "../../components/FinancialAnalytics";
 
 type SSProps = {
   stock: string | undefined;
@@ -53,134 +52,35 @@ const SelectedStockInfo = (props: SSProps) => {
   const { stock, name, currency, assetType = "Stock" } = props;
   const [bulkEditing, setBulkEditing] = useState(false);
   const isGic = assetType === "GIC";
-  const isFund = isFundAsset(assetType);
+  const isFund = ["Index Fund", "Mutual Fund"].includes(assetType);
   const assetColour = assetType === "GIC" ? "green" : ["Index Fund", "Mutual Fund"].includes(assetType) ? "yellow" : "red";
-  const [hasHoldingIssues, setHasHoldingIssues] = useState(false);
   const profile = useContext(ProfileContext)?.profile;
-  const [holdingDetails, setHoldingDetails] = useState(() => stockStatistics([], assetType).details);
-  const [barGraphBuyData, setBarGraphBuyData] = useState<GraphData[]>([]);
-  const [barGraphDivData, setBarGraphDivData] = useState<GraphData[]>([]);
-  const [pieGraphPlatData, setPieGraphPlatData] = useState<GraphData[]>([]);
   const [transactionRange, setTransactionRange] = useState<ChartRange>("all");
   const [incomeRange, setIncomeRange] = useState<ChartRange>("all");
-  const transactionRanges = availableBarRanges(barGraphBuyData);
-  const incomeRanges = availableBarRanges(barGraphDivData);
-  const visibleTransactions = barHistoryInRange(barGraphBuyData, transactionRanges.includes(transactionRange) ? transactionRange : "all");
-  const visibleIncome = barHistoryInRange(barGraphDivData, incomeRanges.includes(incomeRange) ? incomeRange : "all");
   useEffect(() => { setTransactionRange("all"); setIncomeRange("all"); }, [stock]);
   const client = useApolloClient();
-  const { loading, data: currentData, previousData } = useQuery(TRANSACTIONS_BY_STOCK, {
+  const { loading, data: currentData, error } = useQuery(TRANSACTIONS_BY_STOCK, {
     variables: { stock },
     notifyOnNetworkStatusChange: true
   });
 
-  const data = currentData ?? previousData;
+  const data = currentData;
   const [amountCurrency, setAmountCurrency] = useState<string>();
   const amountCurrencies = Array.from(new Set<string>((data?.transactions ?? []).map((transaction: Transaction) => transaction.totalCurrency?.code ?? transaction.platform.currency?.code).filter(Boolean))).sort();
-  const selectedAmountCurrency = amountCurrency && amountCurrencies.includes(amountCurrency) ? amountCurrency : amountCurrencies[0];
+  const selectedAmountCurrency = amountCurrency && amountCurrencies.includes(amountCurrency) ? amountCurrency : amountCurrencies[0] ?? currency;
   const currencyTransactions = useMemo(() => data?.transactions?.filter((transaction: Transaction) => (transaction.totalCurrency?.code ?? transaction.platform.currency?.code) === selectedAmountCurrency), [data?.transactions, selectedAmountCurrency]);
   useRenderTiming("stock details");
 
-  useEffect(() => {
-    if (currencyTransactions) {
-      const finishTiming = startCalculationTiming("stock history and statistics", currencyTransactions.length);
-      var buyGraphData = new Map<string, GraphData>();
-      var divGraphData = new Map<string, GraphData>();
-      const sellShares = new Map<string, number>();
-      var transactions = [...currencyTransactions];
-      transactions
-        .sort((a: Transaction, b: Transaction) =>
-          compareDates(a.transactionDate, b.transactionDate)
-        )
-        .forEach((transaction: Transaction) => {
-          var transDate = transaction.transactionDate.toString();
-          var divData = divGraphData.get(transDate);
-          var buyData = buyGraphData.get(transDate);
-          switch (transaction.activity.name) {
-            case "Stock Split":
-              break;
-            case "Buy":
-              if (buyData) {
-                buyData.value += transaction.total ?? 0;
-                var shareLabel = Number(buyData.label ?? 0);
-                shareLabel += transaction.shares ?? 0;
-                buyData.label = shareLabel.toString();
-              } else {
-                buyData = new GraphData(
-                  transDate,
-                  transaction.total ?? 0,
-                  undefined,
-                  (transaction.shares ?? 0).toString()
-                );
-              }
-              buyGraphData.set(transDate, buyData);
-              break;
-            case "GIC Maturity":
-              divGraphData.set(transDate, new GraphData(transDate, (divData?.value ?? 0) + (transaction.interestEarned ?? 0), divData?.value_1, undefined));
-              buyGraphData.set(transDate, new GraphData(transDate, buyData?.value ?? 0, (buyData?.value_1 ?? 0) + (transaction.principalReturned ?? 0), undefined));
-              break;
-            case "Sell":
-              sellShares.set(transDate, (sellShares.get(transDate) ?? 0) + (transaction.shares ?? 0));
-              if (buyData) {
-                buyData.value_1 = (buyData.value_1 ?? 0) + (transaction.total ?? 0);
-              } else {
-                buyData = new GraphData(
-                  transDate,
-                  0,
-                  (transaction.total ?? 0),
-                  undefined
-                )
-              }
-              buyGraphData.set(transDate, buyData);
-              break;
-            case "Interest":
-            case "Dividends":
-              if (divData) {
-                divData.value += transaction.total ?? 0;
-              } else {
-                divData = new GraphData(
-                  transDate,
-                  transaction.total ?? 0,
-                  undefined,
-                  undefined
-                );
-              }
-              divGraphData.set(transDate, divData);
-              break;
-            case "Withholding Tax":
-              if (!transaction.stock) break;
-              if (divData) {
-                divData.value_1 =
-                  (divData.value_1 ?? 0) - (transaction.total ?? 0);
-              } else {
-                divData = new GraphData(
-                  transDate,
-                  0,
-                  (transaction.total ?? 0) * -1,
-                  undefined
-                );
-              }
-              divGraphData.set(transDate, divData);
-              break;
-          }
-        });
-      setBarGraphDivData(Array.from(divGraphData.values()));
-      setBarGraphBuyData(
-        Array.from(buyGraphData.values()).map((x: GraphData) => ({
-          ...x,
-          label: isFund || isGic || x.label === undefined ? undefined : `${formatNumber(Number(x.label))} Share(s)`,
-          sellLabel: isFund || isGic || !sellShares.has(x.name) ? undefined : `${formatNumber(sellShares.get(x.name)!)} Share(s)`,
-        }))
-      );
-      const summary = stockStatistics(currencyTransactions, assetType, stock);
-      setHoldingDetails(summary.details);
-      setHasHoldingIssues(summary.portfolio.issues.length > 0 || summary.portfolio.realizedGain === undefined);
-      setPieGraphPlatData(summary.portfolio.positions.filter(position => position.bookCost > 0).map(position =>
-        new GraphData(`${position.platform} (${position.accountCode ?? ""})`, position.bookCost, undefined, isGic ? undefined : position.shares.toString())
-      ));
-      finishTiming();
-    }
-  }, [currencyTransactions, assetType, isFund, isGic, stock]);
+  const analytics: FinancialAnalytics | undefined = data?.analytics?.find((item: FinancialAnalytics) => item.currency === selectedAmountCurrency);
+  const holdingDetails = statisticDetails(analytics);
+  const hasHoldingIssues = !!analytics?.issues.length;
+  const barGraphBuyData = graphPoints(analytics?.tradeHistory, !isFund && !isGic);
+  const barGraphDivData = graphPoints(analytics?.incomeHistory);
+  const pieGraphPlatData = graphPoints(analytics?.distribution);
+  const transactionRanges = availableBarRanges(barGraphBuyData);
+  const incomeRanges = availableBarRanges(barGraphDivData);
+  const visibleTransactions = barHistoryInRange(barGraphBuyData, transactionRanges.includes(transactionRange) ? transactionRange : "all");
+  const visibleIncome = barHistoryInRange(barGraphDivData, incomeRanges.includes(incomeRange) ? incomeRange : "all");
 
   return (
     <Row className="portfolio-details" gutter={[24, 24]}>
@@ -225,6 +125,7 @@ const SelectedStockInfo = (props: SSProps) => {
       <Col span={24}>
         {!isFund && !isGic && <MarketValuation key={`valuation:${profile?.id}:${stock}:${selectedAmountCurrency}`} currency={selectedAmountCurrency ?? currency} stock={stock} />}
         <AntTypography.Title level={5} style={{ marginTop: 0, marginBottom: 16 }}>Portfolio Analytics</AntTypography.Title>
+        {error && <Alert type="error" showIcon message="Unable to load stock statistics. Try refreshing." />}
         {!isFund && !isGic ? <FlippableStatistics key={`${profile?.id ?? ""}:${stock}:${selectedAmountCurrency}`} pairs={stockCardPairs} details={holdingDetails} descriptions={stockStatisticDescriptions} loading={loading} /> : <ExpandableStatistics columns={assetType === "Index Fund" ? 4 : isFund || isGic ? 3 : 4} collapsible={assetType !== "Index Fund"} details={holdingDetails} descriptions={isGic ? {
           ...stockStatisticDescriptions,
           "Book Cost": "Principal invested in GIC purchases minus principal returned by linked GIC Maturity transactions. Interest is excluded. Matured purchases have no outstanding book cost.",

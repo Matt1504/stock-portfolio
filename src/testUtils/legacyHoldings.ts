@@ -1,5 +1,6 @@
-import type { Stock } from "../../models/Stock";
-import type { Transaction } from "../../models/Transaction";
+/** Frozen pre-migration reference for regression tests only. */
+import type { Stock } from "../models/Stock";
+import type { Transaction } from "../models/Transaction";
 
 export type StockHolding = {
   stock: Stock;

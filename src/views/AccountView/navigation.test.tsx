@@ -1,3 +1,4 @@
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { print } from "graphql";
@@ -13,7 +14,7 @@ jest.mock("../../components/FlippableStatistics", () => {
     const location = jest.requireActual("react-router-dom").useLocation();
     // Record every render, including a stale frame that an eventual DOM
     // assertion would miss after React flushes passive effects.
-    mockCardFrames.push({ currency: new URLSearchParams(location.search).get("currency"), cash: props.details.find((detail: any) => detail.title === "Cash Balance").value, loading: props.loading });
+    mockCardFrames.push({ currency: new URLSearchParams(location.search).get("currency"), cash: props.details.find((detail: any) => detail.title === "Cash Balance")?.value, loading: props.loading });
     const Component = actual.default;
     return <Component {...props} />;
   } };
@@ -98,7 +99,7 @@ function renderPage(url = "/myaccounts") {
           observer.error(new Error("Unexpected request"));
           return;
         }
-        observer.next({ data });
+        observer.next({ data: "transactions" in data ? { ...data, analytics: analyticsFixture(data.transactions as any) } : data });
         observer.complete();
       }, 0);
       return () => clearTimeout(timeout);

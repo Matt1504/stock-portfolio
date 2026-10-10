@@ -1,3 +1,4 @@
+import { analyticsFixture } from "../testUtils/analyticsFixture";
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DocumentNode, print } from "graphql";
@@ -6,7 +7,7 @@ import ReloadButton from "../components/ReloadButton";
 import SelectedAccountInfo from "./AccountView/SelectedAccountInfo";
 import { TRANSACTIONS_BY_ACCOUNT, TRANSACTIONS_BY_PLATFORM } from "./AccountView/gql";
 import DashboardView from "./DashboardView";
-import { DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./DashboardView/gql";
+import { DASHBOARD_METADATA, CONTRIBUTION_ANALYTICS } from "./DashboardView/gql";
 import SelectedStockInfo from "./MyStocksView/SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./MyStocksView/gql";
 
@@ -62,13 +63,8 @@ const transaction = {
   total: 10,
 };
 
-function metadata(amount: number) {
-  return {
-    activities: { edges: [{ node: { id: "activity-contribution", name: "Contribution" } }] },
-    contributionLimits: {
-      edges: [{ node: { id: "limit-1", account, amount, yearEnd: "2026-12-31" } }],
-    },
-  };
+function metadata(amount: number, contribution = 100) {
+  return { contributionAnalytics: [{ accountId: account.id, contribution, limit: amount, percentage: contribution / amount * 100, history: [] }] };
 }
 
 test("both broker currencies load concurrently and switching pending tabs preserves requests", async () => {
@@ -97,7 +93,7 @@ test("both broker currencies load concurrently and switching pending tabs preser
   await act(async () => {
     for (const request of requests) {
       const platform = platforms.find(platform => platform.id === request.platform)!;
-      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: request.platform === "platform-usd" ? 25 : 10 }] } });
+      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: request.platform === "platform-usd" ? 25 : 10 }], analytics: [] } });
       request.observer.complete();
     }
   });
@@ -112,7 +108,7 @@ test("both broker currencies load concurrently and switching pending tabs preser
   await act(async () => {
     for (const request of requests.slice(2)) {
       const platform = platforms.find(platform => platform.id === request.platform)!;
-      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: 30 }] } });
+      request.observer.next({ data: { transactions: [{ ...transaction, id: request.platform, platform, total: 30 }], analytics: [] } });
       request.observer.complete();
     }
   });
@@ -137,7 +133,7 @@ function createClient(responses: Map<string, object>) {
         if (!data) {
           observer.error(new Error("Unexpected test request"));
         } else {
-          observer.next({ data });
+          observer.next({ data: (data as any).transactions ? { ...data, analytics: analyticsFixture((data as any).transactions) } : data });
           observer.complete();
         }
       }, 0);
@@ -148,19 +144,17 @@ function createClient(responses: Map<string, object>) {
 }
 
 function seed(client: ApolloClient<object>, query: DocumentNode, data: object, variables?: object) {
-  client.cache.writeQuery({ query, data, variables });
+  client.cache.writeQuery({ query, data: (data as any).transactions ? { ...data, analytics: analyticsFixture((data as any).transactions) } : data, variables });
 }
 
-test("dashboard reload requests all three datasets even when Apollo already has them cached", async () => {
+test("dashboard reload requests metadata and contribution summaries even when Apollo already has them cached", async () => {
   const responses = new Map<string, object>([
     [print(DASHBOARD_METADATA), { accounts, recentTransactions: [{ ...transaction, total: 20 }] }],
-    [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
-    [print(TRANSACTIONS_BY_ACTIVITY), { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 250 }] }],
+    [print(CONTRIBUTION_ANALYTICS), metadata(2000,250)],
   ]);
   const { client, requests } = createClient(responses);
   seed(client, DASHBOARD_METADATA, { accounts, recentTransactions: [transaction] }, {});
-  seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
-  seed(client, TRANSACTIONS_BY_ACTIVITY, { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] }, { activity: "activity-contribution" });
+  seed(client, CONTRIBUTION_ANALYTICS, metadata(1000));
 
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
   await screen.findByText("$100.00 / $1,000.00");
@@ -176,21 +170,18 @@ test("dashboard reload requests all three datasets even when Apollo already has 
   expect(screen.queryByTestId("transactions")).not.toBeInTheDocument();
 
   fireEvent.click(reload);
-  await waitFor(() => expect(requests).toHaveLength(6));
+  await waitFor(() => expect(requests).toHaveLength(4));
   await waitFor(() => expect(reload).toBeEnabled());
 });
 
 test("dashboard recalculates contribution limits when contributions are unchanged", async () => {
-  const contributions = { transactions: [{ ...transaction, activity: { name: "Contribution" }, total: 100 }] };
   const responses = new Map<string, object>([
     [print(DASHBOARD_METADATA), { accounts, recentTransactions: [transaction] }],
-    [print(GET_CONTRIBUTION_LIMITS), metadata(2000)],
-    [print(TRANSACTIONS_BY_ACTIVITY), contributions],
+    [print(CONTRIBUTION_ANALYTICS), metadata(2000)],
   ]);
   const { client } = createClient(responses);
   seed(client, DASHBOARD_METADATA, responses.get(print(DASHBOARD_METADATA))!, {});
-  seed(client, GET_CONTRIBUTION_LIMITS, metadata(1000));
-  seed(client, TRANSACTIONS_BY_ACTIVITY, contributions, { activity: "activity-contribution" });
+  seed(client, CONTRIBUTION_ANALYTICS, metadata(1000));
   render(<ApolloProvider client={client}><DashboardView /></ApolloProvider>);
   await screen.findByText("$100.00 / $1,000.00");
   fireEvent.click(screen.getByRole("button", { name: "Reload data" }));

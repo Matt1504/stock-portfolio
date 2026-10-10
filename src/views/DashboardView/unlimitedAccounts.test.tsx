@@ -13,8 +13,7 @@ beforeEach(() => {
 function show(nodes = [tfsa, nrsa]) {
   const accounts = { __typename: "AccountConnection", edges: nodes.map(node => ({ __typename: "AccountEdge", node })) };
   const client = new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link: new ApolloLink(operation => new Observable(observer => {
-    const tx = (id: string, account: typeof tfsa, total: number) => ({ id, account, total, activity: { name: "Contribution" }, platform: { id: "broker", name: "Broker", currency: { id: "cad", code: "CAD" } }, stock: null, description: "", transactionDate: "2026-10-01", price: 0, shares: 0, fee: 0, rate: null, maturityDate: null, transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null });
-    observer.next({ data: operation.operationName === "transaction_activity" ? { transactions: [tx("1", nrsa, 125), tx("2", nrsa, 75), tx("3", tfsa, 50)] } : { activities: { edges: [{ node: { id: "contribution", name: "Contribution" } }] }, contributionLimits: { edges: [{ node: { id: "tfsa-limit", account: tfsa, amount: 100, yearEnd: "2026-12-31" } }, { node: { id: "old-nrsa-limit", account: nrsa, amount: 10, yearEnd: "2026-12-31" } }] } } }); observer.complete();
+    observer.next({ data: { contributionAnalytics: [{accountId:"tfsa", contribution:50, limit:100, percentage:50, history:[]},{accountId:"nrsa",contribution:200,limit:null,percentage:null,history:[]}] } }); observer.complete();
   })) });
   render(<ApolloProvider client={client}><AddContributionLimit accounts={accounts} /><ContributionLimits accounts={accounts} /></ApolloProvider>);
 }

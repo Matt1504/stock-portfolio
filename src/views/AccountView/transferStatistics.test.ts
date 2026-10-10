@@ -1,7 +1,7 @@
 import { Transaction } from "../../models/Transaction";
-import { calculateCashBalance } from "./cashBalance";
-import { portfolioStatistics } from "./portfolioStatistics";
-import { stockStatistics } from "../MyStocksView/statistics";
+import { calculateCashBalance } from "../../testUtils/legacyCashBalance";
+import { portfolioStatistics } from "../../testUtils/legacyPortfolioStatistics";
+import { stockStatistics } from "../../testUtils/legacyStockStatistics";
 
 const row = (id: string, activity: string, platform: string, shares: number, total: number, date = "2026-01-01") => ({
   id, activity: { name: activity }, platform: { id: platform, name: platform, currency: { code: "CAD" } },

@@ -1,5 +1,6 @@
-import { Transaction } from "../../models/Transaction";
-import { calculateStockHoldings } from "./holdings";
+/** Frozen pre-migration reference for regression tests only. */
+import { Transaction } from "../models/Transaction";
+import { calculateStockHoldings } from "./legacyHoldings";
 
 export function portfolioStatistics(transactions: Transaction[]) {
   const holdings = calculateStockHoldings(transactions);

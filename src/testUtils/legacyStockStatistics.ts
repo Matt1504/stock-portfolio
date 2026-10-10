@@ -1,7 +1,8 @@
-import { shareCountPrecision } from "../../utils/utils";
-import { Transaction } from "../../models/Transaction";
-import { HoldingDetail } from "../../models/Common";
-import { calculateStockHoldings } from "../AccountView/holdings";
+/** Frozen pre-migration reference for regression tests only. */
+import { shareCountPrecision } from "../utils/utils";
+import { Transaction } from "../models/Transaction";
+import { HoldingDetail } from "../models/Common";
+import { calculateStockHoldings } from "./legacyHoldings";
 
 export function isFundAsset(assetType: string) {
   return ["Index Fund", "Mutual Fund"].includes(assetType);

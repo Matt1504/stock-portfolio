@@ -1,11 +1,13 @@
+jest.mock("../../components/MarketValuation", () => ({ __esModule: true, default: () => null, MARKET_VALUATION: jest.requireActual("../../components/MarketValuation").MARKET_VALUATION }));
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityEnum } from "../../models/Activity";
 import { Transaction } from "../../models/Transaction";
-import { portfolioStatistics } from "../AccountView/portfolioStatistics";
-import { calculateStockHoldings } from "../AccountView/holdings";
-import { stockStatistics } from "./statistics";
+import { portfolioStatistics } from "../../testUtils/legacyPortfolioStatistics";
+import { calculateStockHoldings } from "../../testUtils/legacyHoldings";
+import { stockStatistics } from "../../testUtils/legacyStockStatistics";
 import SelectedStockInfo from "./SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./gql";
 
@@ -46,7 +48,7 @@ test("future sales use allocated costs for each stock", () => {
 test("both stock pages explain and link the same corporate action", async () => {
   for (const [stock, rows, other, cost] of [[parent, [buy, event], child, "422.40"], [child, [event], parent, "77.60"]] as const) {
     const cache = new InMemoryCache({ addTypename: false });
-    cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: stock.id }, data: { transactions: rows } });
+    cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: stock.id }, data: { transactions: rows, analytics: analyticsFixture([...rows], stock.id) } });
     render(<MemoryRouter><ApolloProvider client={new ApolloClient({ cache })}><SelectedStockInfo stock={stock.id} name={stock.name} currency="USD" /></ApolloProvider></MemoryRouter>);
     expect(await screen.findByText("Corporate actions")).toBeVisible();
     expect(screen.getByRole("link", { name: `${other.name} (${other.ticker})` })).toHaveAttribute("href", `/mystocks?stock=${other.id}`);

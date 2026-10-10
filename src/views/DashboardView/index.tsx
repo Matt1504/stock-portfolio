@@ -10,7 +10,7 @@ import ReloadButton from "../../components/ReloadButton";
 import AddContributionLimit from "./AddContributionLimit";
 import PortfolioOverview from "./PortfolioOverview";
 import ContributionLimits from "./ContributionLimits";
-import { DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW } from "./gql";
+import { DASHBOARD_METADATA, CONTRIBUTION_ANALYTICS, PORTFOLIO_OVERVIEW } from "./gql";
 
 const DashboardView = () => {
   const client = useApolloClient();
@@ -18,8 +18,8 @@ const DashboardView = () => {
   return <>
     <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={2} sx={{ mb: 3, flexWrap: "wrap", rowGap: 2 }}>
       {data?.accounts && <AddContributionLimit accounts={data.accounts} />}
-      <LastUpdated queries={[DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW]} />
-      <ReloadButton loading={loading} onReload={() => coldRefetch(client, [DASHBOARD_METADATA, GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY, PORTFOLIO_OVERVIEW, MARKET_VALUATION])} />
+      <LastUpdated queries={[DASHBOARD_METADATA, CONTRIBUTION_ANALYTICS, PORTFOLIO_OVERVIEW]} />
+      <ReloadButton loading={loading} onReload={() => coldRefetch(client, [DASHBOARD_METADATA, CONTRIBUTION_ANALYTICS, PORTFOLIO_OVERVIEW, MARKET_VALUATION])} />
     </Stack>
     {error && <Alert type="error" message="Unable to load dashboard. Try refreshing." />}
     <PortfolioOverview />

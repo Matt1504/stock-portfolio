@@ -1,11 +1,13 @@
+jest.mock("../../components/MarketValuation", () => ({ __esModule: true, default: () => null, MARKET_VALUATION: jest.requireActual("../../components/MarketValuation").MARKET_VALUATION }));
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Transaction } from "../../models/Transaction";
 import SelectedAccountInfo from "./SelectedAccountInfo";
 import { TRANSACTIONS_BY_PLATFORM } from "./gql";
 import { LineChart } from "recharts";
-import { calculateStockHoldings } from "./holdings";
-import { portfolioStatistics } from "./portfolioStatistics";
+import { calculateStockHoldings } from "../../testUtils/legacyHoldings";
+import { portfolioStatistics } from "../../testUtils/legacyPortfolioStatistics";
 
 jest.mock("../../components/TransactionDataGrid", () => ({ TransactionDataGrid: () => null }));
 jest.mock("recharts", () => {
@@ -74,13 +76,13 @@ test("share transfers affect positions, cash transfers do not", () => {
 test("one remaining Disney share renders one full pie sector and correct statistics", async () => {
   const transactions = [tx("DIS", "Buy", 5, 777.19), tx("DIS", "Sell", 4, 1000), tx("EX", "Buy", 1), tx("EX", "Sell", 1)];
   const cache = new InMemoryCache({ addTypename: false });
-  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   const client = new ApolloClient({ cache });
   const { container } = render(<ApolloProvider client={client}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   await waitFor(() => expect(screen.getByText("100.00%")).toBeInTheDocument());
   expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
   expect(screen.getAllByRole("group").map(group => group.getAttribute("aria-label"))).toEqual([
     "Cash Balance", "Total Book Cost", "Realized Profit", "Amount Contributed",
     "Amount Transferred In", "Dividends/Interest Earned", "Total Share(s) Owned", "Largest Holding",
@@ -113,7 +115,7 @@ test("net deposit history includes only contributions and net transfers", async 
     tx("EX", "Dividends", 0, 50), tx("EX", "Interest", 0, 10), tx("EX", "Withholding Tax", 0, 5), tx("EX", "Buy", 1, 100), tx("EX", "Withdrawal", 0, 100),
   ];
   const cache = new InMemoryCache({ addTypename: false });
-  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   (LineChart as unknown as jest.Mock).mockClear();
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   await waitFor(() => expect(LineChart).toHaveBeenCalledWith(expect.objectContaining({ data: expect.arrayContaining([
@@ -130,7 +132,7 @@ test("account dividends and interest subtract only stock-associated withholding 
   accountTax.stock = null as unknown as Transaction["stock"];
   const transactions = [tx("EX", "Dividends", 0, 50), tx("EX", "Interest", 0, 10), tx("EX", "Withholding Tax", 0, 5), accountTax];
   const cache = new InMemoryCache({ addTypename: false });
-  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Dividends/Interest Earned" }));
@@ -174,7 +176,7 @@ test("reinvesting matured GIC proceeds into an amount-only fund renders current 
   fund.stock = { ...fund.stock!, asset: { id: "fund", name: "Mutual Fund" } };
   const transactions = [purchase, maturity, fund];
   const cache = new InMemoryCache({ addTypename: false });
-  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="FHSA" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
   expect(await screen.findByRole("group", { name: "Total Book Cost" })).toHaveTextContent("3,105.47");
   expect(screen.getByText("$3,105.47")).toBeInTheDocument();

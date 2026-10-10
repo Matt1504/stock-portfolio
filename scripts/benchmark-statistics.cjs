@@ -1,4 +1,4 @@
-// Benchmark existing frontend calculation functions using locally saved GraphQL responses.
+// Benchmark frozen pre-migration frontend calculation references using locally saved GraphQL responses.
 const fs = require('fs');
 const ts = require('typescript');
 const { performance } = require('perf_hooks');
@@ -7,9 +7,9 @@ for (const extension of ['.ts', '.tsx']) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.React },
   }).outputText, filename);
 }
-const { portfolioStatistics } = require('../src/views/AccountView/portfolioStatistics.ts');
-const { calculateCashBalance } = require('../src/views/AccountView/cashBalance.ts');
-const { stockStatistics } = require('../src/views/MyStocksView/statistics.ts');
+const { portfolioStatistics } = require('../src/testUtils/legacyPortfolioStatistics.ts');
+const { calculateCashBalance } = require('../src/testUtils/legacyCashBalance.ts');
+const { stockStatistics } = require('../src/testUtils/legacyStockStatistics.ts');
 const file = process.argv[2];
 if (!file) { process.stderr.write('Usage: node scripts/benchmark-statistics.cjs <local-response-snapshot.json>\n'); process.exit(1); }
 const results = JSON.parse(fs.readFileSync(file, 'utf8'));

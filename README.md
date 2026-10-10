@@ -1,8 +1,8 @@
-# Stock Portfolio Client 
+# Stock Portfolio Client
 
 ## Docker stack
 
-The sibling `stock-portfolio-stack` project runs this frontend, the Python API and Redis with one Compose configuration. Production builds use the committed npm lockfile and serve React through Nginx; `/graphql` is proxied to the backend and direct React routes fall back to `index.html`. The development image uses the React dev server with a backend proxy and source hot reload. See the stack README for setup and `docker compose up --build -d --wait`.
+The [stock-portfolio-stack repository](https://github.com/Matt1504/stock-portfolio-stack) runs this frontend, the Python API, Redis and the hourly market-data worker with one Compose configuration. Production builds use the committed npm lockfile and serve React through Nginx; `/graphql` is proxied to the backend and direct React routes fall back to `index.html`. The development image uses the React dev server with a backend proxy and source hot reload. See the stack README for setup and `docker compose up --build -d --wait`.
 
 The Docker build sets `REACT_APP_GRAPHQL_URL=/graphql`; local non-Docker launches retain their existing API URL default. `node_modules`, `.env` files, build output and statement PDFs are excluded from Docker build contexts.
 
@@ -10,19 +10,19 @@ The Docker build sets `REACT_APP_GRAPHQL_URL=/graphql`; local non-Docker launche
 This project is the code that runs the front end client application for our Stock Portfolio application. It is written in TypeScript using ReactJS and Ant Design library. The client uses Apollo Client to send GraphQL API requests to our backend web server.
 
 ## Getting started
-Make sure you have both the front end and the back end repos cloned to your local machine 
+Make sure you have both the front end and the back end repos cloned to your local machine
 
-```bash 
+```bash
 git clone https://github.com/Matt1504/stock-portfolio-backend.git
 git clone https://github.com/Matt1504/stock-portfolio
 ```
 
 Follow the steps in the backend README to get your local web server up and running on the url [http://127.0.0.1:5002/graphql](http://127.0.0.1:5002/graphql)
 
-Navigate to the cloned front end directory and make sure to install the packages and run the client 
+Navigate to the cloned front end directory and make sure to install the packages and run the client
 ```bash
 cd stock-portfolio
-npm install 
+npm ci
 npm run start
 ```
 
@@ -92,11 +92,7 @@ used. Both Ant Design and Material UI follow the same selection.
 
 ## Transaction tables
 
-The dashboard's Recent Transactions date picker defaults to the last 30 calendar
-days, including today. Changing either date fetches that range from GraphQL, so
-older history is searchable too. Boundaries are inclusive; clearing the dates
-fetches all history for the selected profile. Activity, account, and stock filters
-apply to the fetched range. Clear filters removes those filters and date bounds.
+Use the dedicated **Transactions** page for explicit searches across historical records. The dashboard displays portfolio summaries and contributions without a transaction table.
 
 Account and stock tables filter their loaded transactions locally. Filters do
 not change the statistics or charts above the table.
@@ -139,9 +135,9 @@ Line charts offer 3 months, 1 year, 2 years, and All time (the default). The sho
 
 ## Account and home overview cards
 
-My Accounts and Home display four cards by default, with Show more statistics revealing the second row of four on desktop, adapting to two or one column on smaller screens. Each pair initially displays its larger value (the newer date for date pairs), retaining that statistic’s colour; ties use the listed first face. Click a card (or use its keyboard-accessible flip button) to reveal the paired statistic: Net Deposits ↔ Total Book Cost, Realized Profit ↔ Realized Gain/Loss (both green), Amount Contributed ↔ Amount Withdrawn, Amount Transferred In ↔ Amount Transferred Out, and Dividends/Interest Earned ↔ Fees Paid. Other reverse faces are red. Shares owned and unique stocks owned remain standalone cards in the default theme colours. Largest Holding flips to Smallest Holding, both in default colours; Smallest Holding uses the lowest positive remaining book cost and excludes sold or zero-cost positions. Each card has one calculation tooltip for its active face, outside the animated faces; opening a tooltip does not flip the card. Flips reset on account, profile, or currency changes, and animation respects reduced-motion preferences.
+My Accounts and Home display four cards by default, with Show more statistics revealing the second row of four on desktop, adapting to two or one column on smaller screens. Each pair initially displays its larger value (the newer date for date pairs), retaining that statistic’s colour; ties use the listed first face. Click a card (or use its keyboard-accessible flip button) to reveal the paired statistic: Net Deposits ↔ Total Book Cost, Realized Profit ↔ Realized Gain/Loss (both green), Amount Contributed ↔ Amount Withdrawn, Amount Transferred In ↔ Amount Transferred Out, and Dividends/Interest Earned ↔ Fees Paid. Other reverse faces are red. On My Accounts, shares owned and unique stocks owned share a flip card in the default theme colours. Largest Holding flips to Smallest Holding, both in default colours; Smallest Holding uses the lowest positive remaining book cost and excludes sold or zero-cost positions. Each card has one calculation tooltip for its active face, outside the animated faces; opening a tooltip does not flip the card. Flips reset on account, profile, or currency changes, and animation respects reduced-motion preferences.
 
-My Accounts retains shares owned, unique stocks, largest holding, contributions, and transfers, and adds withdrawals and realized profit. Home shows profile-wide totals from the full transaction history, independently of the Recent Transactions date filter. Its currency tabs keep CAD and USD separate. Active Trading Accounts counts existing brokerage platforms in the chosen currency, including cash-only and empty accounts. Contribution limits remain in their own section.
+My Accounts retains shares owned, unique stocks, largest holding, contributions, and transfers, and adds withdrawals and realized profit. Home shows profile-wide totals from the full transaction history, independently of transaction table filters. Its currency tabs keep CAD and USD separate. Active Trading Accounts counts existing brokerage platforms in the chosen currency, including cash-only and empty accounts. Contribution limits remain in their own section.
 
 All overview cards use recorded transactions; no market prices are required. Book cost measures remaining purchase cost rather than market value, and realized gain/loss uses recorded sale proceeds. A dash indicates incomplete sale quantities.
 
@@ -246,7 +242,7 @@ SEC Fee is an account-level expense available only for USD trading accounts. Ent
 
 Add `performance=1` to a My Accounts or My Stocks URL to log network, calculation, and render-to-layout timings in the browser console. This is opt-in and logs only timing labels/counts, without portfolio data or GraphQL variables. Remove the parameter to turn it off. Render-to-layout timings exclude browser paint.
 
-For a local benchmark of existing statistics helpers, run `node scripts/benchmark-statistics.cjs /tmp/transaction-responses.json` with the response snapshot produced by the backend benchmark. Keep snapshots outside version control because they contain portfolio data.
+For a local benchmark of the frozen pre-migration statistics references, run `node scripts/benchmark-statistics.cjs /tmp/transaction-responses.json` with the response snapshot produced by the backend benchmark. Keep snapshots outside version control because they contain portfolio data.
 
 ### Transaction search and dashboard
 
@@ -254,7 +250,7 @@ For a local benchmark of existing statistics helpers, run `node scripts/benchmar
 
 The dashboard now contains general statistics and contributions, with transaction history on its dedicated page. Four contribution cards share a row on wide screens; horizontal bars show the same all-time contributed totals and saved limits. Dotted markers apply only to limited accounts. Book Cost Distribution groups remaining positions by account type in the selected recorded currency, with Pie/Bar views. CAD and USD are never added together.
 
-**Last fetched** appears beside refresh controls and reports server-provided fetch time in local time. Redis hits retain the original timestamp; a cold refresh fetches MongoDB and advances it. For a view with multiple active queries, the label uses the earliest known timestamp. Until a timestamp-bearing response arrives it shows a dash. Existing frontend financial formulas remain in use; an on-demand backend calculator is a separate parity-tested migration.
+**Last fetched** appears beside refresh controls and reports server-provided fetch time in local time. Redis hits retain the original timestamp; a cold refresh fetches MongoDB and advances it. For a view with multiple active queries, the label uses the earliest known timestamp. Until a timestamp-bearing response arrives it shows a dash. Financial formulas run in the backend; React displays the returned statistics and history points.
 
 ### Transferring and closing a platform
 
@@ -277,3 +273,16 @@ and dashes rather than treating holdings as worth zero. Dashboard currencies rem
 separate; foreign holdings within an account are converted to that account's currency.
 
 Asset account transfers now require a total market value for each holding in the transfer dialog, expressed in the platform currency. The entered value is stored on both linked transfer entries separately from carried book cost; cash and existing gain/loss calculations are unchanged. Historical transfers can retain estimated transfer-date closing values from the backend backfill script. The return card now flips between Unrealized Return and Annualized Return (XIRR). Its tooltip explains the selected scope, first recorded investment date, and any use of estimated historical transfer values. XIRR includes dated cash flows and compound growth, rather than dividing gains by years. Missing prices keep the existing Valuation Incomplete warning and dash placeholders. Insufficient cash-flow history or missing stock spinoff market values also produce a dash with an explanation in the tooltip.
+
+### Financial analytics
+
+The dashboard, account pages, stock pages and contribution overview now receive
+calculated statistics and history points from backend GraphQL. React formats numbers,
+chooses card faces, applies chart time ranges and renders distributions; it does not
+calculate financial totals or cost basis. Account/stock queries return their table
+transactions and analytics together. The dashboard requests summaries rather than the
+complete transaction history. Mutations invalidate both analytics fields in Apollo and
+refresh active queries; Refresh still bypasses the backend transaction cache.
+
+The former frontend calculators are retained under `src/testUtils/legacy*` only as
+frozen regression references. They are not imported by production components.

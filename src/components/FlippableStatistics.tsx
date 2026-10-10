@@ -87,9 +87,10 @@ export function FlipCard({ front, back, descriptions, loading }: { front: Holdin
 export default function FlippableStatistics({ details, descriptions, loading, pairs = accountPairs }: { details: HoldingDetail[]; descriptions: Record<string, string>; loading?: boolean; pairs?: string[][] }) {
   const [expanded, setExpanded] = useState(false);
   const extraId = useId();
+  const displayedDetails: HoldingDetail[] = loading && !details.length ? pairs.flat().map(title => ({ title, value: "—", colour: "", prefix: undefined, precision: undefined })) : details;
   const cards = pairs.flatMap(([title, reverse]) => {
-    const front = details.find(detail => detail.title === title);
-    const back = details.find(detail => detail.title === reverse);
+    const front = displayedDetails.find(detail => detail.title === title);
+    const back = displayedDetails.find(detail => detail.title === reverse);
     return front ? [<FlipCard key={title} front={front} back={back} descriptions={descriptions} loading={loading} />] : [];
   });
   return <>

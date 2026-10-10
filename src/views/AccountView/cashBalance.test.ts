@@ -1,5 +1,5 @@
 import { Transaction } from "../../models/Transaction";
-import { calculateCashBalance } from "./cashBalance";
+import { calculateCashBalance } from "../../testUtils/legacyCashBalance";
 
 const tx = (activity: string, total: number, extra: Partial<Transaction> = {}) => ({
   activity: { name: activity }, total, ...extra,

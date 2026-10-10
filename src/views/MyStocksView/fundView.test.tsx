@@ -1,3 +1,4 @@
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import dayjs from "dayjs";
@@ -26,7 +27,7 @@ function show(assetType: string, rows?: object[]) {
     { id: "income", activity: { name: "Dividends" }, total: 5, shares: 0, transactionDate: "2026-01-02" },
   ]).map(row => ({ ...row, transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, stock: { currency: null, id: "fund", name: "Fund", ticker: "FUND", asset: { id: "asset", name: assetType } }, account: { id: "account", code: "TFSA" }, platform: { id: "platform", name: "Broker", currency: { id: "cad", code: "CAD" } }, price: 0, fee: 0, rate: null, maturityDate: null })) as unknown as Transaction[];
   transactions.forEach((transaction, index) => { const row = rows?.[index] as Partial<Transaction> | undefined; if (row?.totalCurrency) transaction.totalCurrency = row.totalCurrency; if (row?.platform) transaction.platform = row.platform; if (row?.shares !== undefined) transaction.shares = row.shares; });
-  cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: "fund" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: "fund" }, data: { transactions, analytics: analyticsFixture(transactions, "fund", assetType) } });
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedStockInfo stock="fund" name="Fund" currency="CAD" assetType={assetType} /></ApolloProvider>);
 }
 

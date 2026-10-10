@@ -1,4 +1,5 @@
 import { gql } from "@apollo/client";
+import { ANALYTICS_FIELDS } from "../../components/FinancialAnalytics";
 
 export const DASHBOARD_TRANSACTIONS = gql(`
   query RecentTransactions($profileId: ID!, $startDate: Date, $endDate: Date) {
@@ -133,15 +134,15 @@ export const CREATE_CONTRIBUTION = gql(`
 export const PORTFOLIO_OVERVIEW = gql`
   query PortfolioOverview($profileId: ID!) {
     currencies { edges { node { id code } } }
-    platforms(profileId: $profileId) { edges { node { id currency { id code } } } }
-    history: transactionsByDateRange(profileId: $profileId) {
-      id transactionDate transferBatch price shares fee total spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
-            principalReturned interestEarned
-      priceCurrency { id code } totalCurrency { id code } exchangeRate
-      activity { name }
-      account { id code }
-      stock { id name ticker asset { id name } }
-      platform { id name currency { id code } }
+    analytics: financialAnalytics(profileId: $profileId) { ...FinancialAnalyticsFields accountDistribution { name value } }
+  }
+  ${ANALYTICS_FIELDS}
+`;
+
+export const CONTRIBUTION_ANALYTICS = gql`
+  query ContributionAnalytics($profileId: ID!) {
+    contributionAnalytics(profileId: $profileId) {
+      accountId contribution limit percentage history { name value value1 }
     }
   }
 `;

@@ -26,7 +26,7 @@ export function useProfileMutation<TData = any, TVariables extends OperationVari
       if (isScoped(document) && result.data) {
         // Retire inactive personal lists as well as refreshing the current view.
         // Otherwise returning to a previously visited page could reuse old stats.
-        for (const fieldName of ["marketValuation", "searchTransactions", "outstandingGicPurchases", "transactions", "transactionsByAccount", "transactionsByPlatform", "transactionsByStock", "transactionsByActivity", "transactionsFromThisWeek", "transactionsFromLastMonth", "transactionsByDateRange", "platforms", "contributionLimits", "contributionLimitsByAccount"]) {
+        for (const fieldName of ["financialAnalytics", "contributionAnalytics", "marketValuation", "searchTransactions", "outstandingGicPurchases", "transactions", "transactionsByAccount", "transactionsByPlatform", "transactionsByStock", "transactionsByActivity", "transactionsFromThisWeek", "transactionsFromLastMonth", "transactionsByDateRange", "platforms", "contributionLimits", "contributionLimitsByAccount"]) {
           cache.evict({ id: "ROOT_QUERY", fieldName });
         }
       }

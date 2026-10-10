@@ -1,4 +1,5 @@
-import { Transaction } from "../../models/Transaction";
+/** Frozen pre-migration reference for regression tests only. */
+import { Transaction } from "../models/Transaction";
 
 /** Recorded cash movement in a single account/currency; opening balance is zero. */
 export function calculateCashBalance(transactions: Transaction[]): number {

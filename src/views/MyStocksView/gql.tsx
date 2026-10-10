@@ -1,4 +1,5 @@
 import { gql } from "@apollo/client";
+import { ANALYTICS_FIELDS } from "../../components/FinancialAnalytics";
 
 export const ALL_STOCKS_CURRENCY = gql(`
     query {
@@ -68,8 +69,9 @@ export const CREATE_STOCK = gql(`
         }
     }`);
 
-export const TRANSACTIONS_BY_STOCK = gql(`
+export const TRANSACTIONS_BY_STOCK = gql`
     query transaction_stock( $profileId: ID!, $stock: ID!) {
+
         transactions: transactionsByStock(profileId: $profileId, stock: $stock) {
             id
             account {
@@ -106,7 +108,10 @@ export const TRANSACTIONS_BY_STOCK = gql(`
             maturityDate
             total
         }
-    }`);
+        analytics: financialAnalytics(profileId: $profileId, stock: $stock) { ...FinancialAnalyticsFields distribution { name value shares } tradeHistory { name value value1 shares sellShares } incomeHistory { name value value1 } }
+    }
+    ${ANALYTICS_FIELDS}
+`;
 
 export const UPDATE_TRANSACTION = gql(`
     mutation UpdateTransaction( $profileId: ID!, $trans:TransactionInput!){

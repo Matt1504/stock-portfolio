@@ -1,20 +1,16 @@
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
-import { Card, Col, Row, Statistic } from "antd";
-import { useEffect, useState } from "react";
+import { Alert, Card, Col, Row, Statistic } from "antd";
 
 
 import { Typography } from "@mui/material";
 
 import { Account } from "../../models/Account";
-import { Activity } from "../../models/Activity";
-import { ContributionLimt } from "../../models/ContributionLimit";
 import { GraphQLEdge } from "../../models/GraphQLEdge";
 import { GraphQLNode } from "../../models/GraphQLNode";
-import { Transaction } from "../../models/Transaction";
 import { formatNumberAsCurrency, formatNumber } from "../../utils/utils";
 import ContributionBars from "./ContributionBars";
 import ContributionGraph from "./ContributionGraph";
-import { GET_CONTRIBUTION_LIMITS, TRANSACTIONS_BY_ACTIVITY } from "./gql";
+import { CONTRIBUTION_ANALYTICS } from "./gql";
 
 type CLProps = {
     accounts: GraphQLEdge<Account>;
@@ -22,65 +18,13 @@ type CLProps = {
 
 const ContributionLimits = (props: CLProps) => {
     const {accounts} = props;
-    const [contributionLimits, setContributionLimits] = useState<Map<string, number>>(new Map<string, number>());
-    const [contributions, setContributions] = useState<Map<string, number>>(new Map<string, number>());
-    const {data, loading: limitsLoading} = useQuery(GET_CONTRIBUTION_LIMITS, {
-        notifyOnNetworkStatusChange: true,
-    });
-    const contributionId = data?.activities.edges.find(
-        (activity: GraphQLNode<Activity>) => activity.node.name === "Contribution"
-    )?.node.id;
-    const { data: transactions, loading: contributionsLoading } = useQuery(TRANSACTIONS_BY_ACTIVITY, {
-        variables: { activity: contributionId },
-        skip: !contributionId,
-        notifyOnNetworkStatusChange: true,
-    });
-    const isLoading = limitsLoading || contributionsLoading;
-
-    useEffect(() => {
-        if (!data) return;
-        var limitMap = new Map<string, number>();
-        var contributionMap = new Map<string, number>(); 
-
-        data.contributionLimits.edges.forEach((limit: GraphQLNode<ContributionLimt>) => {
-            const account = limit.node.account?.id ?? "";
-            const amount = limit.node.amount ?? 0;
-
-            let value = limitMap.get(account);
-            if (value) {
-                value += amount;
-            } else {
-                value = amount;
-            }
-            limitMap.set(account, value);
-        });
-
-        (transactions?.transactions ?? []).forEach((transaction: Transaction) => {
-            const account = transaction.account?.id ?? "";
-            const amount = transaction.total ?? 0;
-
-            let value = contributionMap.get(account);
-            if (value) {
-                value += amount;
-            } else {
-                value = amount;
-            }
-            contributionMap.set(account, value);
-        });
-
-        setContributionLimits(limitMap);
-        setContributions(contributionMap);
-    }, [data, transactions]);
-
-    function computeContributionUsed(accountId: string) {
-        const contribution = contributions?.get(accountId) ?? 0;
-        const limit = contributionLimits?.get(accountId) ?? 0;
-        return limit > 0 ? (contribution / limit) * 100 : 0;
-    }
-
+    const {data, loading: isLoading, error} = useQuery(CONTRIBUTION_ANALYTICS, { notifyOnNetworkStatusChange: true });
+    const summaries = data?.contributionAnalytics ?? [];
+    const summaryFor = (id: string) => summaries.find((item: any) => item.accountId === id);
     function printContributionUsed(accountId: string, hasLimit: boolean) {
-        const contribution = contributions?.get(accountId) ?? 0;
-        const limit = contributionLimits?.get(accountId) ?? 0;
+        const summary = summaryFor(accountId);
+        const contribution = Number(summary?.contribution ?? 0);
+        const limit = Number(summary?.limit ?? 0);
         return hasLimit ? `${formatNumberAsCurrency(contribution)} / ${formatNumberAsCurrency(limit)}` : `$${formatNumber(contribution, 2, 2)} / -`;
     }
 
@@ -88,6 +32,7 @@ const ContributionLimits = (props: CLProps) => {
 
     return (
         <Row gutter={[24, 24]}>
+            {error && <Col span={24}><Alert type="error" showIcon message="Unable to load contributions. Try refreshing." /></Col>}
             <Col span={24}>
                 <Typography variant="h6">
                 Contributions
@@ -104,7 +49,7 @@ const ContributionLimits = (props: CLProps) => {
                                 title={<span style={{ display: "inline-block", minHeight: 39 }}>
                                     {savingsIndex > 0 ? <>{name.slice(0, savingsIndex)}<br />{name.slice(savingsIndex)}</> : name}
                                 </span>}
-                                value={account.node.hasContributionLimit === false ? "-" : computeContributionUsed(account.node.id ?? "")}
+                                value={account.node.hasContributionLimit === false ? "-" : Number(summaryFor(account.node.id ?? "")?.percentage ?? 0)}
                                 suffix={account.node.hasContributionLimit === false ? undefined : "%"}
                                 precision={account.node.hasContributionLimit === false ? undefined : 2}
                             />
@@ -114,10 +59,10 @@ const ContributionLimits = (props: CLProps) => {
                 )
             })}
             <Col span={24}>
-                {!isLoading && <ContributionBars data={accounts.edges.map(({ node }) => ({ name: node.code ?? "", contribution: contributions.get(node.id ?? "") ?? 0, limit: node.hasContributionLimit === false ? undefined : contributionLimits.get(node.id ?? "") ?? 0 }))} />}
+                {!isLoading && <ContributionBars data={accounts.edges.map(({ node }) => ({ name: node.code ?? "", contribution: Number(summaryFor(node.id ?? "")?.contribution ?? 0), limit: node.hasContributionLimit === false ? undefined : Number(summaryFor(node.id ?? "")?.limit ?? 0) }))} />}
             </Col>
             <Col span={24}>
-                {data && <ContributionGraph accounts={accounts.edges} contributionLimits={data.contributionLimits} transactions={transactions?.transactions ?? []} />}
+                {data && <ContributionGraph accounts={accounts.edges} summaries={summaries} />}
             </Col>
         </Row>
     );

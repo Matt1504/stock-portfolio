@@ -63,7 +63,7 @@ function setup(url = "/mystocks?stock=shared-stock", options: { empty?: boolean;
         account: { id: "account", code: "TFSA" }, platform: { id: "platform-" + operation.variables.profileId, name: "Broker", currency: { id: "cad", code: "CAD" } },
         activity: { name: "Buy" }, stock: { currency: null, id: "shared-stock", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } },
         transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-10-01", price: 10, fee: 0, total: 20, rate: null, maturityDate: null }] };
-      observer.next({ data }); observer.complete();
+      observer.next({ data: data.transactions ? { ...data, analytics: [] } : data }); observer.complete();
     };
     if (field === "transactionsByStock" && operation.variables.profileId === "alice" && options.delayAlice) completeAlice = finish;
     else Promise.resolve().then(finish);
@@ -116,7 +116,7 @@ test("a late response from the previous profile cannot replace the active holdin
 test("personal mutations carry the active profile and retire stale personal lists", async () => {
   const { calls, client } = setup("/mystocks?profile=bob&stock=shared-stock");
   await waitFor(() => expect(screen.getByTestId("shares")).toHaveTextContent("7"));
-  client.cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { profileId: "alice", stock: "shared-stock" }, data: { transactions: [] } });
+  client.cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { profileId: "alice", stock: "shared-stock" }, data: { transactions: [], analytics: [] } });
   fireEvent.click(screen.getByText("Save fixture transaction"));
   await waitFor(() => expect(calls.some(call => call.field === "createTransaction")).toBe(true));
   const mutation = calls.find(call => call.field === "createTransaction")!;

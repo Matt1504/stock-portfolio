@@ -1,4 +1,5 @@
 import { gql } from "@apollo/client";
+import { ANALYTICS_FIELDS } from "../../components/FinancialAnalytics";
 
 export const ALL_ACCOUNT_PLATFORMS = gql(`
     query($profileId: ID!) {
@@ -65,8 +66,9 @@ export const TRANSFER_ACCOUNT = gql(`
         }
   }`);
 
-export const TRANSACTIONS_BY_ACCOUNT = gql(`
+export const TRANSACTIONS_BY_ACCOUNT = gql`
     query transaction_account( $profileId: ID!, $account: ID!) {
+
         transactions: transactionsByAccount(profileId: $profileId, account: $account) {
             id
             account {
@@ -103,10 +105,14 @@ export const TRANSACTIONS_BY_ACCOUNT = gql(`
             maturityDate
             total
         }
-    }`);
+        analytics: financialAnalytics(profileId: $profileId, account: $account) { ...FinancialAnalyticsFields distribution { name value shares } bookCostHistory { name value value1 } }
+    }
+    ${ANALYTICS_FIELDS}
+`;
 
-export const TRANSACTIONS_BY_PLATFORM = gql(`
+export const TRANSACTIONS_BY_PLATFORM = gql`
     query transactions_platform( $profileId: ID!, $platform_one: ID!) {
+
         transactions: transactionsByPlatform(profileId: $profileId, platform: $platform_one) {
             id
             account {
@@ -143,7 +149,10 @@ export const TRANSACTIONS_BY_PLATFORM = gql(`
             maturityDate
             total
         }
-    }`);
+        analytics: financialAnalytics(profileId: $profileId, platform: $platform_one) { ...FinancialAnalyticsFields distribution { name value shares } bookCostHistory { name value value1 } }
+    }
+    ${ANALYTICS_FIELDS}
+`;
 
 export const PREVIEW_ACCOUNT_TRANSFER = gql`
  query previewAccountTransfer($profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!) {

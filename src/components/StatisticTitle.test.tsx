@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import StatisticTitle, { accountStatisticDescriptions, stockStatisticDescription } from "./StatisticTitle";
-import { stockStatistics } from "../views/MyStocksView/statistics";
+import { stockStatistics } from "../testUtils/legacyStockStatistics";
 
 test("every account and stock statistic has a calculation description", () => {
   expect(Object.keys(accountStatisticDescriptions)).toHaveLength(15);

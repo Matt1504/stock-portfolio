@@ -1,9 +1,11 @@
+jest.mock("../../components/MarketValuation", () => ({ __esModule: true, default: () => null, MARKET_VALUATION: jest.requireActual("../../components/MarketValuation").MARKET_VALUATION }));
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Transaction } from "../../models/Transaction";
 import SelectedStockInfo from "./SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./gql";
-import { stockStatistics } from "./statistics";
+import { stockStatistics } from "../../testUtils/legacyStockStatistics";
 
 jest.mock("../../components/TransactionDataGrid", () => ({ TransactionDataGrid: () => null }));
 jest.mock("recharts", () => ({ ...jest.requireActual("recharts"), ResponsiveContainer: () => null }));
@@ -39,7 +41,7 @@ test("empty positions have no average cost or last buy, oversold positions have 
 });
 test("eight stock cards display green incoming faces and flip to red outgoing faces", async () => {
   const cache = new InMemoryCache({ addTypename: false });
-  cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: "stock" }, data: { transactions } });
+  cache.writeQuery({ query: TRANSACTIONS_BY_STOCK, variables: { stock: "stock" }, data: { transactions, analytics: analyticsFixture(transactions, "stock", "Stock") } });
   render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedStockInfo stock="stock" name="Example" currency="USD" /></ApolloProvider>);
   expect(await screen.findByRole("group", { name: "Average Cost per Share" })).toHaveClass("flip-statistic--default");
   expect(screen.getAllByRole("group")).toHaveLength(4);

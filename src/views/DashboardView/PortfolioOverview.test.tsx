@@ -1,10 +1,12 @@
+jest.mock("../../components/MarketValuation", () => ({ __esModule: true, default: () => <section aria-label="Market valuation" /> }));
+import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ProfileContext } from "../../profiles/ProfileContext";
 import PortfolioOverview from "./PortfolioOverview";
 import { PORTFOLIO_OVERVIEW } from "./gql";
 import { coldRefetch } from "../../utils/coldRefetch";
-import { portfolioStatistics } from "../AccountView/portfolioStatistics";
+import { portfolioStatistics } from "../../testUtils/legacyPortfolioStatistics";
 import { Transaction } from "../../models/Transaction";
 
 function tx(id: string, activity: string, total: number, code = "CAD", shares = 0, fee = 0, stock = false) {
@@ -39,14 +41,14 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
   const client = new ApolloClient({ cache: new InMemoryCache({ addTypename: false }), link: new ApolloLink(operation => new Observable(observer => {
     if (operation.operationName === "MarketValuation") { observer.next({ data: { marketValuation: null } }); observer.complete(); return; }
     requests.push({ variables: operation.variables, context: operation.getContext() });
-    Promise.resolve().then(() => { observer.next({ data: overviewData }); observer.complete(); });
+    Promise.resolve().then(() => { observer.next({ data: { ...overviewData, analytics: analyticsFixture(overviewData.history as unknown as Transaction[]) } }); observer.complete(); });
   })) });
   render(<ApolloProvider client={client}><ProfileContext.Provider value={{ profile: { id: "owner", name: "Owner" }, profiles: [], loading: false, selectProfile: () => {}, refetch: async () => {} }}><PortfolioOverview /></ProfileContext.Provider></ApolloProvider>);
   await waitFor(() => expect(screen.getByRole("group", { name: "Net Deposits" })).toHaveTextContent("930.00"));
   expect(requests[0].variables).toEqual({ profileId: "owner" });
   expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
   fireEvent.click(screen.getByRole("button", { name: "Show Total Book Cost" }));
   expect(screen.getByRole("group", { name: "Total Book Cost" })).toHaveTextContent("151.50");
   fireEvent.click(screen.getByRole("button", { name: "Show Realized Gain/Loss" }));
@@ -68,7 +70,7 @@ test("overview has eight flip cards, separated currencies and cold refresh", asy
   await coldRefetch(client, [PORTFOLIO_OVERVIEW]);
   expect(requests).toHaveLength(2);
   expect(requests[1].context.headers["X-Cache-Bypass"]).toBe("true");
-  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(12);
+  expect(screen.getAllByRole("button", { name: /^About / })).toHaveLength(8);
 });
 
 
