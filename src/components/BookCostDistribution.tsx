@@ -61,7 +61,7 @@ export default function BookCostDistribution({ data }: { data: GraphData[] }) {
             <Tooltip content={<DistributionTooltip total={total} />} cursor={{ fill: "var(--chart-grid)", opacity: 0.3 }} />
             <Bar dataKey="value" name="Book Cost" maxBarSize={28} radius={[0, 5, 5, 0]}>
               {cells}
-              <LabelList dataKey="value" position="right" formatter={(value: any) => `$${formatNumber(Number(value), 2, 2)}`} />
+              <LabelList dataKey="value" position="right" fill="var(--text)" stroke="none" strokeWidth={0} formatter={(value: any) => `$${formatNumber(Number(value), 2, 2)}`} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

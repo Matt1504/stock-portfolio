@@ -60,8 +60,8 @@ export const CREATE_PLATFORM = gql(`
     }`);
 
 export const TRANSFER_ACCOUNT = gql(`
-    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!, $marketValues: [TransferAssetValueInput!]) {
-        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount, marketValues: $marketValues) {
+    mutation transferPlatform( $profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!, $marketValues: [TransferAssetValueInput!], $transferAsCash: Boolean!, $transferFee: Decimal!, $feeReimbursed: Boolean!) {
+        transferAccount(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount, marketValues: $marketValues, transferAsCash: $transferAsCash, transferFee: $transferFee, feeReimbursed: $feeReimbursed) {
             success
         }
   }`);
@@ -157,7 +157,7 @@ export const TRANSACTIONS_BY_PLATFORM = gql`
 export const PREVIEW_ACCOUNT_TRANSFER = gql`
  query previewAccountTransfer($profileId: ID!, $transferFrom: ID!, $transferTo: ID!, $transferDate: Date!, $closeOriginalAccount: Boolean!) {
    previewAccountTransfer(profileId: $profileId, transFrom: $transferFrom, transTo: $transferTo, transferDate: $transferDate, closeOriginalAccount: $closeOriginalAccount) {
-     cash currency assets { stockId ticker shares bookCost }
+     cash currency assets { stockId ticker shares bookCost assetType }
    }
  }
 `;

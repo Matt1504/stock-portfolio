@@ -217,7 +217,7 @@ CSV withholding tax: an unnamed `NRT` row inherits the ticker/name from the imme
 
 CSV descriptions are used to extract transaction details for the import preview; they are not saved in transaction records.
 
-Use **ETF Rebate** for an account-level reimbursement (CSV code `REIMB`). Enter the date and positive total in the platform currency; no stock, shares, price, or fee is needed. Rebates increase account/homepage Realized Profit but do not affect contributions, net deposits, book cost, or Dividends/Interest Earned.
+Use **ETF Rebate** for an account-level ETF rebate (CSV code `REIMB`). Enter the date and positive total in the platform currency; no stock, shares, price, or fee is needed. Rebates increase account/homepage Realized Profit but do not affect contributions, net deposits, book cost, or Dividends/Interest Earned.
 
 Account/homepage **Realized Profit** subtracts account **Service Fee** transaction totals in addition to separately recorded GIC fees. Trading fees are already included in recorded Buy/Sell totals and are not deducted again: purchase fees reduce realized profit as the corresponding shares are sold. Service Fees do not change Realized Gain/Loss, book cost, net deposits, or Dividends/Interest Earned.
 
@@ -286,3 +286,27 @@ refresh active queries; Refresh still bypasses the backend transaction cache.
 
 The former frontend calculators are retained under `src/testUtils/legacy*` only as
 frozen regression references. They are not imported by production components.
+
+### Stock Lending
+
+Select **Stock Lending** in Add Transaction to record lending income. Enter a positive Total; optionally select the stock, or leave it empty for an account-level payout. Trade fields are hidden. Edit and bulk edit support the activity too.
+
+Payments increase cash, the existing **Dividends/Interest Earned** statistic and realized profit. Stock-linked payments appear in the stock income history and annualized return; account-only payments remain account/profile income. Shares, book cost, contributions and realized trading gains are unchanged. The statistics tooltips explain that lending income is included. Existing databases need the backend's idempotent `src/add_stock_lending_activity.py --apply` setup step.
+
+### Cash account transfers and fees
+
+In **Transfer Account**, select **Transfer as cash (sell all holdings)** for a broker transfer that liquidates investments first. Enter the actual total sale proceeds for each holding in the account currency, rather than its book cost. The app creates full Sell transactions on the source and transfers its existing cash plus sale proceeds minus the transfer fee. Funds without shares use their remaining recorded book cost as the disposed cost; no share quantity or price is required. Liquidation realizes the gain/loss on the source; the destination receives cash only.
+
+Leave the option unchecked for an in-kind transfer, which carries assets and basis without selling. Both modes support a non-negative, two-decimal **Transfer fee**, recorded as Service Fee on the source. **Is transfer fee reimbursed** records the same amount as Fee Reimbursement on the destination on the transfer date. Select it only for an already received, full reimbursement; later or partial reimbursements can be recorded separately as Fee Reimbursement transactions. The net cash and reimbursement are shown before submission.
+
+Sales, fees, paired cash/asset transfers, reimbursement and optional closure are saved atomically. Linked entries cannot be changed individually. Original history stays on the source. Open GICs, unresolved historical amount-only sales and invalid balances still require reconciliation. This feature records a transfer already performed at the broker; it does not sell securities or move money through a brokerage API.
+
+### Fee Reimbursement
+
+Use **Fee Reimbursement** for an account fee refunded by a broker. It increases cash and Realized Profit without changing contributions, book cost, trading gains or dividend/interest income. Stock selection and trade fields are hidden. The transfer dialog uses this activity when **Is transfer fee reimbursed** is checked; **ETF Rebate** remains a separate activity for actual ETF rebates. Existing databases need the backend's `src/add_fee_reimbursement_activity.py --apply` setup step. Historical records are not renamed automatically.
+
+### Dashboard valuation with omitted assets
+
+The dashboard shows **partial market valuation** when a fund, GIC, stock quote or FX rate is unavailable. Its warning names omitted tickers and explains why each was excluded. Portfolio Value includes all recorded cash plus priced holdings; unrealized gain and return compare those holdings with their own book cost. Unsupported holdings' book cost is not used as a substitute market value. Annualized Return remains a dash until valuation is complete.
+
+Account and stock pages retain their existing complete-valuation requirement. Recorded portfolio analytics and book-cost distributions still include all recorded assets.

@@ -41,7 +41,7 @@ test.each(["Buy", "Sell"])("%s recalculates all dependent changes and saves nume
   await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ price: 12.34, shares: 3, fee: null, total: 37.02 })));
 });
 
-test.each(["Dividends", "Withholding Tax", "Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate"])("%s enables only total and preserves other amounts", async activity => {
+test.each(["Dividends", "Stock Lending", "Withholding Tax", "Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate", "Fee Reimbursement"])("%s enables only total and preserves other amounts", async activity => {
   const save = show(activity);
   for (const label of ["Price", "Shares", "Fee"]) expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
   expect(screen.getByLabelText("Total")).toBeEnabled();

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { ValuationDisplay } from "./MarketValuation";
+import MarketValuation, { ValuationDisplay } from "./MarketValuation";
+
+import * as profileHooks from "../profiles/hooks";
 
 const value = {
   currency: "CAD", complete: true, marketValue: "1200.00", pricedMarketValue: "1200.00",
@@ -50,4 +52,27 @@ test("incomplete annualized return retains the dash and existing warning", () =>
   expect(screen.getByRole("group", { name: "Annualized Return" })).toHaveTextContent("—");
   expect(screen.getByText("Valuation incomplete")).toBeInTheDocument();
   expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
+});
+
+
+test("dashboard displays partial values with named omissions and no annualized estimate", () => {
+  render(<ValuationDisplay portfolio value={{ ...value, complete: false, partial: true,
+    annualizedReturn: null, annualizedReturnNote: "Annualized return requires a complete portfolio valuation.",
+    missingTickers: ["FUND"], omittedAssets: [{ ticker: "FUND", reason: "Market pricing is not supported for this Mutual Fund holding." }] }} loading={false} currency="CAD" />);
+  expect(screen.getByText("Portfolio Value")).toBeInTheDocument();
+  expect(screen.getByText("1,250").parentElement).toHaveTextContent("1,250.00");
+  expect(screen.getByText("Partial valuation — some assets omitted")).toBeInTheDocument();
+  expect(screen.getByText(/FUND: Market pricing is not supported/)).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "Unrealized Return" })).toHaveTextContent("20.00%");
+  fireEvent.click(screen.getByRole("button", { name: "Show Annualized Return" }));
+  expect(screen.getByRole("group", { name: "Annualized Return" })).toHaveTextContent("—");
+});
+
+test("only the dashboard query opts into partial valuation", () => {
+  const query = jest.spyOn(profileHooks, "useProfileQuery").mockReturnValue({ loading: false, data: { marketValuation: value } } as any);
+  const view = render(<MarketValuation currency="CAD" portfolio />);
+  expect(query).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ variables: expect.objectContaining({ allowPartial: true }) }));
+  view.rerender(<MarketValuation currency="CAD" platform="broker" />);
+  expect(query.mock.calls[query.mock.calls.length - 1][1]?.variables).not.toHaveProperty("allowPartial");
+  query.mockRestore();
 });

@@ -122,7 +122,7 @@ const TransactionEditDialog = (props: DialogProps) => {
     const isGicBuy = isGic && transaction.activity.name === "Buy";
     const isFund = ["Index Fund", "Mutual Fund"].includes(transaction.stock?.asset?.name ?? "");
     const isTrade = (!isFund || shareEntry) && !isGic && ["Buy", "Sell"].includes(transaction.activity.name ?? "");
-    const totalOnly = (isFund && !shareEntry) || isGic || ["Dividends", "Withholding Tax", "Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate", "Stock Spinoff"].includes(transaction.activity.name ?? "");
+    const totalOnly = (isFund && !shareEntry) || isGic || ["Dividends", "Stock Lending", "Withholding Tax", "Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate", "Fee Reimbursement", "Stock Spinoff"].includes(transaction.activity.name ?? "");
 
     const changePlatform = (platform: Platform) => {
       setSaveError(undefined);

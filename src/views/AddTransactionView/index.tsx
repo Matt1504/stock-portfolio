@@ -31,7 +31,7 @@ import { Platform } from "../../models/Platform";
 import { Stock } from "../../models/Stock";
 import { Transaction, TransactionForm } from "../../models/Transaction";
 import { formatDate, formatDecimalTwoPlaces, formatNumber } from "../../utils/utils";
-import { inactiveTransactionFields, sanitizeTransactionFields } from "./transactionFields";
+import { clearsStockOnActivityChange, inactiveTransactionFields, sanitizeTransactionFields, stockFieldPolicy } from "../../utils/transactionFields";
 import { CREATE_TRANSACTION, GET_PLATFORM_INFO, OUTSTANDING_GIC_PURCHASES } from "./gql";
 
 const AddTransactionView = () => {
@@ -118,7 +118,7 @@ const AddTransactionView = () => {
   const onSelectActivityChange = (value: string, option: any) => {
     setActivity(option.label);
     inactiveTransactionFields(option.label).forEach(field => form.setFieldValue(field, null));
-    if (["Withholding Tax", "Interest", "GIC Maturity"].includes(option.label)) form.setFieldValue("stock", null);
+    if (clearsStockOnActivityChange(option.label)) form.setFieldValue("stock", null);
     form.setFieldValue("activity", value);
   };
 
@@ -351,34 +351,14 @@ const AddTransactionView = () => {
             <Form.Item
               className="transaction-stock-field"
               label={activity === "Stock Spinoff" ? "Stock Received" : "Stock"}
-              extra={activity === "Withholding Tax" ? "Optional: leave empty for account withholding tax." : activity === "Interest" ? "Optional: leave empty for interest earned on the account." : <span style={{ visibility: selectedStockId ? "visible" : "hidden" }} aria-hidden={!selectedStockId}>Asset Type: {assetName}</span>}
-              hidden={[
-                "Contribution",
-                "Withdrawal",
-                "Service Fee",
-                "SEC Fee",
-                "ETF Rebate",
-                "Transfer In",
-                "Transfer Out",
-                "Adjustment",
-              ].includes(activity)}
+              extra={activity === "Withholding Tax" ? "Optional: leave empty for account withholding tax." : activity === "Interest" ? "Optional: leave empty for interest earned on the account." : activity === "Stock Lending" ? "Optional: select a stock to attribute this income, or leave empty for an account payout." : <span style={{ visibility: selectedStockId ? "visible" : "hidden" }} aria-hidden={!selectedStockId}>Asset Type: {assetName}</span>}
+              hidden={stockFieldPolicy(activity) === "hidden"}
             >
               <div className="transaction-field-with-action">
                 <Form.Item noStyle name="stock"
                   rules={[
                     {
-                      required: ![
-                        "Interest",
-                        "Withholding Tax",
-                        "Contribution",
-                        "Withdrawal",
-                        "Service Fee",
-                        "SEC Fee",
-                        "ETF Rebate",
-                        "Transfer In",
-                        "Transfer Out",
-                        "Adjustment",
-                      ].includes(activity),
+                      required: stockFieldPolicy(activity) === "required",
                       message: "Please select the stock.",
                     },
                   ]}

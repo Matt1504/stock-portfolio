@@ -36,3 +36,21 @@ test("bar tooltip shows formatted cost, proportion and optional fractional share
   rerender(<DistributionTooltip active total={2000} payload={[{ payload: new GraphData("Fund", 2000, undefined, undefined) }]} />);
   expect(screen.queryByText(/Share\(s\)/)).not.toBeInTheDocument();
 });
+
+
+test("bar-end amounts do not inherit the dark outline from the bar cells", () => {
+  const React = jest.requireActual("react");
+  const charts = jest.requireActual("recharts");
+  (BarChart as unknown as jest.Mock).mockImplementation((props: any) => React.createElement(charts.BarChart, props,
+    React.Children.map(props.children, (child: any) => child?.type === charts.Bar ? React.cloneElement(child, { isAnimationActive: false }) : child)));
+  const { container } = render(<BookCostDistribution data={[new GraphData("EX", 1234.56, undefined, undefined), new GraphData("FUND", 200, undefined, undefined)]} />);
+  fireEvent.click(screen.getByRole("radio", { name: "Bar" }));
+  const labels = container.querySelectorAll(".recharts-label-list text");
+  expect(labels).toHaveLength(2);
+  expect(labels[0]).toHaveTextContent("$1,234.56");
+  labels.forEach(label => {
+    expect(label).toHaveAttribute("fill", "var(--text)");
+    expect(label).toHaveAttribute("stroke", "none");
+    expect(label).toHaveAttribute("stroke-width", "0");
+  });
+});

@@ -134,8 +134,8 @@ const SelectedStockInfo = (props: SSProps) => {
           "Principal Returned": "Original principal returned by GIC Maturity transactions. This is neither income nor an account contribution.",
         } : isFund ? {
           ...stockStatisticDescriptions,
-          "Book Cost": "For amount-only funds, the sum of recorded Buy totals. For funds tracked with shares, the remaining average-cost purchase basis after sales. Uses the selected recorded currency; this is not current market value.",
-          "Realized Gain/Loss": "For share-based fund trades, recorded sale totals minus the average cost of shares sold in the displayed currency. Unavailable for amount-only funds until disposal cost tracking is defined.",
+          "Book Cost": "For amount-only funds, recorded purchase totals minus carried-out cost and recorded liquidation cost. For funds tracked with shares, the remaining average-cost purchase basis after sales. Uses the selected recorded currency; this is not current market value.",
+          "Realized Gain/Loss": "For share-based fund trades, recorded sale totals minus the average cost of shares sold in the displayed currency. For amount-only funds liquidated by a cash transfer, proceeds minus recorded disposed book cost. Other amount-only sales without disposal cost remain unavailable.",
           "Realized Profit/Loss": "Unavailable for amount-only funds until a method for tracking the cost of sold investments is defined. These funds are tracked without shares or dividends.",
         } : stockStatisticDescriptions} loading={loading} id="additional-stock-statistics" />}
       </Col>

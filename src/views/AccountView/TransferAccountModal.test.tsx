@@ -28,7 +28,7 @@ test("explains retained history, previews balances and submits the closing date"
   expect(screen.getByRole("button", { name: "Transfer and Close" })).toBeDisabled();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer market value for EX" }), { target: { value: "450" } });
   fireEvent.click(screen.getByRole("button", { name: "Transfer and Close" }));
-  await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: { transferFrom: "source", transferTo: "dest", transferDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), closeOriginalAccount: true, marketValues: [{ stockId: "EX", marketValue: "450" }] } }));
+  await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: { transferFrom: "source", transferTo: "dest", transferDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), closeOriginalAccount: true, transferAsCash: false, transferFee: "0", feeReimbursed: false, marketValues: [{ stockId: "EX", marketValue: "450" }] } }));
   await waitFor(() => expect(notify).toHaveBeenCalledWith("success", "Account transferred and closed", expect.any(String)));
 });
 test("a preview error prevents transfer and reports the reason", () => {
@@ -56,4 +56,39 @@ test("unchecking closure previews dated balances and submits an open-source tran
   fireEvent.click(screen.getByRole("button", { name: "Transfer", exact: true }));
   await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: expect.objectContaining({ closeOriginalAccount: false }) }));
   await waitFor(() => expect(notify).toHaveBeenCalledWith("success", "Account transferred", expect.any(String)));
+});
+
+
+test("cash transfer supports amount-only funds, net fee and reimbursement", async () => {
+  (useProfileQuery as jest.Mock).mockReturnValue({ loading: false, data: { previewAccountTransfer: { cash: "50", currency: "CAD", assets: [{ stockId: "FUND", ticker: "FUND", shares: "0", bookCost: "1000", assetType: "Mutual Fund" }] } } });
+  transfer.mockResolvedValue({ data: { transferAccount: { success: true } } });
+  show();
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source platform" }));
+  fireEvent.click(screen.getByText("TFSA · Old Broker (CAD)"));
+  await waitFor(() => expect(useProfileQuery).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ variables: expect.objectContaining({ transferTo: "dest" }) })));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Transfer as cash (sell all holdings)" }));
+  expect(screen.getByRole("button", { name: "Transfer and Close" })).toBeDisabled();
+  expect(screen.getByText(/Funds without shares/)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Sale proceeds for FUND" }), { target: { value: "1200" } });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer fee" }), { target: { value: "150" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Is transfer fee reimbursed" }));
+  expect(screen.getByText("Cash to transfer: $1,100.00 CAD")).toBeInTheDocument();
+  expect(screen.getByText("Destination cash including reimbursement: $1,250.00 CAD")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Transfer and Close" }));
+  await waitFor(() => expect(transfer).toHaveBeenCalledWith({ variables: expect.objectContaining({ transferAsCash: true, transferFee: "150", feeReimbursed: true, marketValues: [{ stockId: "FUND", marketValue: "1200" }] }) }));
+});
+
+test("fee above available cash blocks submission and clearing the fee clears reimbursement", async () => {
+  show();
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source platform" }));
+  fireEvent.click(screen.getByText("TFSA · Old Broker (CAD)"));
+  await waitFor(() => expect(screen.getByRole("spinbutton", { name: "Transfer market value for EX" })).toBeInTheDocument());
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer market value for EX" }), { target: { value: "450" } });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer fee" }), { target: { value: "100" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Is transfer fee reimbursed" }));
+  expect(screen.getByRole("button", { name: "Transfer and Close" })).toBeDisabled();
+  expect(screen.getByText(/The transfer fee exceeds available cash/)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Transfer fee" }), { target: { value: "" } });
+  expect(screen.getByRole("checkbox", { name: "Is transfer fee reimbursed" })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Is transfer fee reimbursed" })).toBeDisabled();
 });

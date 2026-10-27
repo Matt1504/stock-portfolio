@@ -10,6 +10,7 @@ export enum ActivityEnum {
   SERVICEFEE = "Service Fee",
   SECFEE = "SEC Fee",
   ETFREBATE = "ETF Rebate",
+  FEEREIMBURSEMENT = "Fee Reimbursement",
   TRANSFERIN = "Transfer In",
   TRANSFEROUT = "Transfer Out",
   BUY = "Buy",
@@ -21,4 +22,5 @@ export enum ActivityEnum {
   STOCKSPLIT = "Stock Split",
   GICMATURITY = "GIC Maturity",
   INTEREST = "Interest",
+  STOCKLENDING = "Stock Lending",
 }

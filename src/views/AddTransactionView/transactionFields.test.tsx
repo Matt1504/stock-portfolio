@@ -1,7 +1,7 @@
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import AddTransactionView from "./index";
-import { sanitizeTransactionFields } from "./transactionFields";
+import { sanitizeTransactionFields } from "../../utils/transactionFields";
 
 const mockCreate = jest.fn().mockResolvedValue({ data: { createTransaction: { transaction: { id: "new" } } } });
 const edges = (nodes: object[]) => ({ edges: nodes.map(node => ({ node })) });
@@ -11,7 +11,7 @@ jest.mock("../../profiles/hooks", () => ({
     accounts: edges([{ id: "account", name: "TFSA" }]), currencies: edges([{ id: "cad", code: "CAD" }]),
     platforms: edges([{ id: "broker", name: "Broker", account: { id: "account" }, currency: { id: "cad" } }]),
     stocks: edges([{ id: "parent", name: "3M", ticker: "MMM", currency: { id: "cad" }, asset: { id: "stock-type", name: "Stock" } }, { id: "stock", name: "Disney", ticker: "DIS", currency: { id: "cad" }, asset: { id: "stock-type", name: "Stock" } }, { id: "gic", name: "Deposit", ticker: "GIC", currency: { id: "cad" }, asset: { id: "gic-type", name: "GIC" } }, { id: "fund", name: "Fund", ticker: "FUND", currency: { id: "cad" }, asset: { id: "fund-type", name: "Index Fund" } }, { id: "mutual", name: "Mutual", ticker: "MF", currency: { id: "cad" }, asset: { id: "mutual-type", name: "Mutual Fund" } }]),
-    activities: edges([{ id: "buy", name: "Buy" }, { id: "contribution", name: "Contribution" }, { id: "tax", name: "Withholding Tax" }, { id: "interest", name: "Interest" }, { id: "withdrawal", name: "Withdrawal" }, { id: "service-fee", name: "Service Fee" }, { id: "etf-rebate", name: "ETF Rebate" }, { id: "spinoff", name: "Stock Spinoff" }]),
+    activities: edges([{ id: "buy", name: "Buy" }, { id: "contribution", name: "Contribution" }, { id: "tax", name: "Withholding Tax" }, { id: "interest", name: "Interest" }, { id: "lending", name: "Stock Lending" }, { id: "withdrawal", name: "Withdrawal" }, { id: "service-fee", name: "Service Fee" }, { id: "etf-rebate", name: "ETF Rebate" }, { id: "reimbursement", name: "Fee Reimbursement" }, { id: "spinoff", name: "Stock Spinoff" }]),
   } }),
   useProfileMutation: () => [mockCreate, { loading: false }],
 }));
@@ -24,7 +24,7 @@ async function select(label: string, option: string) {
   fireEvent.click((await screen.findAllByTitle(option)).find(element => element.classList.contains("ant-select-item-option") && !element.closest(".ant-select-dropdown-hidden"))!);
 }
 
-test.each(["Contribution", "Service Fee", "ETF Rebate"])("switching a populated Buy to %s clears the stock and excludes hidden fields when saved", async (activity) => {
+test.each(["Contribution", "Service Fee", "ETF Rebate", "Fee Reimbursement"])("switching a populated Buy to %s clears the stock and excludes hidden fields when saved", async (activity) => {
   render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><AddTransactionView /></ApolloProvider>);
   fireEvent.click(screen.getByText("TFSA"));
   fireEvent.click(screen.getByText("CAD"));
@@ -48,7 +48,7 @@ test.each(["Contribution", "Service Fee", "ETF Rebate"])("switching a populated 
   fireEvent.click(screen.getByRole("button", { name: "Submit" }));
   await waitFor(() => expect(mockCreate).toHaveBeenCalled());
   const payload = mockCreate.mock.calls[0][0].variables.trans;
-  expect(payload).toEqual(expect.objectContaining({ activity: activity === "Service Fee" ? "service-fee" : activity === "ETF Rebate" ? "etf-rebate" : "contribution", total: 50, account: "account", platform: "broker" }));
+  expect(payload).toEqual(expect.objectContaining({ activity: activity === "Service Fee" ? "service-fee" : activity === "ETF Rebate" ? "etf-rebate" : activity === "Fee Reimbursement" ? "reimbursement" : "contribution", total: 50, account: "account", platform: "broker" }));
   for (const field of ["stock", "price", "shares", "fee", "rate", "maturityDate"]) expect(payload).not.toHaveProperty(field);
 });
 
@@ -61,7 +61,7 @@ test("submission sanitation also removes stale stock values from cash activity p
 });
 
 
-test.each([["Withholding Tax", "tax", false], ["Withholding Tax", "tax", true], ["Interest", "interest", false], ["Interest", "interest", true]])("%s (%s) can be saved with a stock selected: %s", async (activity, activityId, withStock) => {
+test.each([["Withholding Tax", "tax", false], ["Withholding Tax", "tax", true], ["Interest", "interest", false], ["Interest", "interest", true], ["Stock Lending", "lending", false], ["Stock Lending", "lending", true]])("%s (%s) can be saved with a stock selected: %s", async (activity, activityId, withStock) => {
   render(<ApolloProvider client={new ApolloClient({ cache: new InMemoryCache() })}><AddTransactionView /></ApolloProvider>);
   fireEvent.click(screen.getByText("TFSA"));
   fireEvent.click(screen.getByText("CAD"));

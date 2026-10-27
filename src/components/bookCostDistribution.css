@@ -4,3 +4,5 @@
 .book-cost-distribution-header .anticon { margin-right: 4px; }
 .book-cost-bars-scroll { max-height: 480px; overflow-y: auto; }
 .book-cost-distribution .recharts-surface { display: block; }
+
+.book-cost-bars-scroll .recharts-label { fill: var(--text); }

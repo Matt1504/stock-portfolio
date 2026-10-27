@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Transaction } from "../models/Transaction";
 import { useProfileMutation, useProfileQuery } from "../profiles/hooks";
 import { transactionErrorMessage } from "../utils/transactionFeedback";
-import { cashActivities, inactiveTransactionFields } from "../views/AddTransactionView/transactionFields";
+import { cashActivities, inactiveTransactionFields } from "../utils/transactionFields";
 import { OUTSTANDING_GIC_PURCHASES } from "../views/AddTransactionView/gql";
 import { changedDraft, transactionDraft, TransactionDraft, updateDraft } from "./bulkTransactionDrafts";
 import { transactionPageSizes, TransactionPagination } from "./transactionTableState";

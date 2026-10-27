@@ -1,6 +1,19 @@
-import { TransactionForm } from "../../models/Transaction";
+import { TransactionForm } from "../models/Transaction";
 
-export const cashActivities = ["Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate", "Transfer In", "Transfer Out", "Adjustment"];
+// Presentation rules shared by add, edit and bulk-edit forms. Financial validation
+// remains on the backend; these policies only control field visibility/payloads.
+export const cashActivities: readonly string[] = ["Contribution", "Withdrawal", "Service Fee", "SEC Fee", "ETF Rebate", "Fee Reimbursement", "Transfer In", "Transfer Out", "Adjustment"];
+
+const optionalStockActivities: readonly string[] = ["Interest", "Stock Lending", "Withholding Tax"];
+
+export function stockFieldPolicy(activity: string): "hidden" | "optional" | "required" {
+  if (cashActivities.includes(activity)) return "hidden";
+  return optionalStockActivities.includes(activity) ? "optional" : "required";
+}
+
+export function clearsStockOnActivityChange(activity: string): boolean {
+  return stockFieldPolicy(activity) !== "required" || activity === "GIC Maturity";
+}
 
 export function inactiveTransactionFields(activity: string, nonStock = ""): (keyof TransactionForm)[] {
   const fields: (keyof TransactionForm)[] = [];
