@@ -310,3 +310,85 @@ Use **Fee Reimbursement** for an account fee refunded by a broker. It increases 
 The dashboard shows **partial market valuation** when a fund, GIC, stock quote or FX rate is unavailable. Its warning names omitted tickers and explains why each was excluded. Portfolio Value includes all recorded cash plus priced holdings; unrealized gain and return compare those holdings with their own book cost. Unsupported holdings' book cost is not used as a substitute market value. Annualized Return remains a dash until valuation is complete.
 
 Account and stock pages retain their existing complete-valuation requirement. Recorded portfolio analytics and book-cost distributions still include all recorded assets.
+
+### Reconcile a statement
+
+Open **Reconciliation** in the sidebar or **Reconcile Statement** on a selected
+account platform. Choose the statement end date, date basis and optional period
+start. Enter the statement closing cash and any holdings to check; book cost is
+optional. Blank values are not checked. Select **complete holdings list** only
+when every statement holding has been entered: unlisted app holdings then compare
+against zero. CAD and USD are reviewed separately; closed platforms remain usable.
+
+Press **Compare** to calculate the position through that date, using all earlier
+history. Differences are **statement minus app**. Investigation links open
+Transactions in another tab with platform, stock and end-date filters prefilled;
+press Search to fetch, then use the existing edit tools. Return and Compare Again
+after corrections. Settlement mode requires actual Buy/Sell settlement dates;
+unknown dates remain provisional, and known pending trades are listed. Optional
+settlement dates can be entered in Add Transaction, Edit and Bulk Edit. There is
+no automatic historical date backfill.
+
+Save unfinished work as a draft. Finish Reconciliation verifies only the listed
+checked scope when it matches within the displayed tolerances. Finish with
+Exceptions requires a note and retains differences explicitly. Completed snapshots
+remain unchanged; rechecking them creates another revision. Saved history and the
+account review status show **Needs recheck** if relevant historical records change.
+New Review clears the statement values for another check. These actions never
+create a balancing transaction or change cash, holdings or contribution amounts.
+Statement PDFs and automatic statement transaction matching are not included.
+
+### History & Review
+
+Open **History & Review** in the sidebar, or use the history icon in a transaction
+row. Transaction Audit shows additions, edits and deletions made through the
+updated API. Expand an event for before/after values and its note; filter by
+platform, transaction ID or operation ID to inspect a CSV import, bulk edit or
+account transfer together. Deleted transactions retain their recorded evidence.
+Earlier changes and direct database edits are not reconstructed. Sources describe
+workflows, not authenticated people. Use Filter History again to refresh after
+changes made in another browser tab.
+
+On **Possible Duplicates**, press **Scan for Possible Duplicates**. It runs only
+when requested, flags matching financial fields with same/nearby dates within a
+platform/currency within three calendar days, and excludes linked transfer batches. Investigate opens the
+existing transaction search with the platform/date range prefilled. Mark as
+Legitimate requires a note and keeps all records; the dismissal is audited and
+can reappear if the records change. Scanning never deletes or edits transactions.
+
+CSV import preview now flags possible duplicates within the CSV and against saved
+records. Exact saved matches are skipped by default, while new rows are selected.
+Every possible duplicate needs a **Keep / import** or **Skip** choice. Separate
+identical trades may be legitimate; explicitly keeping a warning is recorded in
+audit history. Decisions update the selected count without another preview call;
+editing the file/platform clears them. The server rechecks the preview and choices
+before importing. Repeating an identical completed submission returns its saved
+result. Partial/unknown outcomes still require checking history and previewing
+again. CSV imports and bulk edits remain per-row operations, not one atomic batch.
+
+### Compare accounts and platforms
+
+**Compare** (`/compare`) places two individual platforms or two account types side
+by side in CAD or USD. Account-type mode aggregates every platform of that type
+for the active profile and currency, including closed-platform history. Platform
+mode permits only two distinct platforms in the same selected currency. Selections
+are saved in the URL (`mode`, `currency`, `left`, `right`, plus `profile`); Swap A/B
+reverses the comparison. Changing profiles clears the selected sides.
+On My Accounts, **Compare Account** preselects the active platform/currency as A;
+from an Overview it preselects the account type instead. The larger A/B number
+in each Analytics row is bold, while ties remain unhighlighted.
+
+Analytics shows all recorded account statistics and market valuation, with backend
+B-minus-A differences. Percent return differences are percentage points. Larger
+balances are not marked as better performance. Strict incomplete valuations remain
+blank, with each side's missing-price/ledger notes and return start dates visible.
+Holdings & Allocation compares the union of stock IDs, share quantities, remaining
+book cost and book-cost allocation, and filters assets held on both sides or only
+one. Amount-only funds/GICs have no fabricated share count. History compares book
+cost, net deposits, net income, buys and sale proceeds/returned GIC principal using
+one chart horizon selector. This only changes the charts, not lifetime statistics.
+Recorded analytics include all entered transactions; valuation uses holdings
+through today. No currency totals are combined or silently converted.
+
+Compare is read-only and uses the backend's existing calculations. Refresh bypasses
+the transaction cache but continues to use the market worker's cached quotes.

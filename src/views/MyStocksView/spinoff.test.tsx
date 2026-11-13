@@ -17,7 +17,7 @@ const currency = { id: "usd", code: "USD" };
 const asset = { id: "asset", name: "Stock" };
 const parent = { id: "mmm", name: "3M", ticker: "MMM", asset, currency };
 const child = { id: "solv", name: "Solventum", ticker: "SOLV", asset, currency };
-const base = { transferBatch: null, account: { id: "rrsp", code: "RRSP" }, platform: { id: "broker", name: "Broker", currency }, priceCurrency: currency, totalCurrency: currency, exchangeRate: 1, fee: 0, price: null, rate: null, maturityDate: null, gicPurchase: null, interestCalculation: "simple", principalReturned: null, interestEarned: null };
+const base = { settlementDate: null, transferBatch: null, account: { id: "rrsp", code: "RRSP" }, platform: { id: "broker", name: "Broker", currency }, priceCurrency: currency, totalCurrency: currency, exchangeRate: 1, fee: 0, price: null, rate: null, maturityDate: null, gicPurchase: null, interestCalculation: "simple", principalReturned: null, interestEarned: null };
 const buy = { ...base, id: "buy", stock: parent, activity: { name: ActivityEnum.BUY }, transactionDate: "2023-01-01", shares: 4, total: 500, transferBatch: null, spinoffSource: null, allocatedBookCost: null } as unknown as Transaction;
 const event = { ...base, id: "event", stock: child, spinoffSource: parent, allocatedBookCost: 77.6, activity: { name: ActivityEnum.STOCKSPINOFF }, transactionDate: "2024-04-01", shares: 1, total: 0 } as unknown as Transaction;
 const values = (rows: Transaction[], id: string) => Object.fromEntries(stockStatistics(rows, "Stock", id).details.map(detail => [detail.title, detail.value]));

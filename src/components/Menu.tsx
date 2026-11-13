@@ -47,6 +47,9 @@ const MenuComponent = (props: MProps) => {
     navItem("Dashboard", "/home", <AreaChartOutlined />),
     navItem("My Accounts", "/myaccounts", <FolderOpenOutlined />),
     navItem("My Stocks", "/mystocks", <StockOutlined />),
+    navItem("Reconciliation", "/reconciliation", <FolderOpenOutlined />),
+    navItem("Compare", "/compare", <AreaChartOutlined />),
+    navItem("History & Review", "/history", <FolderOpenOutlined />),
     navItem("Transactions", "/transactions", <SearchOutlined />),
     navItem("Add Transaction", "/add", <PlusOutlined />),
   ];

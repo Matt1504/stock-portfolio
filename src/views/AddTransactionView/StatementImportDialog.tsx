@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { formatNumber } from "../../utils/utils";
 import { UploadOutlined } from "@ant-design/icons";
 import { gql, useLazyQuery } from "@apollo/client";
@@ -17,15 +18,16 @@ export const PREVIEW_STATEMENT = gql`
   }
 `;
 export const IMPORT_STATEMENT = gql`
-  mutation ImportStatement($profileId: ID!, $platform: ID!, $text: String!, $previewHash: String!) {
-    importStatement(profileId: $profileId, platform: $platform, text: $text, previewHash: $previewHash) { report }
+  mutation ImportStatement($profileId: ID!, $platform: ID!, $text: String!, $previewHash: String!, $decisions: [ImportDecision!]) {
+    importStatement(profileId: $profileId, platform: $platform, text: $text, previewHash: $previewHash, decisions: $decisions) { report }
   }
 `;
 type Entry = { stockInferred?: boolean; dividendRow?: number; row: number; transactionDate: string; activity: string; ticker?: string; shares?: string; price?: string; priceCurrency?: string; exchangeRate?: string; total: string };
 type Issue = { row: number; message?: string; reason?: string };
-type Plan = { rows: { entry: Entry; status: string }[]; stocksToCreate: { ticker: string; name: string }[]; errors: Issue[]; summary: { transactionsToCreate: number; existingTransactions: number; stocksToCreate: number; skippedRows: number } };
+type PlanRow = { entry: Entry; status: string; duplicateReasons?: string[]; matchedIds?: string[] };
+type Plan = { rows: PlanRow[]; stocksToCreate: { ticker: string; name: string }[]; errors: Issue[]; summary: { transactionsToCreate: number; existingTransactions: number; stocksToCreate: number; skippedRows: number; possibleDuplicates?: number } };
 type Preview = { parsed: { transactions: Entry[]; skipped: Issue[]; errors: Issue[] }; plan?: Plan; previewHash?: string };
-type Report = { complete: boolean; createdTransactions: { row: number; id: string; warnings: { code: string; message: string }[] }[]; createdStocks: { id: string; ticker: string }[]; existingRows: number[]; skipped: Issue[]; errors: string[]; inFlight?: { row?: number; ticker?: string } };
+type Report = { skippedRows?: number[]; complete: boolean; createdTransactions: { row: number; id: string; warnings: { code: string; message: string }[] }[]; createdStocks: { id: string; ticker: string }[]; existingRows: number[]; skipped: Issue[]; errors: string[]; inFlight?: { row?: number; ticker?: string } };
 type Metadata = { accounts: { edges: GraphQLNode<Account>[] }; currencies: { edges: GraphQLNode<Currency>[] }; platforms: { edges: GraphQLNode<Platform>[] } };
 
 export default function StatementImportDialog({ data, initialPlatform, onClose, onImported }: { data: Metadata; initialPlatform?: string; onClose: () => void; onImported: () => Promise<unknown> }) {
@@ -40,6 +42,7 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
   const fileInput = useRef<HTMLInputElement>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
   const [hasPreviewed, setHasPreviewed] = useState(false);
+  const [decisions, setDecisions] = useState<Record<number, "keep" | "skip">>({});
   const [preview, setPreview] = useState<Preview>();
   const [report, setReport] = useState<Report>();
   const [error, setError] = useState<string>();
@@ -50,7 +53,7 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
     update: cache => { cache.evict({ id: "ROOT_QUERY", fieldName: "stocks" }); },
   });
   const busy = previewLoading || importLoading || refreshing || readingFile;
-  const invalidate = () => { setHasPreviewed(false); setPagination(previous => ({ ...previous, current: 1 })); setPreview(undefined); setReport(undefined); setError(undefined); };
+  const invalidate = () => { setDecisions({}); setHasPreviewed(false); setPagination(previous => ({ ...previous, current: 1 })); setPreview(undefined); setReport(undefined); setError(undefined); };
   const eligiblePlatforms = platforms.filter(p => p.account?.id === account);
   const solePlatformId = eligiblePlatforms.length === 1 ? eligiblePlatforms[0].id : undefined;
   useEffect(() => {
@@ -84,6 +87,7 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
     // No File object is retained in state or uploaded; only text is previewed.
   };
   const makePreview = async (csv = text) => {
+    setDecisions({});
     setHasPreviewed(true);
     setPagination(previous => ({ ...previous, current: 1 }));
     setError(undefined);
@@ -99,7 +103,7 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
     if (!preview?.previewHash) return;
     setError(undefined);
     try {
-      const response = await importStatement({ variables: { profileId: scope?.profile?.id, platform, text, previewHash: preview.previewHash } });
+      const response = await importStatement({ variables: { profileId: scope?.profile?.id, platform, text, previewHash: preview.previewHash, ...(Object.keys(decisions).length ? { decisions: Object.entries(decisions).map(([row, action]) => ({ row: Number(row), action })) } : {}) } });
       const result: Report = response.data.importStatement.report;
       setReport(result);
       if (result.complete) { setText(""); setFileName(""); }
@@ -111,12 +115,17 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
     finally { setHasPreviewed(false); }
   };
   const issues = [...(preview?.parsed.errors ?? []), ...(preview?.plan?.errors ?? [])];
-  const rows = preview?.plan?.rows ?? preview?.parsed.transactions.map(entry => ({ entry, status: "Parsed" })) ?? [];
+  const rows: PlanRow[] = preview?.plan?.rows ?? preview?.parsed.transactions.map(entry => ({ entry, status: "Parsed" })) ?? [];
+  const plannedRows: PlanRow[] = preview?.plan?.rows ?? [];
+  const unresolved = plannedRows.filter(row => row.status === "possible" && !decisions[row.entry.row]).length;
+  const selectedRows = plannedRows.filter(row => (decisions[row.entry.row] ?? (row.status === "existing" ? "skip" : row.status === "possible" ? "skip" : "keep")) === "keep");
+  const importCount = selectedRows.length;
+  const chosenStocks = preview?.plan?.stocksToCreate.filter(stock => selectedRows.some(row => row.entry.ticker === stock.ticker)) ?? [];
   const warnings = report?.createdTransactions.flatMap(row => row.warnings.map(warning => ({ row: row.row, ...warning }))) ?? [];
   return <Modal open title="Import Transactions" width={1050} onCancel={onClose} closable={!busy} maskClosable={!busy} keyboard={!busy} footer={<Space>
     <Button disabled={busy} onClick={onClose}>Close</Button>
     <Button aria-label="Preview" loading={previewLoading} disabled={busy || hasPreviewed || !scope?.profile || !platform || !text.trim()} onClick={() => void makePreview()}>Preview</Button>
-    <Button aria-label="Import" icon={<UploadOutlined />} type="primary" loading={importLoading || refreshing} disabled={busy || !preview?.previewHash || issues.length > 0 || !preview?.plan?.summary.transactionsToCreate} onClick={() => void apply()}>Import</Button>
+    <Button aria-label="Import" icon={<UploadOutlined />} type="primary" loading={importLoading || refreshing} disabled={busy || !preview?.previewHash || issues.length > 0 || (!importCount || unresolved > 0)} onClick={() => void apply()}>Import</Button>
   </Space>}>
     <Typography.Paragraph>Paste Wealthsimple CSV and click Preview, or choose a CSV file to preview it automatically once an account and platform are selected. Files are read temporarily in your browser; the file itself is not uploaded or stored. Expected columns: date, transaction, description, amount, balance, currency. This format uses CAD accounts and supports Buy, Contribution, Dividends, Withholding Tax, Service Fee, and ETF Rebate. ROC and NCDIS entries are shown as skipped ACB adjustments.</Typography.Paragraph>
     <Space wrap style={{ display: "flex", marginBottom: 20 }}>
@@ -134,8 +143,10 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
     <Input.TextArea id="csv-text" rows={9} value={text} disabled={busy} maxLength={200000} placeholder="Paste CSV including the date,transaction,description,amount,balance,currency header" onChange={event => { setText(event.target.value); setFileName(""); invalidate(); }} style={{ marginBottom: 24 }} />
     {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
     {issues.length > 0 && <Alert type="error" showIcon message="Fix these rows before importing" description={issues.map((issue, i) => <div key={i}>Row {issue.row}: {issue.message}</div>)} style={{ marginBottom: 16 }} />}
-    {preview?.plan && <Alert type="info" showIcon message={`${preview.plan.summary.transactionsToCreate} transactions to import · ${preview.plan.summary.existingTransactions} already saved · ${preview.plan.summary.stocksToCreate} new stocks · ${preview.plan.summary.skippedRows} skipped rows`} style={{ marginBottom: 16 }} />}
-    {!!preview?.plan?.stocksToCreate.length && <Typography.Paragraph>Stocks to create: {preview.plan.stocksToCreate.map(stock => `${stock.ticker} (${stock.name})`).join(", ")}</Typography.Paragraph>}
+    {preview?.plan && <Alert type="info" showIcon message={`${importCount} transactions to import · ${preview.plan.summary.existingTransactions} already saved · ${chosenStocks.length} new stocks · ${preview.plan.summary.skippedRows} skipped rows`} style={{ marginBottom: 16 }} />}
+    {plannedRows.some(row => row.status === "possible") && <Alert type="warning" showIcon style={{ marginBottom: 16 }} message={`${unresolved} possible duplicate row(s) need a Keep or Skip choice`} description="Matches are suggestions. Separate identical trades can be legitimate. Already saved rows are skipped by default; explicitly keeping a flagged row is recorded in audit history." />}
+    {preview?.plan && <Typography.Paragraph>{importCount} row(s) selected for import.</Typography.Paragraph>}
+    {!!chosenStocks.length && <Typography.Paragraph>Stocks to create: {chosenStocks.map(stock => `${stock.ticker} (${stock.name})`).join(", ")}</Typography.Paragraph>}
     {!!preview?.parsed.skipped.length && <Typography.Paragraph>{preview.parsed.skipped.map(row => `Row ${row.row}: ${row.reason}`).join(" ")}</Typography.Paragraph>}
     {!!rows.length && <Table size="small" rowKey={row => String(row.entry.row)} dataSource={rows} pagination={{ ...pagination, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (current, pageSize) => setPagination(previous => ({ current: pageSize === previous.pageSize ? current : 1, pageSize })) }} scroll={{ x: 900 }} columns={[
       { title: "Row", render: (_, row) => row.entry.row }, { title: "Date", render: (_, row) => row.entry.transactionDate },
@@ -143,10 +154,11 @@ export default function StatementImportDialog({ data, initialPlatform, onClose, 
       { title: "Shares", render: (_, row) => row.entry.shares ? formatNumber(Number(row.entry.shares)) : "—" },
       { title: "Price", render: (_, row) => row.entry.price ? `${formatNumber(Number(row.entry.price), 2, 2)} ${row.entry.priceCurrency}` : "—" },
       { title: "FX", render: (_, row) => row.entry.exchangeRate == null ? "—" : formatNumber(Number(row.entry.exchangeRate), 8) }, { title: "Total (CAD)", render: (_, row) => formatNumber(Number(row.entry.total), 2, 2) },
-      { title: "Status", render: (_, row) => <Tag color={row.status === "existing" ? "default" : "blue"}>{row.status === "existing" ? "Already saved" : "New"}</Tag> },
+      { title: "Status", render: (_, row) => <Tag color={row.status === "possible" ? "gold" : row.status === "existing" ? "default" : "blue"}>{row.status === "possible" ? "Possible duplicate" : row.status === "existing" ? "Already saved" : "New"}</Tag> },
+      { title: "Review", width: 300, render: (_, row) => <Space direction="vertical">{row.duplicateReasons?.map(reason => <Typography.Text key={reason} type="secondary">{reason}</Typography.Text>)}{row.matchedIds?.map(id => <a key={id} target="_blank" rel="noreferrer" href={`/transactions?${new URLSearchParams({ profile: scope?.profile?.id ?? "", platform, startDate: dayjs(row.entry.transactionDate).subtract(7, "day").format("YYYY-MM-DD"), endDate: dayjs(row.entry.transactionDate).add(7, "day").format("YYYY-MM-DD") }).toString()}`}>Investigate matched records ↗</a>)}<Select aria-label={`Import choice row ${row.entry.row}`} style={{ width: 150 }} disabled={busy} placeholder="Choose Keep / Skip" value={decisions[row.entry.row] ?? (row.status === "existing" ? "skip" : row.status === "possible" ? undefined : "keep")} options={[{ value: "keep", label: "Keep / import" }, { value: "skip", label: "Skip" }]} onChange={value => setDecisions(previous => ({ ...previous, [row.entry.row]: value }))} /></Space> },
     ]} />}
     {report && <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
-      <Alert showIcon type={report.complete ? "success" : "error"} message={report.complete ? "Import complete" : "Import stopped"} description={`${report.createdTransactions.length} transactions and ${report.createdStocks.length} stocks created. ${report.existingRows.length} existing transactions skipped.`} />
+      <Alert showIcon type={report.complete ? "success" : "error"} message={report.complete ? "Import complete" : "Import stopped"} description={`${report.createdTransactions.length} transactions and ${report.createdStocks.length} stocks created. ${(report.skippedRows ?? report.existingRows).length} preview rows skipped.`} />
       {report.errors.map((message, i) => <Alert key={`error-${i}`} type="error" message={message} description="Earlier saves remain in your account. Preview again before retrying." />)}
       {warnings.map((warning, i) => <Alert key={`warning-${i}`} type="warning" message={`Row ${warning.row}: ${warning.message}`} />)}
       <Button onClick={() => { const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = "statement-import-result.json"; link.click(); URL.revokeObjectURL(url); }}>Download import results</Button>

@@ -1,0 +1,10 @@
+.compare-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 32px; }
+.compare-controls > label, .compare-controls > .compare-field { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.compare-headings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.compare-page .ant-card-body { padding: 28px; }
+@media (max-width: 760px) { .compare-controls, .compare-headings { grid-template-columns: minmax(0, 1fr); } .compare-page .ant-card-body { padding: 20px; } }
+
+.compare-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 32px; }
+.compare-stat-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.compare-stat-value strong { font-weight: 700; }
+@media (max-width: 760px) { .compare-metadata { grid-template-columns: minmax(0, 1fr); } }

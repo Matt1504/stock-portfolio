@@ -233,3 +233,25 @@ test("cached currency switching never renders the previous currency's card value
   expect(frames.length).toBeGreaterThan(0);
   expect(frames.every(frame => frame.cash === -220)).toBe(true);
 });
+
+test("Compare Account follows the active platform currency and preserves the profile", async () => {
+  renderPage("/myaccounts?profile=owner&account=ws-rrsp-cad&currency=usd-id");
+  await screen.findByRole("heading", { name: "RRSP Wealthsimple" });
+  const compareParams = () => new URLSearchParams(screen.getByRole("link", { name: "Compare Account" }).getAttribute("href")!.split("?")[1]);
+  expect(compareParams().get("profile")).toBe("owner");
+  expect(compareParams().get("mode")).toBe("platform");
+  expect(compareParams().get("left")).toBe("ws-rrsp-usd");
+  expect(compareParams().get("currency")).toBe("USD");
+  expect(compareParams().has("right")).toBe(false);
+  fireEvent.click(screen.getByRole("tab", { name: "CAD" }));
+  await waitFor(() => expect(compareParams().get("left")).toBe("ws-rrsp-cad"));
+  expect(compareParams().get("currency")).toBe("CAD");
+});
+
+test("Compare Account uses the account type for an Overview", async () => {
+  renderPage("/myaccounts?profile=owner&account=rrsp-id&currency=usd-id");
+  await screen.findByRole("heading", { name: "RRSP Overview" });
+  const href = screen.getByRole("link", { name: "Compare Account" }).getAttribute("href")!;
+  expect(href.split("?")[0]).toBe("/compare");
+  expect(Object.fromEntries(new URLSearchParams(href.split("?")[1]))).toEqual({ profile: "owner", mode: "account", currency: "USD", left: "rrsp-id" });
+});

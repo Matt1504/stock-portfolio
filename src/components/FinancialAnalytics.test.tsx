@@ -1,3 +1,5 @@
+import { MemoryRouter } from "react-router-dom";
+jest.mock("./ReconciliationStatus", () => ({ __esModule: true, default: () => null }));
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { render, screen } from "@testing-library/react";
 import SelectedAccountInfo from "../views/AccountView/SelectedAccountInfo";
@@ -14,7 +16,7 @@ test("account displays backend statistics even when they differ from table trans
   const analytics={__typename:"FinancialAnalytics",currency:"CAD",statistics:[{title:"Cash Balance",value:"1234.56",text:null,monetary:true,holding:false}],distribution:[],accountDistribution:[],bookCostHistory:[],tradeHistory:[],incomeHistory:[],issues:[]};
   const cache=new InMemoryCache({addTypename:false});
   cache.writeQuery({query:TRANSACTIONS_BY_PLATFORM,variables:{platform_one:"broker"},data:{transactions:[],analytics:[analytics]}});
-  render(<ApolloProvider client={new ApolloClient({cache})}><SelectedAccountInfo name="Broker" platform="broker" account="tfsa" accountName="TFSA" currencies={[{__typename:"CurrencyEdge",node:currency}]} currency={currency} availableCurrencyIds={["cad"]} onCurrencyChange={()=>{}} /></ApolloProvider>);
+  render(<ApolloProvider client={new ApolloClient({cache})}><MemoryRouter><SelectedAccountInfo name="Broker" platform="broker" account="tfsa" accountName="TFSA" currencies={[{__typename:"CurrencyEdge",node:currency}]} currency={currency} availableCurrencyIds={["cad"]} onCurrencyChange={()=>{}} /></MemoryRouter></ApolloProvider>);
   expect(await screen.findByRole("group",{name:"Cash Balance"})).toHaveTextContent("1,234.56");
 });
 

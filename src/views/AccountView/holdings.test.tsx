@@ -1,3 +1,5 @@
+import { MemoryRouter } from "react-router-dom";
+jest.mock("../../components/ReconciliationStatus", () => ({ __esModule: true, default: () => null }));
 jest.mock("../../components/MarketValuation", () => ({ __esModule: true, default: () => null, MARKET_VALUATION: jest.requireActual("../../components/MarketValuation").MARKET_VALUATION }));
 import { analyticsFixture } from "../../testUtils/analyticsFixture";
 import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
@@ -24,7 +26,7 @@ function tx(stock: string, activity: string, shares: number, total = 100, platfo
     transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, id: `tx-${sequence}`, account: { id: "account", name: "Savings", code: "TFSA" },
     platform: { id: platform, name: platform, currency },
     activity: { name: activity }, stock: { currency: null, id: stock, ticker: stock, name: stock, asset: { id: "stock-asset", name: "Stock" } },
-    transactionDate: `2026-01-${String(sequence).padStart(2, "0")}`,
+    settlementDate: null, transactionDate: `2026-01-${String(sequence).padStart(2, "0")}`,
     shares, total, price: 10, fee: 0, description: "", rate: null, maturityDate: null,
   } as unknown as Transaction;
 }
@@ -78,7 +80,7 @@ test("one remaining Disney share renders one full pie sector and correct statist
   const cache = new InMemoryCache({ addTypename: false });
   cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   const client = new ApolloClient({ cache });
-  const { container } = render(<ApolloProvider client={client}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
+  const { container } = render(<ApolloProvider client={client}><MemoryRouter><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></MemoryRouter></ApolloProvider>);
   await waitFor(() => expect(screen.getByText("100.00%")).toBeInTheDocument());
   expect(screen.getAllByRole("group")).toHaveLength(4);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
@@ -117,7 +119,7 @@ test("net deposit history includes only contributions and net transfers", async 
   const cache = new InMemoryCache({ addTypename: false });
   cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
   (LineChart as unknown as jest.Mock).mockClear();
-  render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
+  render(<ApolloProvider client={new ApolloClient({ cache })}><MemoryRouter><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></MemoryRouter></ApolloProvider>);
   await waitFor(() => expect(LineChart).toHaveBeenCalledWith(expect.objectContaining({ data: expect.arrayContaining([
     expect.objectContaining({ name: transactions[7].transactionDate, value: 100, value_1: 1200 }),
   ]) }), expect.anything()));
@@ -133,7 +135,7 @@ test("account dividends and interest subtract only stock-associated withholding 
   const transactions = [tx("EX", "Dividends", 0, 50), tx("EX", "Interest", 0, 10), tx("EX", "Withholding Tax", 0, 5), accountTax];
   const cache = new InMemoryCache({ addTypename: false });
   cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
-  render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
+  render(<ApolloProvider client={new ApolloClient({ cache })}><MemoryRouter><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="Savings" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></MemoryRouter></ApolloProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Show more statistics" }));
   fireEvent.click(screen.getByRole("button", { name: "Show Dividends/Interest Earned" }));
   expect(await within(screen.getByRole("group", { name: "Dividends/Interest Earned" })).findByText("55")).toBeInTheDocument();
@@ -177,7 +179,7 @@ test("reinvesting matured GIC proceeds into an amount-only fund renders current 
   const transactions = [purchase, maturity, fund];
   const cache = new InMemoryCache({ addTypename: false });
   cache.writeQuery({ query: TRANSACTIONS_BY_PLATFORM, variables: { platform_one: "broker" }, data: { transactions, analytics: analyticsFixture(transactions) } });
-  render(<ApolloProvider client={new ApolloClient({ cache })}><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="FHSA" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></ApolloProvider>);
+  render(<ApolloProvider client={new ApolloClient({ cache })}><MemoryRouter><SelectedAccountInfo name="broker" platform="broker" account="account" accountName="FHSA" currencies={[{ __typename: "CurrencyEdge", node: currency }]} currency={currency} availableCurrencyIds={["usd"]} onCurrencyChange={() => {}} /></MemoryRouter></ApolloProvider>);
   expect(await screen.findByRole("group", { name: "Total Book Cost" })).toHaveTextContent("3,105.47");
   expect(screen.getByText("$3,105.47")).toBeInTheDocument();
   expect(screen.queryByText(/0 Share\(s\)/)).not.toBeInTheDocument();

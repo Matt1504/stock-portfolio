@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { useProfileQuery as useQuery, useProfileMutation as useMutation } from "../../profiles/hooks";
 import {
   Alert,
@@ -166,6 +167,8 @@ const AddTransactionView = () => {
   const onFinish = async (formValues: TransactionForm) => {
     const values = sanitizeTransactionFields(formValues, activity, nonStock);
     values.transactionDate = formatDate((values.transaction ?? "").toString());
+    values.settlementDate = ["Buy", "Sell"].includes(activity) && formValues.settlement ? dayjs(formValues.settlement as any).format("YYYY-MM-DD") : null;
+    delete values.settlement;
     values.total = formatDecimalTwoPlaces(values.total);
     if (nonStock === 'gic') values.maturityDate = formatDate((values.maturity ?? "").toString());
     delete values.transaction;
@@ -348,6 +351,7 @@ const AddTransactionView = () => {
             >
               <DatePicker />
             </Form.Item>
+            {["Buy", "Sell"].includes(activity) && <Form.Item name="settlement" label="Settlement Date (optional)"><DatePicker disabledDate={value => !!transactionDate && value.format("YYYY-MM-DD") < transactionDate} /></Form.Item>}
             <Form.Item
               className="transaction-stock-field"
               label={activity === "Stock Spinoff" ? "Stock Received" : "Stock"}

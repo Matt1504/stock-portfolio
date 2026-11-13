@@ -8,6 +8,7 @@ export function transactionDraft(row: Transaction): TransactionDraft {
     id: row.id!, activityName: row.activity.name ?? "", account: row.account.id,
     platform: row.platform.id, stock: row.stock?.id ?? null,
     transactionDate: String(row.transactionDate).slice(0, 10),
+    ...(row.settlementDate !== undefined ? { settlementDate: row.settlementDate } : {}),
     priceCurrency: row.priceCurrency?.id ?? row.platform.currency?.id,
     totalCurrency: row.totalCurrency?.id ?? row.platform.currency?.id,
     maturityDate: row.maturityDate ?? null, spinoffSource: row.spinoffSource?.id ?? null,

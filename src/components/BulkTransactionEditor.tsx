@@ -113,6 +113,7 @@ export default function BulkTransactionEditor({ rows, onCancel, onComplete, defa
   const num = (draft: TransactionDraft, field: string, label: string, precision = 2) => <InputNumber aria-label={`${label} ${draft.id}`} value={draft[field]} precision={precision} formatter={(value, info) => info.userTyping ? info.input : value == null || value === "" ? "" : String(Number(value))} step={precision === 8 ? 0.001 : precision === 4 ? 0.0001 : 0.01} style={{ width: "100%" }} disabled={disabled} onChange={value => change(draft.id, field, value)} />;
   const date = (draft: TransactionDraft, field: string, label: string) => <DatePicker aria-label={`${label} ${draft.id}`} value={draft[field] ? dayjs(draft[field]) : null} disabled={disabled} onChange={value => change(draft.id, field, value?.format("YYYY-MM-DD") ?? null)} />;
   const columns: any[] = [
+    { title: "Settlement", key: "settlementDate", width: 150, render: (_: any, d: TransactionDraft) => ["Buy", "Sell"].includes(d.activityName) ? date(d, "settlementDate", "Settlement") : "—" },
     { title: "Date", key: "date", width: 150, render: (_: any, d: TransactionDraft) => date(d, "transactionDate", "Date") },
     { title: "Activity", key: "activity", width: 170, render: (_: any, d: TransactionDraft) => select(d, "activityName", "Activity", activities.map(a => ({ value: a.name, label: a.name }))) },
     { title: "Account", key: "account", width: 125, render: (_: any, d: TransactionDraft) => select(d, "account", "Account", nodes("accounts").map(a => ({ value: a.id, label: a.code }))) },

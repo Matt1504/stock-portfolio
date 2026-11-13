@@ -1,8 +1,10 @@
+import { ProfileContext } from "../profiles/ProfileContext";
+import HistoryOutlined from "@ant-design/icons/HistoryOutlined";
 import BulkTransactionEditor from "./BulkTransactionEditor";
 import { useProfileMutation as useMutation, useProfileQuery } from "../profiles/hooks";
 import { Alert, Button, DatePicker, InputNumber, Modal, Popover, Select, Space, Table, Typography } from "antd";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { DocumentNode, gql } from "@apollo/client";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -177,6 +179,7 @@ const defaultColumns: GridColDef[] = [
 
 const TransactionDataGridContent = (props: TDGProps) => {
   const { gridData, defaultSort, ascending, removeColumns, query, dateRange, onDateRangeChange, loading, onBulkEditChange, hiddenFilters = [], searchMode, onLoadMore, hasMore}  = props;
+  const profile = useContext(ProfileContext)?.profile;
   const [selectedItem, setSelectedItem] = useState<Transaction>();
   const [open, setOpen] = useState(false);
   const notification = new NotificationComponent();
@@ -243,6 +246,7 @@ const TransactionDataGridContent = (props: TDGProps) => {
           platform: transaction.platform.id,
           account: transaction.account.id,
           transactionDate: transaction.transactionDate,
+          ...(transaction.settlementDate !== undefined ? { settlementDate: transaction.settlementDate } : {}),
           price: transaction.price,
           priceCurrency: transaction.priceCurrency?.id,
           totalCurrency: transaction.totalCurrency?.id,
@@ -310,8 +314,9 @@ const TransactionDataGridContent = (props: TDGProps) => {
     { field: "spinoffSource", headerName: "Original Stock", width: 180, valueGetter: params => params.row.spinoffSource?.ticker ?? "—" },
     { field: "allocatedBookCost", headerName: "Allocated Book Cost", width: 180, valueGetter: params => params.row.allocatedBookCost, valueFormatter: params => params.value == null ? "—" : formatNumberAsCurrency(params.value) },
   );
-  columns.push({ field: "actions", headerName: "Actions", width: 120, sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
+  columns.push({ field: "actions", headerName: "Actions", width: 160, sortable: false, filterable: false, disableColumnMenu: true, disableReorder: true,
     renderCell: params => <>
+      <a aria-label="Transaction history" title="Transaction history" href={`/history?${new URLSearchParams({ ...(profile ? { profile: profile.id } : {}), transactionId: params.row.id }).toString()}`} target="_blank" rel="noreferrer" style={{ padding: 8, display: "inline-flex" }}><HistoryOutlined /></a>
       <IconButton aria-label="Edit transaction" title="Edit transaction" onClick={() => handleEditClick(params.row)} disabled={deleting || !!params.row.transferBatch}><EditIcon /></IconButton>
       <IconButton aria-label="Delete transaction" title="Delete transaction" color="error" onClick={() => { setDeleteItem(params.row); setDeleteError(undefined); }} disabled={deleting || !!params.row.transferBatch}><DeleteOutlineIcon /></IconButton>
     </> });

@@ -24,7 +24,7 @@ export const SEARCH_TRANSACTIONS = gql`query SearchTransactions($profileId: ID!,
           name
           ticker
       }
-      transactionDate transferBatch
+      transactionDate settlementDate transferBatch
       spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate

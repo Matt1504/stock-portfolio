@@ -1,6 +1,7 @@
+import { MemoryRouter } from "react-router-dom";
 import { analyticsFixture } from "../testUtils/analyticsFixture";
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { DocumentNode, print } from "graphql";
 
 import ReloadButton from "../components/ReloadButton";
@@ -10,6 +11,9 @@ import DashboardView from "./DashboardView";
 import { DASHBOARD_METADATA, CONTRIBUTION_ANALYTICS } from "./DashboardView/gql";
 import SelectedStockInfo from "./MyStocksView/SelectedStockInfo";
 import { TRANSACTIONS_BY_STOCK } from "./MyStocksView/gql";
+
+const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
+jest.mock("../components/ReconciliationStatus", () => ({ __esModule: true, default: () => null }));
 
 // Keep real Apollo hooks and cache behavior; replace only unrelated rendering.
 jest.mock("./DashboardView/PortfolioOverview", () => () => null);
@@ -53,7 +57,7 @@ const transaction = {
   platform: { id: "platform-cad", name: "Broker", currency: { id: "currency-cad", code: "CAD" } },
   activity: { name: "Buy" },
   stock: { currency: null, id: "stock-1", name: "Example", ticker: "EX", asset: { id: "asset", name: "Stock" } },
-  transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20",
+  transferBatch: null, spinoffSource: null, allocatedBookCost: null, priceCurrency: null, totalCurrency: null, exchangeRate: 1, principalReturned: null, interestEarned: null, interestCalculation: "simple", gicPurchase: null, transactionDate: "2026-09-20", settlementDate: null,
   description: "Purchase",
   price: 10,
   shares: 1,

@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+import { useSearchParams } from "react-router-dom";
 import LastUpdated from "../../components/LastUpdated";
 import { useContext, useRef, useState } from "react";
 import { Alert, Button, DatePicker, Empty, Select, Space, Typography } from "antd";
@@ -14,7 +16,8 @@ export default function TransactionsView() {
   return <SearchPage key={profile?.id ?? "none"} />;
 }
 function SearchPage() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [params] = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() => Object.fromEntries(["account", "platform", "stock", "activity", "currency", "startDate", "endDate"].flatMap(key => params.get(key) ? [[key, params.get(key)!]] : [])));
   const [submitted, setSubmitted] = useState<Filters>();
   const [editing, setEditing] = useState(false);
   const morePending = useRef(false);
@@ -46,7 +49,7 @@ function SearchPage() {
     <Space wrap size="middle" style={{ marginBottom: 24 }}>
       {([['account', 'Account', 'accounts'], ['currency', 'Currency', 'currencies'], ['stock', 'Stock', 'stocks'], ['activity', 'Activity', 'activities']] as const).map(([key, label, source]) => <Select key={key} aria-label={`Search ${label}`} placeholder={key === "currency" ? "All currencies" : key === "activity" ? "All activities" : `All ${label.toLowerCase()}s`} value={filters[key]} options={options(source)} onChange={value => set(key, value)} allowClear showSearch optionFilterProp="label" disabled={editing} style={{ width: key === 'stock' ? 260 : 170 }} />)}
       <Select aria-label="Search Platform" placeholder="All platforms" value={filters.platform} options={platforms.map(({ node }: any) => ({ value: node.id, label: `${node.name} · ${node.account.id === filters.account ? '' : metadata.data?.accounts.edges.find((x: any) => x.node.id === node.account.id)?.node.code + ' · '}${metadata.data?.currencies.edges.find((x: any) => x.node.id === node.currency.id)?.node.code}` }))} allowClear showSearch optionFilterProp="label" onChange={value => set('platform', value)} disabled={editing} style={{ width: 250 }} />
-      <DatePicker.RangePicker aria-label="Search dates" allowEmpty={[true, true]} disabled={editing} onChange={dates => setFilters(previous => ({ ...previous, startDate: dates?.[0]?.format('YYYY-MM-DD'), endDate: dates?.[1]?.format('YYYY-MM-DD') }))} />
+      <DatePicker.RangePicker value={[filters.startDate ? dayjs(filters.startDate) : null, filters.endDate ? dayjs(filters.endDate) : null]} aria-label="Search dates" allowEmpty={[true, true]} disabled={editing} onChange={dates => setFilters(previous => ({ ...previous, startDate: dates?.[0]?.format('YYYY-MM-DD'), endDate: dates?.[1]?.format('YYYY-MM-DD') }))} />
       <Button type="primary" icon={<SearchOutlined aria-hidden />} loading={query.loading} disabled={editing || invalidDates || metadata.loading} onClick={() => {
         if (submitted && JSON.stringify(submitted) === JSON.stringify(filters)) void query.refetch(Object.fromEntries(['account', 'platform', 'stock', 'activity', 'currency', 'startDate', 'endDate', 'after'].map(name => [name, (filters as any)[name] ?? null])));
         else setSubmitted({ ...filters });

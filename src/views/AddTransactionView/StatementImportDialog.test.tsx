@@ -247,3 +247,18 @@ test("choosing CSV before a platform is selected fills the text without querying
   expect(queries).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Preview" })).toBeDisabled();
 });
+
+test('possible duplicates require an explicit choice and forward it without another preview', async () => {
+  const duplicate = { ...goodPreview, plan: { ...goodPreview.plan, rows: [{ entry, status: 'possible', duplicateReasons: ['Matching stock and amount on a nearby date.'], matchedIds: ['old'] }], summary: { ...goodPreview.plan.summary, transactionsToCreate: 0, possibleDuplicates: 1 } } };
+  const { queries, mutations } = show(duplicate);
+  fireEvent.change(screen.getByLabelText('CSV text'), { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+  expect(await screen.findByText('Possible duplicate')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Import', exact: true })).toBeDisabled();
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Import choice row 1' }));
+  fireEvent.click(await screen.findByTitle('Keep / import'));
+  expect(screen.getByRole('button', { name: 'Import', exact: true })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Import', exact: true }));
+  await waitFor(() => expect(mutations).toHaveBeenCalledWith({ profileId: 'owner', platform: 'ws', text, previewHash: 'preview-hash', decisions: [{ row: 1, action: 'keep' }] }));
+  expect(queries).toHaveBeenCalledTimes(1);
+});

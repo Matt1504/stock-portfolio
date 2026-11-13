@@ -24,6 +24,8 @@ export interface TransactionForm {
     total: number
     transaction?: object,
     transactionDate: string,
+    settlementDate?: string | null,
+    settlement?: object,
     maturity?: object,
     maturityDate?: string,
     rate?: number,
@@ -46,6 +48,7 @@ export interface Transaction extends GraphQLType {
     shares?: number,
     fee?: number | null,
     transactionDate: Date,
+    settlementDate?: string | null,
     activity: Activity,
     total?: number,
     description?: string,

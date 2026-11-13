@@ -215,6 +215,7 @@ const TransactionEditDialog = (props: DialogProps) => {
             }}
           />
         </div>
+        {["Buy", "Sell"].includes(transaction.activity.name ?? "") && <div style={{ marginBottom: 16 }}><label style={{ display: "block", marginBottom: 8 }}>Settlement Date (optional)</label><DatePicker aria-label="Settlement Date" value={transaction.settlementDate ? dayjs(transaction.settlementDate) : null} disabledDate={value => value.format("YYYY-MM-DD") < String(transaction.transactionDate).slice(0, 10)} onChange={date => setTransaction(prev => prev ? { ...prev, settlementDate: date?.format("YYYY-MM-DD") ?? null } : prev)} /></div>}
         {transaction.activity.name === "Stock Spinoff" && <>
           <Alert type="info" showIcon message={`Spinoff from ${transaction.spinoffSource?.name} (${transaction.spinoffSource?.ticker}) to ${transaction.stock?.ticker}. Original shares are unchanged; book cost is moved between the holdings.`} />
           <NumberTextField label="Shares Received" adornment="" field="shares" step={0.0001} value={transaction.shares} onChange={handleInputChange} />

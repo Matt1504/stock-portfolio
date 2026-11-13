@@ -1,3 +1,5 @@
+import CompareView from "./views/CompareView";
+import HistoryView from "./views/HistoryView";
 import {
   BrowserRouter as Router,
   Navigate,
@@ -14,6 +16,7 @@ import LayoutComponent from "./components/Layout";
 import AccountOverviewView from "./views/AccountView";
 import AddTransactionView from "./views/AddTransactionView";
 import DashboardView from "./views/DashboardView";
+import ReconciliationView from "./views/ReconciliationView";
 import TransactionsView from "./views/TransactionsView";
 import MyStocksView from "./views/MyStocksView";
 
@@ -44,6 +47,9 @@ const App = () => {
             <LayoutComponent title="Stock Finder" view={<StocksView />} />
           }
         /> */}
+        <Route path="/compare" element={<LayoutComponent title="Compare" view={<CompareView />} />} />
+        <Route path="/history" element={<LayoutComponent title="Transaction History & Review" view={<HistoryView />} />} />
+        <Route path="/reconciliation" element={<LayoutComponent title="Statement Reconciliation" view={<ReconciliationView />} />} />
         <Route path="/transactions" element={<LayoutComponent title="Transactions" view={<TransactionsView />} />} />
         <Route
           path="/add"

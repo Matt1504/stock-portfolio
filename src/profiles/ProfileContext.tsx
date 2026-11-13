@@ -39,6 +39,12 @@ export default function ProfileProvider({ children }: { children: ReactNode }) {
     const next = new URLSearchParams(location.search);
     next.set("profile", id);
     // Stock definitions are shared; brokerage selections belong to a person.
+    next.delete("platform");
+    next.delete("reconciliation");
+    next.delete("transactionId");
+    next.delete("operationId");
+    next.delete("left");
+    next.delete("right");
     next.delete("account");
     next.delete("currency");
     navigate({ pathname: location.pathname, search: next.toString() });

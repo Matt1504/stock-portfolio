@@ -1,3 +1,4 @@
+import ReconciliationStatus from "../../components/ReconciliationStatus";
 import MarketValuation, { MARKET_VALUATION } from "../../components/MarketValuation";
 import LastUpdated from "../../components/LastUpdated";
 import FlippableStatistics, { accountCardPairs } from "../../components/FlippableStatistics";
@@ -7,7 +8,8 @@ import ChartTimeRange, { ChartRange, chartHistoryInRange } from "../../component
 import { useApolloClient } from "@apollo/client";
 import { coldRefetch } from "../../utils/coldRefetch";
 import { useProfileQuery as useQuery } from "../../profiles/hooks";
-import { Alert, Col, Row, Tabs, Typography as AntTypography } from "antd";
+import { Link, useSearchParams } from "react-router-dom";
+import { Alert, Button, Col, Row, Space, Tabs, Typography as AntTypography } from "antd";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -22,7 +24,7 @@ import {
 
 
 import { Typography } from "@mui/material";
-import { Stack } from "@mui/system";
+import { SwapOutlined } from "@ant-design/icons";
 
 import LoadingProgress from "../../components/LoadingProgress";
 import ReloadButton from "../../components/ReloadButton";
@@ -50,6 +52,7 @@ type SAProps = {
 
 const SelectedAccountInfo = (props: SAProps) => {
   const { name, platform, platformGroup = [], account, accountName, currencies, currency, availableCurrencyIds, onCurrencyChange } = props;
+  const [params] = useSearchParams();
   const query = platform ? TRANSACTIONS_BY_PLATFORM : TRANSACTIONS_BY_ACCOUNT;
   const [bulkEditing, setBulkEditing] = useState(false);
   const [chartRange, setChartRange] = useState<ChartRange>("all");
@@ -84,19 +87,23 @@ const SelectedAccountInfo = (props: SAProps) => {
   return (
     <Row className="portfolio-details" gutter={[24, 24]}>
       <Col span={24}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={2}
-          mb={0}
-        >
-          <Typography variant="h6">
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+          <Typography variant="h6" style={{ flex: "1 1 200px" }}>
             {accountName} {name}
           </Typography>
-          <LastUpdated queries={[query]} />
-      <ReloadButton onReload={() => coldRefetch(client, [query, MARKET_VALUATION])} loading={loading} disabled={bulkEditing} />
-        </Stack>
+          <Space wrap size={12}>
+            <Link to={`/compare?${new URLSearchParams({
+              ...(params.get("profile") ? { profile: params.get("profile")! } : {}),
+              mode: platform ? "platform" : "account",
+              currency: currency.code ?? "CAD",
+              left: platform ?? account ?? "",
+            }).toString()}`}><Button icon={<SwapOutlined aria-hidden />}>Compare Account</Button></Link>
+            {platform && <Link to={`/reconciliation?${new URLSearchParams({ profile: params.get("profile") ?? "", platform }).toString()}`}><Button>Reconcile Statement</Button></Link>}
+            <LastUpdated queries={[query]} />
+            <ReloadButton onReload={() => coldRefetch(client, [query, MARKET_VALUATION])} loading={loading} disabled={bulkEditing} />
+          </Space>
+        </div>
+        {platform && <ReconciliationStatus key={platform} platform={platform} />}
       </Col>
       <Col span={24}>
         {props.platformGroup?.find(item => item.id === props.platform)?.closedAt && <Alert type="info" showIcon style={{ marginBottom: 16 }} message={`Platform closed on ${props.platformGroup.find(item => item.id === props.platform)?.closedAt}. Historical transactions remain available.`} />}

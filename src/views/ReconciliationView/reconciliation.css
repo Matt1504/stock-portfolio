@@ -1,0 +1,52 @@
+.reconciliation-page .ant-card-body {
+  padding: 28px;
+}
+
+.reconciliation-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 32px;
+}
+
+.reconciliation-fields > label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.reconciliation-fields .ant-picker,
+.reconciliation-fields .ant-input-number {
+  width: 100%;
+}
+
+.reconciliation-amounts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reconciliation-page .reconciliation-help {
+  margin: 24px 0;
+  line-height: 1.8;
+}
+
+.reconciliation-page .ant-table-cell {
+  padding: 20px;
+}
+
+.reconciliation-page .ant-table-cell .ant-select {
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .reconciliation-page .ant-card-body {
+    padding: 20px;
+  }
+
+  .reconciliation-fields,
+  .reconciliation-amounts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}

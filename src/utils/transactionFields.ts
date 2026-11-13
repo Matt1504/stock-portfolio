@@ -17,6 +17,7 @@ export function clearsStockOnActivityChange(activity: string): boolean {
 
 export function inactiveTransactionFields(activity: string, nonStock = ""): (keyof TransactionForm)[] {
   const fields: (keyof TransactionForm)[] = [];
+  if (!["Buy", "Sell"].includes(activity)) fields.push("settlementDate", "settlement");
   if (cashActivities.includes(activity)) fields.push("stock");
   if (!["Buy", "Sell"].includes(activity) || nonStock) fields.push("price", "fee", "priceCurrency", "exchangeRate");
   if (!["Buy", "Sell", "Stock Split", "Stock Spinoff"].includes(activity) || nonStock) fields.push("shares");

@@ -91,7 +91,7 @@ export const TRANSACTIONS_BY_ACCOUNT = gql`
                 ticker
                 name
             }
-            transactionDate transferBatch
+            transactionDate settlementDate transferBatch
             spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate
@@ -135,7 +135,7 @@ export const TRANSACTIONS_BY_PLATFORM = gql`
                 ticker
                 name
             }
-            transactionDate transferBatch
+            transactionDate settlementDate transferBatch
             spinoffSource { id ticker name asset { id name } currency { id code } } allocatedBookCost
             principalReturned interestEarned interestCalculation
           priceCurrency { id code } totalCurrency { id code } exchangeRate

@@ -1,19 +1,20 @@
+import { MemoryRouter } from "react-router-dom";
 import { ApolloClient, ApolloLink, ApolloProvider, InMemoryCache, Observable } from "@apollo/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TransactionsView from "./index";
 import { ProfileContext } from "../../profiles/ProfileContext";
 jest.mock('../../components/TransactionDataGrid', () => ({ TransactionDataGrid: ({ gridData, hasMore, onLoadMore }: any) => <div data-testid="rows">{JSON.stringify(gridData)}{hasMore && <button onClick={onLoadMore}>Load more</button>}</div> }));
 beforeEach(() => Object.defineProperty(window, 'matchMedia', { writable: true, value: () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }) }));
-function setup() {
+function setup(entry = "/transactions") {
   const searches: any[] = [];
   const client = new ApolloClient({ cache: new InMemoryCache(), link: new ApolloLink(operation => new Observable(observer => {
     const data = operation.operationName === 'SearchTransactions' ? (() => {
       searches.push({ ...operation.variables });
-      return { searchTransactions: { transactions: [{ id: operation.variables.after ? 'second' : 'first', account: { id: 'rrsp', code: 'RRSP' }, platform: { id: 'broker', name: 'Broker', currency: { id: 'cad', code: 'CAD' } }, activity: { name: 'Contribution' }, stock: null, transactionDate: '2026-10-05', transferBatch: null, spinoffSource: null, allocatedBookCost: null, principalReturned: null, interestEarned: null, interestCalculation: 'simple', priceCurrency: null, totalCurrency: null, exchangeRate: 1, gicPurchase: null, price: null, shares: null, fee: null, rate: null, maturityDate: null, total: 100 }], nextCursor: operation.variables.after ? null : 'cursor' } };
+      return { searchTransactions: { transactions: [{ id: operation.variables.after ? 'second' : 'first', account: { id: 'rrsp', code: 'RRSP' }, platform: { id: 'broker', name: 'Broker', currency: { id: 'cad', code: 'CAD' } }, activity: { name: 'Contribution' }, stock: null, transactionDate: '2026-10-05', settlementDate: null, transferBatch: null, spinoffSource: null, allocatedBookCost: null, principalReturned: null, interestEarned: null, interestCalculation: 'simple', priceCurrency: null, totalCurrency: null, exchangeRate: 1, gicPurchase: null, price: null, shares: null, fee: null, rate: null, maturityDate: null, total: 100 }], nextCursor: operation.variables.after ? null : 'cursor' } };
     })() : { accounts: { edges: [{ node: { id: 'rrsp', code: 'RRSP', name: 'Retirement' } }] }, activities: { edges: [] }, stocks: { edges: [] }, assets: { edges: [] }, currencies: { edges: [] }, platforms: { edges: [] } };
     observer.next({ data }); observer.complete();
   })) });
-  const view = (id: string) => <ApolloProvider client={client}><ProfileContext.Provider value={{ profile: { id, name: id }, profiles: [], loading: false, selectProfile() {}, refetch: async () => {} }}><TransactionsView /></ProfileContext.Provider></ApolloProvider>;
+  const view = (id: string) => <ApolloProvider client={client}><ProfileContext.Provider value={{ profile: { id, name: id }, profiles: [], loading: false, selectProfile() {}, refetch: async () => {} }}><MemoryRouter initialEntries={[entry]}><TransactionsView /></MemoryRouter></ProfileContext.Provider></ApolloProvider>;
   const rendered = render(view('owner'));
   return { searches, rendered, view };
 }
@@ -42,4 +43,13 @@ test('changing account waits for Search and switching profile clears results', a
   rendered.rerender(view('another'));
   expect(screen.queryByTestId('rows')).not.toBeInTheDocument();
   expect(searches).toHaveLength(1);
+});
+
+ test('investigation links prefill filters and still wait for Search', async () => {
+  const { searches } = setup('/transactions?platform=broker&stock=stock&endDate=2026-09-30');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled());
+  expect(searches).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  await waitFor(() => expect(searches).toHaveLength(1));
+  expect(searches[0]).toMatchObject({ platform: 'broker', stock: 'stock', endDate: '2026-09-30' });
 });
